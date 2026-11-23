@@ -7483,9 +7483,7 @@ static int test_rec_layer(void)
     return bad;
 }
 
-/* 1.2: the FX layer's white keys are the user's: a key held in the layer + PRESETS steps its effect (NONE, the effects,
- * round; the key holds the new one at once), EDIT its default back; PRESETS loads no sound there, with no key held it
- * says how; kept with the settings when the layer closes (an older setting: the default map); the lock frees a hand */
+/* The compact FX layer maps only LPF, HPF, FLANGER and PHASER; retired effect codes remain unreadable. */
 static int test_fx_map(void)
 {
     int bad = 0, ok;
@@ -7495,38 +7493,31 @@ static int test_fx_map(void)
     frame();
     for (ok = 1, p = 0; p < PF_KEYS; p++)
         ok &= perf_map[p] == PF_DEF[p];
-    bad += check("FX map: settings of 0 (before 1.2) are the default: 1.1.5's ten keys, B4 FLANGER, C5 PHASER, D5 E5 the throws", ok);
+    bad += check("FX map: old or empty settings load the compact defaults (LPF, HPF, FLANGER, PHASER)", ok);
     snd = TSEL->preset | (uint32_t)TSEL->eng_req << 8;
     btn_down(B_FX); key_down(b4); frame();
     ok = perf_held == PF_BIT(PF_FLG) && ui.layer == LAYER_FX;
-    turn(EN_PRESET, 1); keyboard_block();               /* (keyboard_block: the ISR's next block) */
-    ok &= perf_map[10] == PF_PHS && perf_held == PF_BIT(PF_PHS) && msg_is("B4 PHASER");
-    turn(EN_PRESET, 1); keyboard_block();               /* 1.5.1: the throws, after PHASER */
-    ok &= perf_map[10] == PF_RTHR && perf_held == PF_BIT(PF_RTHR) && msg_is("B4 REV THROW");
     turn(EN_PRESET, 1); keyboard_block();
-    ok &= perf_map[10] == PF_ETHR && perf_held == PF_BIT(PF_ETHR) && msg_is("B4 ECHO THROW");
-    turn(EN_PRESET, 1); keyboard_block();               /* past the last: NONE */
-    ok &= perf_map[10] == PF_N && !perf_held && msg_is("B4 NONE") && (kb_layer >> b4) & 1u;
-    turn(EN_PRESET, 1); keyboard_block();               /* round: the first */
-    ok &= perf_map[10] == PF_R8 && perf_held == PF_BIT(PF_R8);
-    turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); turn(EN_PRESET, -1); keyboard_block();
-    ok &= perf_map[10] == PF_PHS && perf_held == PF_BIT(PF_PHS) && lys.rp_dirty;
+    ok &= perf_map[10] == PF_PHS && perf_held == PF_BIT(PF_PHS) && msg_is("B4 PHASER");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_N && !perf_held && msg_is("B4 NONE");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_LPF && perf_held == PF_BIT(PF_LPF) && msg_is("B4 LPF");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_HPF && perf_held == PF_BIT(PF_HPF) && msg_is("B4 HPF");
+    turn(EN_PRESET, 1); keyboard_block();
+    ok &= perf_map[10] == PF_FLG && perf_held == PF_BIT(PF_FLG) && msg_is("B4 FLANGER");
     ok &= (TSEL->preset | (uint32_t)TSEL->eng_req << 8) == snd && !gates();
-    bad += check("  FX + B4 held + PRESETS: PHASER, REV THROW, ECHO THROW, NONE, round to REPEAT 1/8 and back, each held at once; no sound load", ok);
+    bad += check("FX + held key + PRESETS cycles FLANGER / PHASER / NONE / LPF / HPF; no sound load", ok);
     btn_down(B_EDIT); frame(); btn_up(B_EDIT); frame(); keyboard_block();
     ok = perf_map[10] == PF_FLG && perf_held == PF_BIT(PF_FLG) && msg_is("B4 FLANGER (DEF)") && ui.layer == LAYER_FX;
-    bad += check("  EDIT with the key held: its default (FLANGER) back, the layer open", ok);
-    turn(EN_PRESET, -1); keyboard_block();              /* B4: OCT DN */
+    bad += check("EDIT with a key held restores its compact default", ok);
     key_up(b4); frame();
-    ok = !perf_held && perf_map[10] == PF_ODN;
-    turn(EN_PRESET, 1);                                 /* no key held: nothing; how */
-    ok &= perf_map[10] == PF_ODN && msg_is("HOLD A KEY: ASSIGN");
-    key_down(white(1)); frame();                        /* G3 */
-    ok &= perf_held == PF_BIT(PF_R16);
-    key_up(white(1)); btn_up(B_FX); frame();
-    ok &= !ui.layer && !lys.rp_dirty;                   /* (closed: settings_save) */
-    bad += check("  the key let go: PRESETS changes nothing (HOLD A KEY: ASSIGN); FX let go: the map saved", ok);
-    {   /* with the settings: exported, imported; an older record: the default */
+    turn(EN_PRESET, 1);
+    ok = !perf_held && perf_map[10] == PF_FLG && msg_is("HOLD A KEY: ASSIGN");
+    btn_up(B_FX); frame();
+    bad += check("PRESETS without a held key changes nothing; FX exit saves the map", ok && !ui.layer && !lys.rp_dirty);
+    {
         persist_t pp;
         settings_export(&pp);
         memset(fx_keys, 0, 10);
@@ -7534,40 +7525,36 @@ static int test_fx_map(void)
         ok = perf_map[10] == PF_FLG;
         ok &= settings_import(&pp, (int)sizeof pp) == 1;
         frame();
-        ok &= perf_map[10] == PF_ODN;
+        ok &= perf_map[10] == PF_FLG;
         for (p = 0; p < PF_KEYS; p++)
             ok &= p == 10u || perf_map[p] == PF_DEF[p];
         memset(&pp.favorites, 0, sizeof pp.favorites);
-        pp.magic = 0x50455233u;                         /* PER3: no favorites */
+        pp.magic = 0x50455233u;
         ok &= settings_import(&pp, (int)(sizeof pp - sizeof pp.favorites)) == 2;
         frame();
         for (p = 0; p < PF_KEYS; p++)
             ok &= perf_map[p] == PF_DEF[p];
-        bad += check("  the map with the settings (exported, imported: B4 OCT DN, the rest default); older settings: default", ok);
+        bad += check("compact FX map survives settings export/import; older settings restore defaults", ok);
     }
-    /* the lock (a double tap of FX): one hand holds a key, the other turns PRESETS; EDIT keeps the lock */
+    /* The lock leaves the same compact map editable with one hand. */
     ui_power_on();
     memset(fx_keys, 0, 10);
     go_title("ENV"); frame();
     press(B_FX); press(B_FX); frames(100);
     ok = ui.lock == LAYER_FX;
-    key_down(white(1)); frame();                        /* G3: REPEAT 1/16 */
+    key_down(b4); frame();
     turn(EN_PRESET, 1); keyboard_block();
-    ok &= perf_map[1] == PF_R32 && perf_held == PF_BIT(PF_R32) && msg_is("G3 REPEAT 1/32");
+    ok &= perf_map[10] == PF_PHS && perf_held == PF_BIT(PF_PHS) && msg_is("B4 PHASER");
     btn_down(B_EDIT); frame(); btn_up(B_EDIT); frame(); keyboard_block();
-    ok &= perf_map[1] == PF_R16 && perf_held == PF_BIT(PF_R16) && ui.lock == LAYER_FX && ui.layer == LAYER_FX &&
+    ok &= perf_map[10] == PF_FLG && perf_held == PF_BIT(PF_FLG) && ui.lock == LAYER_FX && ui.layer == LAYER_FX &&
           str_eq(cur_page()->title, "ENV");
-    turn(EN_PRESET, -1); keyboard_block();
-    ok &= perf_map[1] == PF_R8;
-    key_up(white(1)); frame();
-    press(B_EDIT);                                      /* no key held: EDIT closes the lock as before */
+    key_up(b4); frame();
+    press(B_EDIT);
     ok &= !ui.lock && !perf_held;
-    bad += check("  locked (FX double tap): G3 held + PRESETS: REPEAT 1/32; EDIT: 1/16, the lock stays; no key: EDIT closes it", ok);
-    {   /* the cells name what the keys hold: G3 "1/8" now, B4 FLNG */
-        ok = str_eq(PF_CELL[perf_map[1]], "1/8") && str_eq(PF_CELL[perf_map[10]], "FLNG") && str_eq(PF_CELL[perf_map[12]], "VERB") &&
-             str_eq(PF_CELL[perf_map[13]], "ECHO") && perf_map[14] == PF_N;
-        bad += check("  the map's cells: G3 1/8 (remapped), B4 FLNG, D5 VERB, E5 ECHO (1.5.1's throws), F5 empty", ok);
-    }
+    bad += check("FX double-tap lock: PRESETS remaps a held key, EDIT restores default, then closes the lock", ok);
+    ok = str_eq(PF_CELL[perf_map[10]], "FLNG") && str_eq(PF_CELL[perf_map[11]], "PHSR") &&
+         perf_map[12] == PF_N;
+    bad += check("compact map cells show FLANGER / PHASER and leave other keys empty", ok);
     memset(fx_keys, 0, 10);
     frame();
     return bad;
