@@ -3296,10 +3296,13 @@ static int test_layer(void)
     bad += check("FX layer: FLANGER / PHASER retained, other keys unassigned; depth knob resets on exit",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
     /* Global delay, chorus and reverb were removed. Their stored IDs are inert; no FX pages expose them. */
-    ok = TP[P_CHOR].max == 0 && TP[P_DLY].max == 0 && TP[P_REV].max == 0 && GP[G_DTIME].max == 0 && GP[G_RTYPE].max == 0;
+    ok = TP[P_CHOR].max == 0 && TP[P_DLY].max == 0 && TP[P_REV].max == 0 && TP[P_SLCR].max == 0 &&
+         TP[P_SLPAT].max == 0 && TP[P_SLRATE].max == 0 && TP[P_SLDEPTH].max == 0 &&
+         GP[G_DTIME].max == 0 && GP[G_DFDBK].max == 0 && GP[G_DCOLOR].max == 0 && GP[G_DMIX].max == 0 &&
+         GP[G_RSIZE].max == 0 && GP[G_RDAMP].max == 0 && GP[G_CRATE].max == 0 && GP[G_CDEPTH].max == 0 && GP[G_RTYPE].max == 0;
     for (i = 0; i < NPAGES; i++)
         ok &= !str_eq(PAGES[i].title, "REVERB") && !str_eq(PAGES[i].title, "CHORUS") && !str_eq(PAGES[i].title, "DLY") && !str_eq(PAGES[i].title, "SLICER");
-    bad += check("global delay / chorus / reverb and SLICER pages are absent; legacy parameters are inert", ok);
+    bad += check("global delay / chorus / reverb and SLICER pages are absent; all legacy controls are inert", ok);
     /* chording: a key held before FX stays a note, its note-off arrives */
     ui_power_on();
     mo = mo_w;
