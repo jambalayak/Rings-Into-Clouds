@@ -129,7 +129,7 @@ static const param_desc_t TP[P_COUNT] = {
     [P_SLCR] = PD("-", F_INT, 0, 0, 0), /* retired SLICER fields: reserved IDs */
     [P_SLPAT] = PD("-", F_INT, 0, 0, 0),
     [P_SLRATE] = PD("-", F_INT, 0, 0, 0),
-    [P_SLDEPTH] = PD("DEPTH", F_PCT, 0, 127, 127),
+    [P_SLDEPTH] = PD("-", F_INT, 0, 0, 0), /* retired SLICER field: reserved ID */
 #define MSLOT(k) [P_M##k##SRC] = PE("SRC" #k, N_MSRC, 0), [P_M##k##DST] = PE("DST" #k, N_MDST, 0), \
                  [P_M##k##AMT] = PD("AMT" #k, F_BIPCT, -64, 63, 0)
     MSLOT(1), MSLOT(2), MSLOT(3), MSLOT(4),
