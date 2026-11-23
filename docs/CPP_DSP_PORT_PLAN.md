@@ -157,3 +157,20 @@ This makes the RAM region an equally serious gate. The base linker provides only
 For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte known subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers, omitted current allocations and the required 8 KiB headroom. That is also not a viable complete integration without a deliberate memory-layout/resource redesign.
 
 The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
+
+
+## Dual-instance Rings integration implications (2026-11-23)
+
+The product requirement is two simultaneous independent Rings instances (RINGS A and RINGS B), not one shared Rings object. The inherited Felucca engine architecture confirms four tracks and one shared eight-sounding-voice budget, but its current large-engine memory design is a per-track overlay: `eng_mem[NPART]` allocates one `ENG_MEM_PART` region per part and reuses that region when the part changes engine. The current default region is 12,888 bytes. It is sized for the existing PHYS/SYMP state, not assumed sufficient for the upstream Rings `Part` plus Strummer and associated buffers.
+
+Consequently:
+
+- Do not place the full Rings object in a shared global singleton or in a single shared engine-memory region.
+- Do not assume the existing 12,888-byte `ENG_MEM_PART` fits Rings. Obtain target-compiler `sizeof` measurements for the exact pinned source revision, including every wrapper-owned buffer and strummer.
+- The likely ownership model is one dedicated Rings runtime state per FM-1 track that selects Rings, with a stable mapping from track index to Rings instance. For the two-instance target, RINGS A and RINGS B occupy separate parts and separate state blocks.
+- The current per-track overlay cannot by itself preserve large Rings state while a track switches to another engine. Decide whether Rings state is a dedicated always-resident per-track allocation or whether switching away intentionally serializes and reconstructs it. Do not silently lose resonator tails or preset state on engine changes.
+- Account for the aggregate memory cost across all four possible tracks, not just the desired two-instance patch, and explicitly cap the supported simultaneous Rings count if the measured resource profile requires it. The product minimum is two.
+- Both instances use the existing shared eight-voice allocator. Verify the Rings voice/event adapter against the allocator's note-on, note-off, steal and retrigger lifecycle. A stolen voice must release the correct instance's excitation/voice state without touching the other instance.
+- All expensive Rings setup/configuration must occur outside the audio interrupt. The audio callback receives only bounded block processing calls over already-constructed state.
+
+Before writing the live adapter, produce a target-side memory report for: one Rings instance; two Rings instances; two Rings plus full Clouds; and two Rings plus Clouds with the intended routing, effects and MIDI sync. The two-instance requirement must be treated as a first-class resource test, not postponed until after the single-instance implementation.
