@@ -34,7 +34,7 @@ Support a graph of audio modules with selectable source, destination, routing or
 
 RINGS A and RINGS B must each expose their native two-channel output independently. The patch graph must distinguish a stereo pair from a mono signal and support deliberate channel mapping (stereo-to-stereo, left/right split, or mono sum) at connection time. Do not automatically sum Rings' two outputs into the inherited mono engine buffer.
 
-The current Felucca track engine hook is mono, and the shared send buses are mono even though the final dry mix is stereo. A real stereo module path therefore requires a host mixer/engine ABI extension and CPU2-safe stereo accumulators. Preserve existing mono-engine behaviour while adding that path. The native Rings channels must remain independently routable before any optional mono fold-down.
+The current Felucca track engine hook is mono. The legacy shared chorus, tempo-delay and reverb send buses have been removed, so new modules must connect through the explicit modular graph rather than hidden global sends. A real stereo module path requires a host mixer/engine ABI extension and CPU2-safe stereo accumulators. The native Rings channels must remain independently routable before any optional mono fold-down.
 
 ### Modulation patching
 Provide assignable modulation connections from Peaks envelopes/LFOs, Marbles random/CV streams, envelopes, velocity, aftertouch and other supported sources to compatible module parameters.
@@ -90,7 +90,7 @@ When a patch exceeds the available budget:
 - Never silently remove a connection or change a module's algorithm.
 - Keep audio deadline protection and safe feedback limiting.
 
-Start with a reliable small graph and expand only after profiling. The first milestone is a working, editable audio route with two independently editable Rings instances, one granular processor, a mixer and a spatial effect, subject to target resource measurements. Then add modulation and event routing.
+Start with a reliable small graph and expand only after profiling. The first milestone is a working, editable audio route with two independently editable Rings instances, one granular processor and a mixer. A reverb may be added later as an optional modular node after its memory and CPU budget is measured. Then add modulation and event routing.
 
 ## 6. Validation
 
