@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""Check whether the configured JieLi toolchain can compile C++ and link a C ABI probe.
+"""Probe the JieLi C/C++ object ABI and the minimal freestanding features Rings needs.
 
-This is intentionally separate from the firmware build. It does not modify firmware
-objects or claim that the full Rings/Clouds runtime is supported.
+This remains separate from the production firmware build. It does not prove that
+all upstream dependencies or the complete firmware link successfully.
 """
 import os
 import platform
@@ -48,25 +48,26 @@ def main():
     if docker and not shutil.which("docker"):
         raise SystemExit("Docker is required for this host; install Docker or use Linux x86-64.")
 
-    # Docker can only see files under ROOT. Keep probe objects in the ignored build tree.
     work = ROOT / "build" / "cpp-smoke"
     work.mkdir(parents=True, exist_ok=True)
     c_obj = work / "caller.o"
     cpp_obj = work / "dsp_probe.o"
     combined = work / "combined.o"
-    common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-O2",
+    # Match the firmware's size optimisation level, target and FPU selection.
+    common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os",
               "-ffunction-sections", "-fdata-sections"]
     run("clang", [*common, "-c", "tools/cpp_smoke/caller.c", "-o", str(c_obj.relative_to(ROOT))],
         ROOT, docker)
     run("clang++", [*common, "-std=gnu++11", "-fno-exceptions", "-fno-rtti",
                     "-fno-threadsafe-statics", "-fno-use-cxa-atexit", "-nostdinc++",
-                    "-c", "tools/cpp_smoke/dsp_probe.cc", "-o", str(cpp_obj.relative_to(ROOT))],
-        ROOT, docker)
+                    "-Itools/cpp_smoke/include", "-c", "tools/cpp_smoke/dsp_probe.cc",
+                    "-o", str(cpp_obj.relative_to(ROOT))], ROOT, docker)
     run("ld", ["-r", str(c_obj.relative_to(ROOT)), str(cpp_obj.relative_to(ROOT)),
                "-o", str(combined.relative_to(ROOT))], ROOT, docker)
-    print("PASS: JieLi clang and clang++ compiled C/C++ objects and the linker combined them.")
-    print("This verifies only the basic target C ABI/object-link path; it does not verify")
-    print("the C++ runtime, upstream DSP dependencies, firmware memory use or audio deadlines.")
+    print("PASS: target C/C++ objects compiled and the linker combined them.")
+    print("Covered: C ABI, C++11, placement construction, and the std::fill header dependency.")
+    print("Not covered: complete upstream dependencies, C++ runtime, final firmware link,")
+    print("memory use, DSP timing, audio behaviour or physical-device operation.")
 
 
 if __name__ == "__main__":
