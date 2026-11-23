@@ -89,3 +89,34 @@ FM1_Locus identifies Rings, Clouds and stmlib as MIT-licensed and preserves thei
 ## Status
 
 This is a source and documentation review. No FM1_Locus code has been copied into RINGS INTO CLOUDS, no module has been integrated, and no physical FM-1 validation is claimed.
+
+
+## Deeper FM1_Locus adapter review (2026-11-23)
+
+Reviewed the current upstream `main` implementation at `stevexfer/FM1_Locus` (tree commit `3d92fde385db83a36d746e2e916fb454a362277e`), especially `firmware/apps/locus/locus_engine.cc`, `locus.h` and `app.c`. This supplements the pinned third-party Rings/Clouds source review above; the Locus application source itself is a moving reference and must not be copied without pinning its exact commit.
+
+### Rings setup and processing patterns worth retaining
+
+- Locus owns exactly one persistent `rings::Part` and one persistent `rings::Strummer`, each constructed in statically reserved aligned memory with placement new. `Part::Init(NULL)` and `Strummer::Init(0.01f, rings::kSampleRate / rings::kMaxBlockSize)` are performed during engine initialization.
+- The part is configured with `set_model()`, `set_polyphony()`, then `Configure()`. Locus explicitly notes that a four-voice configuration can take about 2 ms because filter initialization performs expensive tangent calculations. Therefore model/polyphony changes must be staged outside the hard audio deadline and never triggered unexpectedly in a sample callback.
+- Locus uses 24-frame Rings blocks. Its 48-frame tick calls Rings twice, at offsets 0 and 24. The strummer is processed for each block before `Part::Process`.
+- A block-level `PerformanceState` is assembled with `internal_exciter`, `internal_strum`, `internal_note`, `tonic`, `note`, `fm`, and chord. A sequencer or queued event sets a one-shot strum; accent raises brightness for that event. Explicit strums are preserved even if the Strummer does not independently detect an onset.
+- Locus uses a 16-entry bounded event queue for main-loop-to-audio events. The queue carries strum/grain/accent flags and a note; overflow drops new events. Our adapter should preserve bounded event delivery but use the richer per-track note lifecycle already specified for Felucca, not copy this simplified event format as a substitute.
+- Continuous controls are smoothed toward targets at 5% per tick; discrete model/polyphony/excitation/mode/quality/freeze controls are applied immediately. This is a useful starting policy, but smoothing coefficients must be expressed in time constants at the actual FM-1 control rate, not copied blindly.
+- Locus mixes Rings' two outputs independently: `Part::Process` produces `out` and `aux`; the routing stage can send these to Clouds or directly to left/right outputs. This reinforces that a mono-only Felucca `post()` callback is insufficient for full stereo/aux fidelity.
+
+### What must not be copied as if it solved our architecture
+
+- Locus contains one global Rings Part and one Strummer, not two independently stateful Rings modules. It does not satisfy the RINGS A / RINGS B requirement.
+- Its selectable Rings polyphony is 1, 2 or 4 internal resonator voices for that one Part. That is not the same as two independent Parts, and does not provide independent model/patch/excitation state.
+- Its audio engine uses a fixed 48-frame tick, 24-frame Rings blocks and a 32-frame Clouds block at two-thirds sample rate. The Felucca base has a different audio rate and 128-frame half-buffer; this scheduler and resampler are reference algorithms, not drop-in timing constants.
+- Locus uses a second-core batch pipeline with two batch buffers, input/output FIFOs and roughly one tick of added latency. Felucca's CPU2 ownership and current audio callback must be audited before adopting any dual-core split.
+- Locus's Rings note model is sequencer/strum-centric: `last_note` is retained and updated on strum events. It does not demonstrate the full independent host note-on/off, voice-steal and release semantics required for two FM-1 tracks.
+
+### RINGS A/B implementation implications
+
+The first implementation should create two explicit per-instance runtime records, each containing its own aligned `rings::Part`, `rings::Strummer`, `PerformanceState`, `Patch`, event mailbox, excitation scratch, stereo out/aux scratch, configuration cache and diagnostics. Initialization and any `Configure()` work must be scheduled outside the audio interrupt. The records must not alias Locus-style singleton globals.
+
+A shared helper may implement identical DSP processing for both instances, but all mutable state and buffers must be distinct. Tests must process different notes/models/parameters in A and B at once, then prove changing one instance does not change the other's output/state. The shared FM-1 voice ceiling remains eight; the Rings Parts' own internal polyphony settings must be budgeted independently and reconciled with that ceiling rather than simply multiplying voice counts.
+
+The Locus reference is valuable evidence that Rings' two-output processing, Strummer sequencing, event-triggered excitation and out-of-interrupt reconfiguration are practical on FM-1. It is not evidence that two Parts plus Clouds fit the current Felucca memory/CPU budget.
