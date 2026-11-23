@@ -135,7 +135,7 @@ The current linker map reserves 72 KiB for ordinary RAM and 360 KiB for POOL, wi
 
 Inspected upstream `pichenettes/eurorack` at pinned commit `08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4`:
 
-- `rings::Part` is a **per-instrument resonator processor**, not a per-note oscillator. One Part owns up to four internal resonator voices, excitation filters, pluckers, DC blockers, note filtering, limiter, and a reverb object.
+- `rings::Part` is a **per-instrument resonator processor**, not a per-note oscillator. One Part owns up to four internal resonator voices, excitation filters, pluckers, DC blockers, note filtering and limiter. The upstream reverb member is removed by this project's approved five-model adaptation.
 - Its `Process(performance_state, patch, in, out, aux, size)` accepts an excitation input block and emits two output channels. It internally selects/rotates its active resonator voice when `performance_state.strum` is asserted.
 - `PerformanceState` is block-level: `strum`, `internal_exciter`, `internal_strum`, `internal_note`, `tonic`, `note`, `fm`, and `chord`. `Patch` carries `structure`, `brightness`, `damping`, and `position`.
 - `Strummer::Process` consumes an optional excitation signal and updates the block-level strum event. It can derive strums from note changes or input onsets depending on internal/external settings.
@@ -161,7 +161,7 @@ This avoids the incorrect design of creating a separate Rings Part per Felucca `
 - [ ] How note-on/off/retrigger events are exposed to a per-track runtime without relying on a voice slot that can be stolen or reused.
 - [ ] Whether per-track Rings state can be reserved outside the transient `ENG_MEM_PART` overlay without exhausting linker pool/RAM.
 - [ ] Correct 44.1-to-48 kHz treatment and 32-to-24 chunk scheduling, including excitation alignment and stereo latency.
-- [ ] Per-instance resource measurement for two Rings Parts, with no dedicated Rings reverb buffers and all auxiliary state.
+- [ ] Per-instance resource measurement for two Rings Parts, with all auxiliary state and no dedicated Rings reverb buffers.
 - [ ] Regression tests for two simultaneous notes/instances, voice stealing, note-off tails, and independent parameter/model changes.
 
 
