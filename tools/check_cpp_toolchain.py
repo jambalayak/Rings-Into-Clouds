@@ -10,7 +10,6 @@ import platform
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,28 +48,25 @@ def main():
     if docker and not shutil.which("docker"):
         raise SystemExit("Docker is required for this host; install Docker or use Linux x86-64.")
 
-    with tempfile.TemporaryDirectory(prefix="fm1-cxx-") as temp:
-        work = Path(temp)
-        # Docker can only see files under ROOT. Put temporary objects in a stable
-        # ignored build directory so both native and container builds see them.
-        work = ROOT / "build" / "cpp-smoke"
-        work.mkdir(parents=True, exist_ok=True)
-        c_obj = work / "caller.o"
-        cpp_obj = work / "dsp_probe.o"
-        combined = work / "combined.o"
-        common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-O2",
-                  "-ffunction-sections", "-fdata-sections"]
-        run("clang", [*common, "-c", "tools/cpp_smoke/caller.c", "-o", str(c_obj.relative_to(ROOT))],
-            ROOT, docker)
-        run("clang++", [*common, "-std=gnu++11", "-fno-exceptions", "-fno-rtti",
-                        "-fno-threadsafe-statics", "-fno-use-cxa-atexit", "-nostdinc++",
-                        "-c", "tools/cpp_smoke/dsp_probe.cc", "-o", str(cpp_obj.relative_to(ROOT))],
-            ROOT, docker)
-        run("ld", ["-r", str(c_obj.relative_to(ROOT)), str(cpp_obj.relative_to(ROOT)),
-                   "-o", str(combined.relative_to(ROOT))], ROOT, docker)
-        print("PASS: JieLi clang and clang++ compiled C/C++ objects and the linker combined them.")
-        print("This verifies only the basic target C ABI/object-link path; it does not verify")
-        print("the C++ runtime, upstream DSP dependencies, firmware memory use or audio deadlines.")
+    # Docker can only see files under ROOT. Keep probe objects in the ignored build tree.
+    work = ROOT / "build" / "cpp-smoke"
+    work.mkdir(parents=True, exist_ok=True)
+    c_obj = work / "caller.o"
+    cpp_obj = work / "dsp_probe.o"
+    combined = work / "combined.o"
+    common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-O2",
+              "-ffunction-sections", "-fdata-sections"]
+    run("clang", [*common, "-c", "tools/cpp_smoke/caller.c", "-o", str(c_obj.relative_to(ROOT))],
+        ROOT, docker)
+    run("clang++", [*common, "-std=gnu++11", "-fno-exceptions", "-fno-rtti",
+                    "-fno-threadsafe-statics", "-fno-use-cxa-atexit", "-nostdinc++",
+                    "-c", "tools/cpp_smoke/dsp_probe.cc", "-o", str(cpp_obj.relative_to(ROOT))],
+        ROOT, docker)
+    run("ld", ["-r", str(c_obj.relative_to(ROOT)), str(cpp_obj.relative_to(ROOT)),
+               "-o", str(combined.relative_to(ROOT))], ROOT, docker)
+    print("PASS: JieLi clang and clang++ compiled C/C++ objects and the linker combined them.")
+    print("This verifies only the basic target C ABI/object-link path; it does not verify")
+    print("the C++ runtime, upstream DSP dependencies, firmware memory use or audio deadlines.")
 
 
 if __name__ == "__main__":
