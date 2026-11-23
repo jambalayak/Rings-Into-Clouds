@@ -142,3 +142,18 @@ The LOCUS integration is not a byte-for-byte stock Rings implementation. It remo
 - [ ] Measure actual baseline map and all statically allocated memory.
 - [ ] Decide explicitly whether the Rings String-and-Reverb model is supported or omitted.
 - [ ] Only then import and compile the DSP.
+
+
+## Memory-section correction from the LOCUS allocation declarations
+
+A closer inspection of `firmware/apps/locus/locus_engine.cc` found an important placement detail that the earlier aggregate wording obscured:
+
+- `clouds_large[118784]` is explicitly marked `FW_POOL`.
+- `clouds_small[65536 - 128]` (65,408 bytes) has no `FW_POOL` attribute, so it occupies ordinary `.bss` RAM.
+- The combined two Clouds buffers are still 184,192 bytes, but they do **not** both consume the 360 KiB POOL region.
+
+This makes the RAM region an equally serious gate. The base linker provides only 72 KiB (73,728 bytes) for `.data/.bss`. A 65,408-byte Clouds array would leave just 8,320 bytes for all existing static RAM data and the required 4 KiB headroom. This is before any other ordinary-RAM buffers or runtime state.
+
+For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte known subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers, omitted current allocations and the required 8 KiB headroom. That is also not a viable complete integration without a deliberate memory-layout/resource redesign.
+
+The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
