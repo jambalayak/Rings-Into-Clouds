@@ -52,7 +52,7 @@ The current linker map defines a 360 KiB `.pool` region and the build script req
 - Four slicer recordings: 4 × 4,096 int16 samples (32,768 bytes).
 - Scope snapshot and the 3,840-byte storage payload buffer.
 
-FM1_Locus reports 184 KiB of Clouds buffers, in addition to the Rings object/state, resampler histories, FIFOs, batch buffers and other working state. This is not a small incremental allocation. The current pool cannot be assumed to have room for it.
+FM1_Locus allocates 118,784 bytes of Clouds buffers in POOL and another 65,408 bytes in ordinary .bss RAM, in addition to Rings state, resampler histories, FIFOs, batch buffers and other working state. Both memory regions are constrained; see the allocation correction below.
 
 Before allocating either processor, produce a linker-measured pool inventory and choose an explicit resource profile. Candidate trade-offs to measure include reducing/removing the Felucca master delay, disabling or reducing the slicer recording pool, changing how legacy engine state is reserved, or offering a dedicated high-fidelity RINGS/CLOUDS performance profile that frees resources. Do not silently shrink Clouds buffers or replace its algorithms; that would reduce fidelity and must be labelled as a quality/profile compromise.
 
@@ -170,7 +170,7 @@ The linker reserves 360 KiB (368,640 bytes) for `.pool`. The following existing 
 
 This subtotal excludes the HALL state, per-track insert state and any other pool allocations discovered by the linker. It is therefore a lower bound on current pool use, not a complete map.
 
-FM1_Locus documents 184 KiB (188,416 bytes) of Clouds buffers alone. Subtracting only the known subtotal from the 360 KiB pool leaves 132,420 bytes before the excluded allocations and before the required 8 KiB spare headroom. Thus the full Clouds buffers exceed the remaining known pool by at least 51,772 bytes, even before the excluded allocations, Rings state, resampler histories, FIFOs and batch buffers are added.
+FM1_Locus allocates 118,784 bytes of Clouds buffers in POOL and 65,408 bytes in ordinary .bss RAM. Adding only the POOL buffer to the 236,220-byte known POOL subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before omitted allocations, Rings state, resampler histories, FIFOs, batch buffers and the required 8 KiB headroom. The 65,408-byte ordinary-RAM buffer would leave only 8,320 bytes of the 72 KiB RAM region before existing .bss and the required 4 KiB headroom. Both regions fail the preliminary budget.
 
 A likely resource-profile experiment is to disable or substantially shorten the existing 131,072-byte master delay line, since a full Clouds processor brings its own delay/granular capabilities. This is only a candidate: quantify the exact linked pool and decide which Felucca effects remain available before changing defaults. Do not remove or reduce any feature without recording the user-visible consequence.
 
