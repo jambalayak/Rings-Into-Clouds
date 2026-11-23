@@ -79,3 +79,17 @@ The earlier single-Rings-plus-Clouds estimates are therefore not sufficient to a
 - two Rings plus Clouds, MIDI clock, modulation and the intended mixer/effects path.
 
 The two-instance requirement is not permission to reduce either Rings engine's fidelity or to silently disable other modules. If the full configuration does not fit, present measured options and user-visible consequences before making a product trade-off.
+
+
+## Original Rings String-and-Reverb model memory requirement (2026-11-23)
+
+A further pinned-source inspection found a material memory cost that must be included in the dual-instance profile:
+
+- Original `rings/dsp/fx/reverb.h` defines its Rings reverb engine as `FxEngine<32768, FORMAT_16_BIT>`.
+- Its backing store is therefore 32,768 × 2 bytes = **65,536 bytes (64 KiB) per independent Rings Part**.
+- `rings::Part::Init(uint16_t* reverb_buffer)` initializes this engine from the supplied buffer. The upstream implementation expects valid backing storage when the reverb mode is supported.
+- FM1_Locus adds a guard around `reverb_.Init(reverb_buffer)` and calls `Part::Init(NULL)`; its own source comment explicitly ties this to omitting `RESONATOR_MODEL_STRING_AND_REVERB`. That is why its one-Part memory profile cannot be copied as a complete Rings implementation.
+
+For two fully faithful independent Parts, reserve **at least 128 KiB** for two independent Rings reverb histories, in addition to both `rings::Part` objects, both Strummers, excitation/scratch buffers, Clouds storage, resampling/FIFOs, and the existing firmware allocations. Do not share one reverb history between A and B: it would couple their tail state and violate instance independence.
+
+This 128 KiB figure is the exact raw delay-memory capacity required by the upstream type, not a measured total allocation or proof that the FM-1 pool can fit it. The target linker map and actual runtime object sizes still need measurement. If the complete feature set does not fit, present measured alternatives; do not silently remove the sixth Rings mode or shorten its delay memory.
