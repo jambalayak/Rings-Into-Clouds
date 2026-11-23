@@ -132,8 +132,8 @@ user presets, projects of every format, backup, the keys and knobs, MIDI (USB, T
 control), USB audio, the update entry and loader, the command-line installer, the UI (the real
 drawing code against stubs: every screen in every palette is rendered and checked for clipped or
 overlapping text; PNGs land in `build/ui_new/`), every engine (DRUM, NOISE, PHYS, FM6, SLICE, the
-DIGITAL conversion), the chord keys, the modulation matrix, the FX layer, the reverbs, the SLICER
-and swing. With `DAISYSP` pointing at a DaisySP checkout, the PHYS models are also compared with
+DIGITAL conversion), the chord keys, the modulation matrix, the compact FX layer (LPF / HPF / FLANGER / PHASER and track mutes),
+and swing. The inherited global delay, chorus, reverb, SLICER and performance-loop recorder are no longer part of this firmware; a new reverb is planned as an optional modular processor. With `DAISYSP` pointing at a DaisySP checkout, the PHYS models are also compared with
 their floating-point originals; without it that test is skipped. Likewise with `SNES_SPC` pointing at a
 snes_spc 0.9.0 checkout, the ADPCM engine's voice is compared sample for sample with its `SPC_DSP.cpp`
 (`tests/adpcm_ref.cpp`, needs `c++`); without it the rest of the ADPCM test runs. Felucca-Engines' own test
@@ -142,8 +142,7 @@ against the same golden renders.
 
 The regression suite (`tests/regress.c`) renders every engine and preset and compares a
 hash of each render with `tests/golden.txt`; it also checks levels, voices and the CPU
-cost (`tests/cpu_baseline.txt`, `tests/target_budget.txt`). The approved removal of global FX sends changes preset render hashes; refresh `tests/golden.txt` with `GOLDEN_UPDATE=1 sh tests/run_tests.sh` only after reviewing the intended sound changes. After an intended change of
-the sound, `GOLDEN_UPDATE=1 sh tests/run_tests.sh` rewrites the hashes; `BUDGET_UPDATE=1`
+cost (`tests/cpu_baseline.txt`, `tests/target_budget.txt`). After reviewing an intended sound change, `GOLDEN_UPDATE=1 sh tests/run_tests.sh` rewrites the render hashes; `BUDGET_UPDATE=1`
 does the same for the cost files.
 
 ## Install
