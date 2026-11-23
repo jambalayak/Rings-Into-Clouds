@@ -144,14 +144,14 @@ Inspected upstream `pichenettes/eurorack` at pinned commit `08460a69a7e1f7a81c5a
 
 ### Consequence for two independent Rings instances
 
-The correct first architecture is **one Rings `Part` + one `Strummer` + one performance/patch state + one set of scratch/reverb storage per FM-1 track assigned RINGS A or RINGS B**. These are independent processors with their own internal four-resonator polyphony. The host's eight-note allocator remains the global input/event/voice budget; do not allocate a separate full host voice pool for each Rings instance.
+The correct first architecture is **one Rings `Part` + one `Strummer` + one performance/patch state + one set of scratch storage per FM-1 track assigned RINGS A or RINGS B**. These are independent processors with their own internal four-resonator polyphony. The host's eight-note allocator remains the global input/event/voice budget; do not allocate a separate full host voice pool for each Rings instance.
 
 The host note lifecycle should be adapted into block-level Rings performance events:
 1. On host note-on/retrigger, update that track's note, velocity/excitation level and pending strum event.
 2. On note-off, update the track's gate/strum policy without destroying resonator tails.
 3. At the track's audio block, prepare the excitation buffer and performance state, run Strummer once for that instance, then process its Rings Part in chunks no larger than 24 samples.
 4. Mix its stereo `out/aux` result into the track bus, preserving both outputs for independent routing.
-5. Keep the Rings Part alive while resonator/reverb tails continue, including when no host note voice is currently active.
+5. Keep the Rings Part alive while resonator tails continue, including when no host note voice is currently active.
 
 This avoids the incorrect design of creating a separate Rings Part per Felucca `voice_t`. It also means the engine adapter needs a persistent per-track runtime and a reliable way to receive note events and render a per-track tail. The current `engine_t.post` hook is a plausible tail/render point, but its exact call conditions and output ownership must be verified in `voice.c` before implementation.
 
@@ -161,7 +161,7 @@ This avoids the incorrect design of creating a separate Rings Part per Felucca `
 - [ ] How note-on/off/retrigger events are exposed to a per-track runtime without relying on a voice slot that can be stolen or reused.
 - [ ] Whether per-track Rings state can be reserved outside the transient `ENG_MEM_PART` overlay without exhausting linker pool/RAM.
 - [ ] Correct 44.1-to-48 kHz treatment and 32-to-24 chunk scheduling, including excitation alignment and stereo latency.
-- [ ] Per-instance resource measurement for two Rings Parts, including two reverb buffers and all auxiliary state.
+- [ ] Per-instance resource measurement for two Rings Parts, with no dedicated Rings reverb buffers and all auxiliary state.
 - [ ] Regression tests for two simultaneous notes/instances, voice stealing, note-off tails, and independent parameter/model changes.
 
 
@@ -173,7 +173,7 @@ The track render path confirms the following order for each control block:
 2. It calls `engine_t.render(track, voice, ...)` once for each active host voice that reaches the render stage.
 3. It calls `engine_t.post(track, out, n)` once after the voice loop, regardless of whether any host voice rendered; the return value contributes to the track's active/tail count.
 
-This is an important enabling detail: `post` can keep a persistent per-track Rings Part processing resonator and reverb tails when all host note voices have been released. However, it does **not** solve event delivery by itself.
+This is an important enabling detail: `post` can keep a persistent per-track Rings Part processing resonator tails when all host note voices have been released. However, it does **not** solve event delivery by itself.
 
 ### Adapter event bridge candidate
 
@@ -197,7 +197,7 @@ A viable source-level approach is:
 - `note_on` captures each new note/retrigger into a bounded per-track event queue or latest-event mailbox.
 - At the next `block`/post stage, the adapter scans the track's fixed `v[NVOICE]` array for current `active`, `gate`, `note`, and velocity state to determine held-note and release transitions.
 - A fixed per-track snapshot of the previous block's voice gates/notes detects note-off, all-off, voice steal and retrigger transitions without heap allocation.
-- When no host key remains held, Rings' internal resonator state is allowed to ring out naturally; note-off must not hard-reset the Part or its reverb.
+- When no host key remains held, Rings' internal resonator state is allowed to ring out naturally; note-off must not hard-reset the Part; resonator tails must ring out naturally.
 
 The snapshot must distinguish a released voice from a voice that has been stolen/reused for a new note in the same block. Tests must include same-note retrigger, rapid legato transitions, mono fallback, poly release, all-notes-off and global voice-budget stealing.
 
@@ -235,3 +235,18 @@ A practical first implementation may keep Rings' stereo pair as a dedicated post
 ### Verified current limitation
 
 The existing Felucca engine ABI has only the mono `post(track, out, n)` hook. A separate stereo hook is a host ABI extension, not an existing capability. This is an implementation requirement for faithful Rings output, not a claim that the stereo path already exists.
+
+
+## Approved five-model Rings scope (user decision, 2026-11-23)
+
+Both independent instances expose exactly these five original Rings resonator models:
+
+1. Modal
+2. Sympathetic Strings
+3. String
+4. FM Voice
+5. Quantized Sympathetic Strings
+
+The original String-and-Reverb model is deliberately excluded. Its dedicated Rings reverb object, processing path and 64 KiB backing buffer per instance are not part of this product. Do not allocate a Rings reverb buffer, expose a String-and-Reverb model selector, or describe this as a complete six-model Rings port. This is an adapted five-model Rings port; the retained five model algorithms remain subject to their fidelity requirements. The firmware's shared effects and the separate Clouds processor remain available elsewhere in the signal chain.
+
+The no-reverb source adaptation must remove the Reverb member and its initialization/processing safely; passing a null buffer to the original unconditional initialization is not safe. The source patch must also remove the excluded model's special-case render behaviour and clamp model selection to the five retained enum values.
