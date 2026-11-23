@@ -751,7 +751,6 @@ static __attribute__((noinline)) void perf_key_remap(void)
             perf_latched &= ~PF_BIT(o);
             if (e < PF_N) {
                 perf_latched |= PF_BIT(e);
-                perf_ord[e] = ++perf_seq;
             }
         }
     }
