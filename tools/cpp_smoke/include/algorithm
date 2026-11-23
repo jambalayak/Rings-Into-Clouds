@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Probe-only freestanding subset. This is not the production C++ library.
+#ifndef RIC_CPP_SMOKE_ALGORITHM
+#define RIC_CPP_SMOKE_ALGORITHM
+
+namespace std {
+template <typename It, typename T>
+inline void fill(It first, It last, const T& value) {
+    for (; first != last; ++first) {
+        *first = value;
+    }
+}
+}
+
+#endif
