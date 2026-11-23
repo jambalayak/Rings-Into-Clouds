@@ -5,8 +5,7 @@
  *
  * 1. golden renders: every engine x factory preset, the GM map on DRUM (SAMPLE PERC until 1.0.2; and on each model kit,
  *    KIT 80 10 66 55 77), the voice modes (POLY / MONO /
- *    LEGATO / UNISON) of three engines, the FX sends, a 4-track sequencer mix, and the SLICER (slicer.c:
- *    GATE / STUT on the phrase, and on the 4-track mix with the transport). Each render plays
+ *    LEGATO / UNISON) of three engines, the clean 4-track sequencer mix. Retired global FX sends and the removed SLICER are not rendered. Each render plays
  *    a fixed phrase (notes, an overlap, a chord, note-offs, the release tail) and is reduced to a
  *    64-bit FNV-1a hash of its output samples, compared with GOLDEN_FILE (tests/golden.txt).
  *    Every render runs in its own fork()ed child of a process that never touched the DSP state, so
@@ -164,7 +163,7 @@ static void phrase(track_t *t, uint32_t base)
 }
 
 /* ------------------------------------------------------------- jobs --- */
-enum { J_PRESET, J_MODE, J_SENDS, J_DRUMS, J_SONG, J_CPU, J_CHECK, J_SLICER };
+enum { J_PRESET, J_MODE, J_DRUMS, J_SONG, J_CPU, J_CHECK };
 typedef struct {
     char name[64];
     uint8_t kind, e, pi, arg, cpu_notes;
@@ -191,20 +190,6 @@ static void job_mode(const job_t *j)            /* arg: the voice mode, ARP off,
     t->p[P_AMODE] = 0;
     t->p[P_GLIDE] = j->arg == V_MONO || j->arg == V_LEGATO ? 30 : 0;
     t->p[P_DETUNE] = 40;
-    phrase(t, 60);
-}
-
-static void job_sends(const job_t *j)           /* arg: 0 dry, 1 chorus, 2 delay, 3 reverb, 4 all, 5 DIST */
-{
-    static const int16_t S[6][4] = {{0, 0, 0, 0}, {0, 110, 0, 0}, {0, 0, 110, 0}, {0, 0, 0, 110},
-                                    {40, 80, 80, 80}, {110, 0, 0, 30}};
-    track_t *t = &trk[0];
-    uint32_t i;
-    host_tracks_init();
-    host_preset(t, j->e, j->pi);
-    t->p[P_AMODE] = 0;
-    for (i = 0; i < 4u; i++)
-        t->p[P_DIST + i] = S[j->arg][i];
     phrase(t, 60);
 }
 
@@ -235,25 +220,10 @@ static void job_drums(const job_t *j)           /* every GM note through DRUM on
     finish();
 }
 
-/* the SLICER on the phrase (its clock free-running, no transport): arg 0 GATE (ANALOG ACID,
- * pattern 6, 1/16), 1 STUT (DIGITAL PAD, pattern 7, 1/32, DEPTH 100 %) */
-static void job_slicer(const job_t *j)
-{
-    static const int16_t S[2][4] = {{SL_GATE, 6, 1, 120}, {SL_STUT, 7, 2, 127}};
-    track_t *t = &trk[0];
-    uint32_t i;
-    host_tracks_init();
-    host_preset(t, j->e, j->pi);
-    t->p[P_AMODE] = 0;
-    for (i = 0; i < 4u; i++)
-        t->p[P_SLCR + i] = S[j->arg][i];
-    phrase(t, 60);
-}
-
 /* the 4-track mix: T1 ANALOG ACID, T2 the power-on pad (TRK_DEF: FM6 PAD since DIGITAL was retired; DIGITAL PAD
  * before) (tied chords), T3 LOFI lead (12 steps against 16),
  * T4 DRUM drums (SAMPLE PERC until 1.0.2); 120 BPM, 4 bars (the hostsim TRACKS demo without the recording), stop, the tail.
- * arg 1: with the SLICER (GATE on the pad, STUT on the acid line and the drums, SWING 20 %) */
+ * arg: reserved (the mix is now clean, with no retired SLICER processing). */
 static void job_song(const job_t *j)
 {
     static const uint8_t ACID[16] = {45, 45, 57, 45, 0, 48, 45, 55, 45, 0, 57, 52, 45, 48, 0, 50};
@@ -292,16 +262,6 @@ static void job_song(const job_t *j)
         if (i % 2u == 0u)
             n[k++] = i == 14u ? 46 : 42;
         put_step(td, i, k, n, k ? ST_NOTE : ST_REST, i % 4u == 0u ? SF_ACCENT : 0u);
-    }
-    if (j->arg) {
-        static const int16_t S[4][4] = {{SL_STUT, 9, 1, 127}, {SL_GATE, 1, 1, 127}, {0, 1, 1, 127},
-                                        {SL_STUT, 12, 2, 110}};
-        for (i = 0; i < NTRK; i++) {
-            uint32_t k;
-            for (k = 0; k < 4u; k++)
-                trk[i].p[P_SLCR + k] = S[i][k];
-        }
-        song.g[G_SWING] = 20;
     }
     transport_req = 1;
     run_to(8u * FS);
@@ -380,17 +340,11 @@ static int run_job_body(job_t *j)
     case J_MODE:
         job_mode(j);
         break;
-    case J_SENDS:
-        job_sends(j);
-        break;
     case J_DRUMS:
         job_drums(j);
         break;
     case J_SONG:
         job_song(j);
-        break;
-    case J_SLICER:
-        job_slicer(j);
         break;
     case J_CPU:
         job_cpu(j);
@@ -1017,9 +971,7 @@ int main(int argc, char **argv)
     int gupd = getenv("GOLDEN_UPDATE") != 0, cupd = getenv("BUDGET_UPDATE") != 0, verbose = getenv("VERBOSE") != 0;
     uint32_t jobs_at_once = getenv("JOBS") ? (uint32_t)atoi(getenv("JOBS")) : 8u;
     static const char *const MN[4] = {"POLY", "MONO", "LEGATO", "UNISON"};
-    static const char *const SN[6] = {"dry", "chorus", "delay", "reverb", "all", "dist"};
     static const uint8_t MODE_E[3][2] = {{0, 0}, {1, 1}, {5, 0}};   /* engine, preset (DIGITAL: FELUCCA_FM4 only) */
-    static const uint8_t SEND_E[2][2] = {{0, 3}, {1, 0}};
     static uint8_t cpu_parts[MAXJ][NPART][3];
     static kv_t gold[MAXJ], cpu[MAXJ];
     uint32_t ng, nc, e, pi, i, g0, g1, c0, c1, k0, ncpu = 0;
@@ -1056,25 +1008,7 @@ int main(int argc, char **argv)
             j->pi = MODE_E[i][1];
             j->arg = (uint8_t)k0;
         }
-    for (i = 0; i < 2u; i++)
-        for (k0 = 0; k0 < 6u && eng_ok(SEND_E[i][0]); k0++) {
-            job_t *j;
-            snprintf(name, sizeof name, "sends/%s/%s", ENGINES[SEND_E[i][0]]->name, SN[k0]);
-            j = add(J_SENDS, name);
-            j->e = SEND_E[i][0];
-            j->pi = SEND_E[i][1];
-            j->arg = (uint8_t)k0;
-        }
     add(J_SONG, "song/4track_mix");
-    {   /* the SLICER */
-        job_t *j = add(J_SLICER, "slicer/gate/ANALOG_ACID");
-        j->e = 0, j->pi = 4, j->arg = 0;
-#if FELUCCA_FM4                                     /* (DIGITAL: retired, built with FELUCCA_FM4=1 only) */
-        j = add(J_SLICER, "slicer/stut/DIGITAL_PAD");
-        j->e = 1, j->pi = 5, j->arg = 1;
-#endif
-        add(J_SONG, "slicer/song_gate_stut")->arg = 1;
-    }
     g1 = nj;
     {   /* determinism: the first preset render once more */
         job_t *j = add(J_PRESET, "repeat");
