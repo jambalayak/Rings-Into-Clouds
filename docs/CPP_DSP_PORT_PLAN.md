@@ -212,3 +212,31 @@ The port must make an explicit source patch before either instance is initialize
 - Add tests proving both Rings instances initialize without reverb storage, all five retained models render, invalid/omitted model values cannot reach the excluded branch, and A/B state remains independent.
 
 Do not substitute a null buffer, a dummy buffer, or a shared reverb buffer. The firmware's shared effects and Clouds remain separate signal-chain modules. This is a documented source-level adaptation; it is not yet implemented or tested.
+
+
+## Stereo engine-output integration gate (source audit, 2026-11-23)
+
+The Felucca engine ABI and mixer were inspected directly in `firmware/engines/src/felucca_engine.h`, `firmware/src/voice.c`, and `firmware/src/fx.c`. This reveals a second integration blocker beyond C++ compilation:
+
+- `track_render()` clears one mono `out[n]` buffer, invokes the engine's per-voice `render` callback, then invokes optional `post(track, out, n)`. The post callback runs once per track block, including the no-active-voice tail path, but receives only that mono buffer.
+- `mix_part()` subsequently applies mono DIST/INSERT/SLICER processing and folds that mono signal into the stereo dry mix using the track PAN law. Chorus, delay and reverb sends are also derived from that mono signal.
+- The Rings `Part` API produces distinct `out` and `aux` signals. Mapping those to the single Felucca `post` buffer would discard the independent output; summing them immediately would also prevent real modular routing of the two outputs.
+
+### Required adapter shape
+
+Do not force Rings through the existing mono post callback. Add a narrowly scoped, optional per-track stereo engine-output path (or equivalent sidecar bus) with these properties:
+
+1. A Rings track owns dedicated, statically allocated left/right output scratch for the current bounded block. Its persistent `Part`, `Strummer`, event mailbox and scratch are separate for RINGS A and RINGS B.
+2. The Rings post-processing call writes the original Rings `out` and `aux` channels into separate buffers. The two channels remain separately addressable by the patch graph.
+3. The mixer consumes the stereo pair at a defined point in the per-track path, applies track level/pan and master summing without silently collapsing the pair. Any mono-only insert or send path must have an explicit documented policy (for example, a deliberate fold-down for a shared mono send while preserving the dry stereo pair).
+4. The stereo callback must run once per track block, not once per host voice, and must remain callable while resonator tails continue after host note release.
+5. Any new bus storage must be included in the POOL/RAM report and in CPU2 ownership analysis. If CPU2 renders a track, the sidecar buffers must follow the same ownership and handoff rules as the existing `mixsum_t` buffers; no concurrent writes or stale reads.
+6. The patch graph may expose Rings `OUT` and `AUX` only after each is connected to a real mixer/bus input. The UI must not show an independent port that is merely decorative.
+
+The first implementation should preserve Rings OUT and AUX as two distinct dry signals and document how they enter shared mono effects. A later graph revision can route either output to Clouds or another processor independently. Do not change the original Rings DSP to make its output fit the host's mono ABI.
+
+### Build and memory implications
+
+The current app linker places `.bss` in a 72 KiB RAM region and large buffers in a separate 360 KiB POOL region. The linker script does not currently emit a map file in the normal build command; the build checker reports aggregate `.bss` and `.pool` use from linker symbols. Add a map/report artefact before the first imported DSP objects so the exact owner of each allocation is visible. A linker map is useful diagnostics, but it does not replace the existing 4 KiB RAM and 8 KiB POOL headroom checks.
+
+No compiler invocation has been run here, so availability of `clang++`, C++ runtime compatibility, object sizes and memory headroom remain unverified. Do not treat the source-level design as a successful build.
