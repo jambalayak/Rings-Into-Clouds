@@ -58,7 +58,7 @@ enum {                          /* per-track parameters */
     P_ASWING, P_APROB, P_AHOLD, P_AORDER,
     P_ROOT, P_SCALE, P_QUANT, P_TRANS,
     P_SLEN, P_SDIV, P_SSWING, P_SGATE,
-    P_DIST, P_CHOR, P_DLY, P_REV,
+    P_DIST, P_CHOR, P_DLY, P_REV,             /* retired global-bus sends; IDs reserved for old projects */
     P_VOICE, P_GLIDE, P_PAN, P_MUTE,
     P_GLMODE, P_PRIO, P_ALLOC, P_DETUNE,
     P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH,      /* retired SLICER controls: reserved for old project compatibility */
@@ -85,7 +85,7 @@ enum {                          /* per-track parameters */
 
 enum {                          /* global parameters */
     G_BPM, G_SWING, G_CLOCK, G_TUNE,
-    G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX,
+    G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX,       /* retired global delay / chorus / reverb controls; IDs reserved */
     G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH,
     G_MIDI, G_SYNC, G_ROUTE, G_INFO,   /* G_ROUTE: MIDI IN, 0 CH1-4 (channels 1..4 -> parts 1..4, 5..16 ignored), 1 SEL;
                                         * 1.2: 2..4 CH5-8 CH9-12 CH13-16 (seq.c midi_base); 1.5.5: 5 TRACK (song.mch) */
@@ -93,7 +93,7 @@ enum {                          /* global parameters */
     G_ENGSEL, G_ENGGO,          /* no page: the editor switches the engine with a SET of G_ENGSEL; G_ENGGO is
                                  * unused (ids are fixed by the formats and the protocol) */
     G_CLRSEQ, G_INITSND,
-    G_RTYPE,                    /* REVERB TYPE: 0 ROOM, 1 SPRING, 2 HALL (1.2, the power-on default) (fx.c). Was
+    G_RTYPE,                    /* retired global reverb type; reserved. Was
                                  * G_DRCH, the GM drum part's MIDI channel (inert since 1.0, never read); projects
                                  * of formats before FUN7 load it as ROOM (project.c proj_rtype_room) */
     G_DRLVL, G_DRREV,           /* inert (label "-", on no page): the GM drum part they set is gone; kept
