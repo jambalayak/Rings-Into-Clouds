@@ -42,6 +42,9 @@ Each connection should have:
 ### Clock, gate and trigger patching
 Keep clock, gate, trigger and reset routes distinct from audio and continuous modulation. Allow Marbles/Yarns/step sequencer clocks and triggers to drive compatible modules and envelopes. Avoid pretending that a signal type can connect to an incompatible destination.
 
+## MIDI clock as a first-class event source
+External MIDI clock and transport must be available to the modular event system. Treat clock, Start, Continue, Stop and Reset as timestamped events, not audio or continuous modulation. The selected MIDI clock source must be able to drive the sequencer, arpeggiator, clocked modulation, generative modules and tempo-aware processors. The instrument should also expose its internal clock/transport as an event source for MIDI output. Keep input source selection distinct from MIDI note-channel routing, and prevent duplicate-clock feedback. Full requirements are in `docs/MIDI_SYNC_REQUIREMENTS.md`.
+
 ## 3. FM-1 control experience
 
 The FM-1 has limited physical controls, so the modular experience must be navigable rather than requiring a physical socket for every connection.
