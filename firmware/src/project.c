@@ -330,8 +330,17 @@ static void proj_fm4(project_t *q)
         uint32_t pr;
         if (d->engine != ENGI_DIGITAL)
             continue;
-        for (i = 0; i < P_COUNT; i++)
-            d->p[i] = (int16_t)clamp(d->p[i], param_desc_of(ENGI_DIGITAL, i)->min, param_desc_of(ENGI_DIGITAL, i)->max);
+        for (i = 0; i < P_COUNT; i++) {
+            /* Engine 1 is a deliberately empty placeholder when FELUCCA_FM4=0: its edit descriptors are
+             * not linked. DIGITAL's eight historical EDIT values are all 0..127, so clamp those explicitly;
+             * the shared parameters still use today's global descriptors. */
+            if (i < P_E0) {
+                const param_desc_t *pd = param_desc_of(ENGI_DIGITAL, i);
+                d->p[i] = (int16_t)clamp(d->p[i], pd->min, pd->max);
+            } else {
+                d->p[i] = (int16_t)clamp(d->p[i], 0, 127);
+            }
+        }
         pr = fm4_convert(d->p, v);
         fm6_pack(v, q->fm6[k]);
         d->engine = ENGI_FM6;
