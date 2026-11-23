@@ -22,13 +22,19 @@ The user should be able to build a patch by connecting virtual module inputs and
 
 ### Audio patching
 Support a graph of audio modules with selectable source, destination, routing order and parallel paths. The intended topology includes:
-- RINGS A and RINGS B as two independent instances of the same Rings engine, each with separate state, controls, presets and audio ports. Both can run simultaneously on separate parts; neither is a shared-state duplicate.
+- RINGS A and RINGS B as two independent instances of the same Rings engine, each with separate state, controls, presets and audio ports. Both can run simultaneously on separate parts; neither is a shared-state duplicate. Each instance exposes the two retained Rings output channels as distinct stereo audio signals; the original String-and-Reverb model is intentionally omitted, leaving five original Rings models.
 - Exciter / Plaits / external input -> Rings -> Clouds -> FX -> Mixer
 - Exciter -> Clouds -> Rings -> FX -> Mixer
 - Rings -> Reverb / Delay / Distortion
 - Frozen Clouds buffer -> Rings
 - Parallel dry and processed paths
 - Feedback paths only where stability and headroom can be safely managed
+
+### Stereo audio ports and channel-preserving routes
+
+RINGS A and RINGS B must each expose their native two-channel output independently. The patch graph must distinguish a stereo pair from a mono signal and support deliberate channel mapping (stereo-to-stereo, left/right split, or mono sum) at connection time. Do not automatically sum Rings' two outputs into the inherited mono engine buffer.
+
+The current Felucca track engine hook is mono, and the shared send buses are mono even though the final dry mix is stereo. A real stereo module path therefore requires a host mixer/engine ABI extension and CPU2-safe stereo accumulators. Preserve existing mono-engine behaviour while adding that path. The native Rings channels must remain independently routable before any optional mono fold-down.
 
 ### Modulation patching
 Provide assignable modulation connections from Peaks envelopes/LFOs, Marbles random/CV streams, envelopes, velocity, aftertouch and other supported sources to compatible module parameters.
