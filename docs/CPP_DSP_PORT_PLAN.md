@@ -263,3 +263,7 @@ Before importing DSP buffers, add an optional diagnostic linker map (and a parse
 ## Clouds memory placement: explicit region split
 
 The LOCUS reference places its 118,784-byte large Clouds buffer in POOL but its 65,408-byte small buffer in ordinary `.bss`. On this project's current 72 KiB RAM region, that single small buffer would leave only 8,320 bytes for every other `.data/.bss` allocation, before the required 4 KiB headroom. In POOL, adding the large buffer to the previously inventoried 236,220-byte known subtotal yields 355,004 bytes of 368,640, leaving 13,636 bytes before all Rings state, Clouds object state, conversion/FIFO buffers and the required 8 KiB headroom. Both regions are therefore independently blocked pending a measured layout redesign; do not treat the two Clouds buffers as one POOL allocation or claim that removing Rings reverb solves the Clouds placement problem.
+
+## Project-owned Rings source patch manifest
+
+The exact no-reverb five-model source changes are now recorded in [RINGS_UPSTREAM_PATCH_MANIFEST.md](RINGS_UPSTREAM_PATCH_MANIFEST.md). It specifies the enum, `Part::Init` signature, reverb member/init/process removal, retained String dispersion, source pruning, dual-instance invariants and validation gates. This is a reviewable patch specification; the upstream code has not yet been imported or compiled.
