@@ -185,3 +185,20 @@ This is an important enabling detail: `post` can keep a persistent per-track Rin
 - The `post` callback receives the track's mono `out` buffer, not a dedicated stereo pair. The second Rings output therefore needs a separately allocated track stereo/aux bus or a documented routing extension. Do not silently collapse the aux pickup if independent stereo/dual-output routing is a product requirement.
 
 The `post` callback is called after voice rendering and receives the same block length `n`; Rings processing must still obey its 24-sample maximum chunk size and the verified FM-1 sample-rate strategy above.
+
+
+## Note-off and voice-steal lifecycle verified
+
+The host's `trk_note_off(track, note)` releases matching voices by setting `gate = 0` and `stage = 3` (release). `trk_all_off` does the same for every active voice. The global allocator can also call `voice_kill`, setting `gate = 0` and `stage = 4` for a one-block fade before the voice becomes inactive.
+
+There is no engine-level `note_off` callback in the pinned Felucca engine ABI. Therefore, a Rings adapter must not pretend the engine interface provides one.
+
+A viable source-level approach is:
+- `note_on` captures each new note/retrigger into a bounded per-track event queue or latest-event mailbox.
+- At the next `block`/post stage, the adapter scans the track's fixed `v[NVOICE]` array for current `active`, `gate`, `note`, and velocity state to determine held-note and release transitions.
+- A fixed per-track snapshot of the previous block's voice gates/notes detects note-off, all-off, voice steal and retrigger transitions without heap allocation.
+- When no host key remains held, Rings' internal resonator state is allowed to ring out naturally; note-off must not hard-reset the Part or its reverb.
+
+The snapshot must distinguish a released voice from a voice that has been stolen/reused for a new note in the same block. Tests must include same-note retrigger, rapid legato transitions, mono fallback, poly release, all-notes-off and global voice-budget stealing.
+
+This approach is still a design proposal until the adapter code and tests exist, but the host data required to implement it is available through the `track_t` passed to the engine callbacks.
