@@ -185,8 +185,8 @@ static const param_desc_t INS_DESC[3][3] = {
 #undef PU
 static const param_desc_t *ins_desc(int32_t type, uint32_t k)
 {
-    if (type <= 0 || type >= (int32_t)NELEM(N_ITYPE))
-        return &TP[P_IA + k];
+    if (type <= 0 || type >= (int32_t)NELEM(N_ITYPE) || type == (int32_t)NELEM(N_ITYPE) - 1)
+        return &TP[P_IA + k]; /* final stored type code is the retired CHORUS alias for OFF */
     return &INS_DESC[type < 5 ? 0 : type == 5 ? 1 : 2][k];   /* (IT_SOFT .. IT_FUZZ, IT_CRUSH, the swept ones) */
 }
 
