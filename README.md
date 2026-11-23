@@ -1,38 +1,48 @@
-# Felucca
+# RINGS INTO CLOUDS
 
-[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
+**An experimental M-VAVE FM-1 instrument inspired by Mutable Instruments' modular-synthesizer design philosophy.**
 
-Felucca is open-source custom synthesizer firmware for the **M-VAVE FM-1**.
+RINGS INTO CLOUDS is a new instrument built on the Felucca firmware platform for the M-VAVE FM-1. Its musical centre is a playable physical-modeling resonator followed by a rich granular processor: resonant strings, struck objects, metallic tones, frozen grains, evolving textures and spacious ambient soundscapes.
 
-The FM-1 is the only supported hardware target. This project does not provide, maintain, or accept requests for ports to other devices or software platforms.
+This repository is an independent project. It is not affiliated with or endorsed by Mutable Instruments, M-VAVE, or the Felucca maintainers.
 
-## Install
+## Project direction
 
-**Stable release: 1.8.3.** Connect your FM-1 by USB and use the [web installer](https://hugelton.github.io/Felucca/) in Chrome or Edge. The installer offers a way back to the official V15 or V16 firmware. Back up your projects and presets before changing firmware.
+- **Rings-inspired resonator:** modal, sympathetic-string and inharmonic resonances, with expressive excitation and performance controls.
+- **Clouds-inspired granular processor:** live granular processing, texture, freeze, stretch and buffer manipulation.
+- **Flexible signal routing:** the resonator and granular processor should be independently routable rather than permanently locked to one serial chain.
+- **Generative performance:** a Marbles-inspired random CV/trigger system, a separate arpeggiator, and a conventional step sequencer.
+- **Additional sound sources:** Plaits-inspired oscillator models and a distinct six-operator FM engine.
+- **Effects and modulation:** filtering, envelopes, LFOs, delay, chorus, distortion and a dedicated spatial reverb.
+- **Performance-first controls:** the FM-1 keyboard and physical controls remain central; deep editing is organised into clear module pages.
 
-**Newer FM-1 flash.** Some newer FM-1 units use UC25HQ80 flash (JEDEC ID `0xB36014`). 1.8.2 and later recognise it. On such a unit, 1.8.1 and earlier cannot start an update; see the [1.8.2 release notes](https://github.com/hugelton/Felucca/releases/tag/v1.8.2) for the way back through the official V15.
+The intended first playable milestone is a reliable keyboard-playable resonator → granular signal path with working audio, usable presets and a coherent interface. More engines and generative features follow in measured stages.
 
-## Project resources
+## Visual direction
 
-- [Web installer](https://hugelton.github.io/Felucca/)
-- [Web editor](https://hugelton.github.io/Felucca/webapp/editor/) ([source](https://github.com/hugelton/Felucca-WebApp))
-- [Try it in your browser](https://hugelton.github.io/Felucca/webapp/try/): a demo of the firmware, no FM-1 needed
-- [Manual and release notes](https://github.com/hugelton/Felucca/wiki/Home)
-- [Building from source](BUILDING.md)
-- [Issue tracker](https://github.com/hugelton/Felucca/issues)
+The interface takes inspiration from Mutable Instruments' visual language: distinctive module identities, bold but disciplined colour palettes, playful technical illustration, clear typography, compact parameter groupings and panel-like layouts.
 
-The firmware uses [Felucca-Engines](https://github.com/hugelton/Felucca-Engines) (MIT) for its built-in sound engines and [felucca-bsp](https://github.com/hugelton/felucca-bsp) (MPL-2.0) for the FM-1 hardware layer. Neither repository implies support for Felucca on other hardware.
+All RINGS INTO CLOUDS artwork, icons, typography treatments and screen compositions will be original. Mutable Instruments graphics, logos, panel artwork and other assets are visual references only and are not copied into this project.
 
-## Development and support
+## Development status
 
-Felucca focuses on the FM-1. Third-party modifications and ports are independent projects and are not tested or supported here. Contributions are considered at the maintainer's discretion; no development schedule or ongoing support is promised.
+This is an early development fork. At this stage the repository contains the Felucca FM-1 hardware/platform foundation; the new RINGS INTO CLOUDS sound architecture and interface are a development plan, not yet a completed implementation. Do not install experimental builds on hardware unless a release is explicitly marked for testing.
 
-Felucca is developed with the assistance of AI coding agents (code, tests, documentation, translation, maintenance). Design, features, sounds and direction are the maintainer's or the community's; no generative AI is used for music, icons or artwork. See [On AI-Assisted Development and Responsibility](https://github.com/hugelton/Felucca/discussions/166).
+See [docs/PROJECT_DIRECTION.md](docs/PROJECT_DIRECTION.md) for the staged plan and technical constraints.
 
-## Credits and licence
+## Build foundation
 
-Felucca is free software under [GPL-3.0-only](LICENSE); the Hügelton Sample Pack is CC0 1.0. The engines and hardware layer retain their own licences. See [CREDITS.md](CREDITS.md) and [LICENSING.md](LICENSING.md).
+The project currently inherits Felucca's build system and hardware support. Start with [BUILDING.md](BUILDING.md) and follow its prerequisites, including the JieLi toolchain and AC79 SDK. The firmware uses submodules; obtain the complete source with:
 
-M-VAVE and FM-1 are trademarks of their respective owners. Felucca is not affiliated with, endorsed by or supported by M-VAVE.
+```sh
+git clone --recurse-submodules https://github.com/jambalayak/Rings-Into-Clouds.git
+cd Rings-Into-Clouds
+```
 
-Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+The inherited build instructions describe the current Felucca package and firmware identity. The project-specific release identity and installer branding will be changed only after the first project build is verified.
+
+## Upstream platform and licensing
+
+This project is derived from [Felucca](https://github.com/hugelton/Felucca), open-source FM-1 firmware by Leo Kuroshita / Hügelton Instruments. The inherited platform is licensed under GPL-3.0-only, with third-party components retaining their own licences. See [LICENSE](LICENSE), [LICENSING.md](LICENSING.md), [CREDITS.md](CREDITS.md), and the licence files in [LICENSES](LICENSES).
+
+Any new DSP integration must preserve its upstream licence, notices and attribution. Do not assume that all Mutable Instruments modules share one licence: check the exact source revision and files before importing or adapting code.
