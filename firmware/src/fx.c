@@ -332,13 +332,24 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
     t->ins_run = s->w != 0;                             /* (mix_part calls again while it fades) */
 }
 
-/* one block of the whole mix (shared with hostsim.c): events -> each part (with its modulation matrix)
- * -> dist -> INSERT -> level / pan / sends -> buses -> master; out: stereo Q15 */
+/* One block of the stereo mix. Each core accumulates left/right and uses a private part scratch buffer. */
 static void events_block(uint32_t n);                    /* seq.c */
 #if FELUCCA_CPU2
-
+typedef struct { int32_t l[CTL], r[CTL], b[CTL]; } mixsum_t;
+static mixsum_t mx[2];
+#define mix_l (mx[0].l)
+#define mix_r (mx[0].r)
+#define SM_DECL , mixsum_t *sm
+#define SM_ARG(x) , (x)
+#define SM(f) (sm->f)
 #else
-static int32_t mix_l[CTL], mix_r[CTL];
+static int32_t part_buf[CTL], mix_l[CTL], mix_r[CTL];
+#define SM_DECL
+#define SM_ARG(x)
+#define SM(f) SM1_##f
+#define SM1_l mix_l
+#define SM1_r mix_r
+#define SM1_b part_buf
 #endif
 
 /* SPREAD (#148): a POLY or UNISON part whose SPRD is above 0. Its voices start left and right of PAN in turn (voice.c
@@ -368,7 +379,6 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
         perf_mute_sd((uint32_t)(t - trk), b, d, n);
     for (i = 0; i < n; i++) {
         int32_t x = ((b[i] >> 2) * lvl) >> 10, a = x < 0 ? -x : x, y = ((d[i] >> 2) * lvl) >> 10;
-        int32_t xs = clamp(x, -xmax, xmax);
         if (a > pk)
             pk = a;
         SM(l)[i] += ((x * glm) >> 12) + ((y * gld) >> 12);
@@ -507,7 +517,7 @@ static void c1_parts(uint32_t arg)                      /* arg: the parts (bit k
     uint32_t i, n = arg >> 8;
     mixsum_t *sm = &mx[1];
     for (i = 0; i < n; i++)
-        sm->l[i] = sm->r[i] = sm->c[i] = sm->d[i] = sm->v[i] = 0;
+        sm->l[i] = sm->r[i] = sm->b[i] = 0;
     for (i = 0; i < NPART; i++)
         if (arg >> i & 1u)
             mix_part(&trk[i], n, sm);
