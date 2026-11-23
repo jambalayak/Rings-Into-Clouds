@@ -19,6 +19,12 @@ Expose the two instances as **RINGS A** and **RINGS B** in the FM-1 part/engine 
 - Each instance has an independent audio output port so the modular graph can route A and B differently, in parallel or in series where supported.
 - The interface must make the selected instance unmistakable. Show RINGS A or RINGS B in the module title and parameter context; never show ambiguous shared controls.
 
+## Approved five-model scope (2026-11-23)
+
+The product uses an adapted five-model Rings port in **both** instances. The supported models are Modal, Sympathetic Strings, String, FM Voice and Quantized Sympathetic Strings. The original String-and-Reverb model and its dedicated 64 KiB reverb delay memory are intentionally excluded from both instances by user decision. Do not expose that model in either selector or preset format, and do not substitute a shared effect and label it as the omitted model. This omission does not reduce the fidelity requirements for the five retained models and does not remove the firmware's shared effects or the separate Clouds processor.
+
+The upstream `rings::Part::Init(uint16_t*)` cannot safely be called with a null reverb buffer: `Reverb::Init()` calls `FxEngine::Init()`, which clears the supplied buffer. The port must therefore make a source-level no-reverb adaptation (remove the per-Part `Reverb` member and its initialization/processing path, or provide an equivalently safe compile-time exclusion) rather than merely passing null. This is a required integration patch and must be covered by compile and runtime tests.
+
 ## Part and voice behaviour
 
 Use two separate FM-1 parts/tracks as the initial ownership model. Source inspection confirms the inherited firmware already has four independent synth parts: each track stores its own selected engine, parameter array, preset and voice state, while all four parts share one global budget of eight sounding voices. The engine table is shared, but each part has its own engine-memory region. This is a strong fit for selecting the same Rings engine on two tracks, provided the Rings integration gives each part a distinct DSP state object and does not put mutable state in shared globals.
