@@ -61,7 +61,7 @@ Clouds `Prepare` work (buffer initialization, time-stretcher search and spectral
 
 The previous integration-gate arithmetic remains a lower bound: the 360 KiB pool has a known 236,220-byte subtotal before omitted allocations, while the LOCUS Clouds buffer pair alone totals 184,192 bytes. This leaves no credible space for full Clouds plus Rings, conversion histories, FIFOs, routing buffers and mandatory headroom without a deliberate resource-profile change.
 
-Before importing DSP state, obtain a real baseline linker map and inventory every `.pool`, `.bss` and stack allocation. Evaluate candidate trade-offs with linked measurements, including the existing 128 KiB master tempo delay and slicer recording memory. Preserve full Clouds buffers and algorithms unless a clearly labelled lower-quality profile is deliberately designed and tested. A feature must not silently disappear to make the linker pass.
+Before importing DSP state, obtain a real baseline linker map and inventory every `.pool`, `.bss` and stack allocation. Evaluate candidate trade-offs with linked measurements, including the existing 128 KiB master tempo delay and slicer recording memory. Preserve full Clouds buffers and algorithms unless a clearly labelled lower-quality profile is deliberately designed and tested. Account for the large buffer in POOL and the small buffer in ordinary RAM separately. A feature must not silently disappear to make the linker pass.
 
 ## Next implementation sequence
 
