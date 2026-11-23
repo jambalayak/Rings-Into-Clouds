@@ -439,7 +439,7 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         mix_spread(t, b, n SM_ARG(sm));
     else {
         track_dist(t, b, n);
-        if (t->p[P_ITYPE] | t->ins_run)
+        if (track_insert_type(t) | t->ins_run)
             track_insert(t, b, n);                      /* the INSERT (1.5): off, nothing */
         if ((pf.mute >> (t - trk)) & 1u)
             perf_mute((uint32_t)(t - trk), b, n);       /* perform.c: a black key in the FX layer */
