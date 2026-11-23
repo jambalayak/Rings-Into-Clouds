@@ -21,11 +21,11 @@ Expose the two instances as **RINGS A** and **RINGS B** in the FM-1 part/engine 
 
 ## Part and voice behaviour
 
-Use two separate FM-1 parts/tracks as the initial ownership model, subject to verification of the base firmware's part assignment and voice allocator.
+Use two separate FM-1 parts/tracks as the initial ownership model. Source inspection confirms the inherited firmware already has four independent synth parts: each track stores its own selected engine, parameter array, preset and voice state, while all four parts share one global budget of eight sounding voices. The engine table is shared, but each part has its own engine-memory region. This is a strong fit for selecting the same Rings engine on two tracks, provided the Rings integration gives each part a distinct DSP state object and does not put mutable state in shared globals.
 
 - Allocate a distinct Rings DSP object/state block per instance.
 - Keep each instance's parameter state, note/trigger state, exciter state, resonator delay/state, strummer state and modulation state independent.
-- Both instances participate in the FM-1's shared global voice/CPU budget. Do not promise two full independent eight-voice allocations if the platform only has eight sounding voices globally.
+- Both instances participate in the FM-1's shared global voice/CPU budget. The inherited voice allocator explicitly enforces eight sounding voices across all four parts, even though each part has storage for eight voice records; Rings must use this global budget rather than assuming eight additional voices per instance. Do not promise two full independent eight-voice allocations if the platform only has eight sounding voices globally.
 - Establish and document how the global voice allocator accounts for Rings voices and how voice stealing works across A, B and other engines.
 - A note or trigger sent to A must not excite B unless an explicit patch connection routes an event to B.
 - Shared immutable tables/constants may be shared only where safe; mutable DSP state and buffers must never alias.
@@ -75,3 +75,15 @@ The default must remain immediately playable and must not require patch programm
 ## Status
 
 This document records the required behaviour. It does not claim that dual Rings DSP instances have been imported, compiled, scheduled or tested on an FM-1. The implementation remains subject to target memory and CPU measurements, but the product requirement is two simultaneous independent Rings instances.
+
+
+## Confirmed base-firmware fit (2026-11-23)
+
+Source inspection of firmware/src/core.h, firmware/src/engines.c and firmware/src/voice.c confirms:
+- Four independent synth parts/tracks exist.
+- Each part selects its own engine and stores its own parameter and preset state.
+- Each part has a dedicated engine-memory region; large engine state is overlaid per part because only one engine is selected on that part at a time.
+- All four parts share a global maximum of eight sounding voices, enforced by the common voice allocator.
+- Therefore, assigning the Rings engine to two different parts is consistent with the existing FM-1 engine-selection model. The Rings implementation still needs per-part mutable DSP state and a correct wrapper/voice adapter.
+
+This is source-level architecture evidence, not a completed dual-Rings implementation or target test.
