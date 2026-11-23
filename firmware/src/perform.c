@@ -6,8 +6,8 @@
  * Remaining effects ramp in/out and can be combined. FILTER, CRUSH and DEPTH remain as performance macros.
  * The processing order is LPF -> HPF -> CRUSH -> FLANGER -> PHASER, after master level and before master_out.
  * Idle (no key, no knob, no ramp left) every stage is skipped. */
-/* the effects (their numbers are stored: the key map in the settings, ui_layer.c perf_map_put; append-only, before
- * PF_M1), then the mutes of the black keys */
+/* Stable stored key-map codes. The retired buffer-effect numbers remain reserved so old settings still decode;
+ * only LPF, HPF, FLANGER and PHASER are exposed as active effects. */
 enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, PF_ODN, PF_FLG, PF_PHS,
        PF_RTHR, PF_ETHR,                      /* 1.5.1: REV THROW, ECHO THROW */
        PF_M1, PF_N = PF_M1 + NTRK };
@@ -29,8 +29,7 @@ enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, P
 #define PH_FB 13107                           /* .. the feedback, Q15: 0.4 */
 #define PERF_SLOPE 256                   /* 2.9 ms performance-effect ramp */
 
-/* the white keys' effects by default (1.1.5's ten, then FLANGER and PHASER, 1.5.1's REV THROW and ECHO THROW on D5
- * and E5; PF_N: none) */
+/* Default map: LPF, HPF, FLANGER and PHASER; all other white keys are unassigned. */
 static const uint8_t PF_DEF[PF_KEYS] = {PF_N, PF_N, PF_N, PF_N, PF_LPF, PF_HPF, PF_N, PF_N, PF_N, PF_N,
                                         PF_FLG, PF_PHS, PF_N, PF_N, PF_N, PF_N};
 static volatile uint8_t perf_map[PF_KEYS] = {PF_N, PF_N, PF_N, PF_N, PF_LPF, PF_HPF, PF_N, PF_N, PF_N, PF_N,
@@ -44,7 +43,7 @@ static volatile uint8_t kb_lock;      /* main: a layer locked open (#83, no butt
 static volatile uint8_t perf_solo;    /* main: tracks soloed in the GLO layer (the others muted as by a black key) */
 static volatile uint8_t perf_kill;    /* main: every effect off (the menu, a dialog, UBOOT) */
 static volatile int8_t perf_k[4];     /* main: the knob macros, 0 = untouched: FILTER -100..100 (- LPF, + HPF),
-                                       * CRUSH 0..100, THROW 0..100, DEPTH cut 0..100 (the buffer effects' level) */
+                                       * CRUSH 0..100, reserved knob 3, DEPTH 0..100 */
 static volatile uint32_t kb_layer;    /* ISR: the keys held that are the layer's, a bit per key */
 static volatile uint32_t perf_held;   /* ISR: the effects held (PF_*) */
 static volatile uint8_t perf_latch_on;   /* main: MENU > FX LATCH ON (#40): a key with FX toggles its effect */
@@ -73,7 +72,7 @@ static struct {
     uint32_t ph, P;                    /* samples since transport start; quarter-note subdivision */
     uint32_t act, act0;                /* effects running this block */
     uint8_t sync, mute;                /* sync: reset phase on next block; mute: tracks to ramp */
-    /* the filters, CRUSH, THROW, mutes */
+    /* the filters, CRUSH and mutes */
     int32_t lc, hc, la, ha;            /* cutoffs (Q8 index) and shares (Q15) of LPF and HPF */
     int32_t lz[4], hz[4];              /* their states: L ic1 ic2, R ic1 ic2 */
     int16_t lk[3], hk[3];              /* their coefficients this block */
@@ -256,7 +255,7 @@ static inline uint32_t pf_tri(uint32_t q)
     uint32_t t = q >> 16;
     return t < 32768u ? t << 1 : (65535u - t) << 1;
 }
-/* the share a FLANGER / PHASER fades to: KNOB 4 DEPTH (its shimmer while OCT UP / DN plays: full) */
+/* the share a FLANGER / PHASER fades to: KNOB 4 DEPTH */
 static int32_t perf_mod_depth(void) { return 32768 - perf_k[3] * 327; }
 
 /* FLANGER on one side c: x in, the line read at the sweep's place q (see the top) */
