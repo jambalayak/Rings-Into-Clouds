@@ -237,7 +237,7 @@ The first implementation should preserve Rings OUT and AUX as two distinct dry s
 
 ### Build and memory implications
 
-The current app linker places `.bss` in a 72 KiB RAM region and large buffers in a separate 360 KiB POOL region. The linker script does not currently emit a map file in the normal build command; the build checker reports aggregate `.bss` and `.pool` use from linker symbols. Add a map/report artefact before the first imported DSP objects so the exact owner of each allocation is visible. A linker map is useful diagnostics, but it does not replace the existing 4 KiB RAM and 8 KiB POOL headroom checks.
+The current app linker places `.bss` in a 72 KiB RAM region and large buffers in a separate 360 KiB POOL region. The current `tools/build.py` app link command already passes `-Map build/felucca.map`; the post-link checker reports aggregate `.bss` and `.pool` use from linker symbols. Preserve that map output when adding C++ objects, then add a parsed largest-symbol/allocation report so the owner of each imported DSP allocation is visible. A linker map is useful diagnostics, but it does not replace the existing 4 KiB RAM and 8 KiB POOL headroom checks.
 
 No compiler invocation has been run here, so availability of `clang++`, C++ runtime compatibility, object sizes and memory headroom remain unverified. Do not treat the source-level design as a successful build.
 
@@ -256,9 +256,9 @@ The next build-system milestone is therefore not just “clang++ exists”: it i
 
 ## Linker accounting: current evidence and missing artefacts
 
-The actual `firmware/app.ld` defines a 72 KiB ordinary RAM region and 360 KiB POOL region, with `.bss` and `.pool` linker symbols. `tools/build.py` currently reports aggregate RAM and POOL consumption from `_bss_end`, `_pool_start` and `_pool_end`, and enforces 4 KiB RAM / 8 KiB POOL spare. It does not currently emit a linker map file or a per-symbol allocation report. The `ld` invocation is direct, with no C++ object list or map-output option.
+The actual `firmware/app.ld` defines a 72 KiB ordinary RAM region and 360 KiB POOL region, with `.bss` and `.pool` linker symbols. `tools/build.py` currently reports aggregate RAM and POOL consumption from `_bss_end`, `_pool_start` and `_pool_end`, enforces 4 KiB RAM / 8 KiB POOL spare, and already emits `build/felucca.map` through the app linker's `-Map` option. It does not yet parse that map into a per-symbol allocation report. The link is still C-only: there is no C++ object list or C++ runtime integration.
 
-Before importing DSP buffers, add an optional diagnostic linker map (and a parsed largest-symbol/allocation report) without changing memory regions. Verify the JieLi linker's supported map-file syntax before wiring it into the production build. Preserve the current hard headroom checks and include `.data`, `.bss`, `.pool`, stack reservations, CPU2 buffers, and any C++ runtime objects in the accounting.
+Before importing DSP buffers, add a parsed largest-symbol/allocation report using the existing map output, without changing memory regions. Preserve the current hard headroom checks and include `.data`, `.bss`, `.pool`, stack reservations, CPU2 buffers, and any C++ runtime objects in the accounting.
 
 ## Clouds memory placement: explicit region split
 
