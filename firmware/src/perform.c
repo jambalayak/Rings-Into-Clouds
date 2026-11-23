@@ -1,35 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* PERFORM: the effects of the FX hold layer, on the master. A key pressed while FX is held belongs to the
- * layer (seq.c keyboard_block): it plays no note, sends no MIDI, records nothing, and holds its effect until
- * it is let go (ui_input.c opens the layer and shows the map). The 16 white keys (F3 .. G5) hold the effect the map
- * gives them (perf_map: the settings, ui_layer.c; any effect on any key, or none). The default (PF_DEF, 1.1.5's
- * keys and the two of 1.2 after them):
- *   LPF | HPF, FLANGER, PHASER; black keys 1..4 (F#3 G#3 A#3 C#4): tracks 1..4 muted while held.
- * Effects end when let go, with a 2.9 ms ramp. LPF, HPF, FLANGER and PHASER can be combined.
- * OCT UP / OCT DN: a harmonizer, the mix an octave up / down beside itself (after the author's earlier
- * fxHarmonizer, the classic rotating-delay shifter): two read taps of a delay sweep 128 .. 2176 samples, half a sweep apart, at the
- * speed that makes the pitch 2x / 0.5x; a raised-cosine cross-fade (the sine table) hides each tap's jump
- * back; reads between samples, linear. Left and right apart, at 44.1 kHz in the loop's frames (4096 of
- * them). Out: 0.56 the live mix + 0.7 the shifted one (its 0.55, 0.7). While it plays, DEPTH (KNOB 4) is its
- * SHIMMER instead of the level: the shifted sound fed back into its own delay (0 .. 0.82, through the soft
- * clip): with OCT UP each pass climbs another octave.
- * FLANGER (1.2): left and right each through a short delay swept 0.5 .. 8 ms (a squared triangle: longer near the
- * short end, where the comb sweeps fastest), a bar a sweep in time with the transport (the 1/16 clock), the right a
- * quarter of it behind the left; feedback 0.5 (through the soft clip); out (x + delayed) / 2 * 0.85: the comb's peaks
- * and DC +2 dB, its notches -17 dB, white noise -4 dB. Its own line (fl_buf, 356 frames: 1.4 KB; the loop's buffer is the buffer
- * effects', which it stacks with); heard once the line holds 8 ms (8 ms after the press).
- * PHASER (1.2): four first-order all-pass stages a side (the classic four-stage pedal), their break swept 150 Hz ..
- * 4.8 kHz (log; a triangle of half a bar, the right a quarter of it behind; the coefficients a block at a time), the
- * last stage's output fed back (0.4) into the first; out (x + all-passed) / 2 * 0.9: two notches moving, the peaks
- * +1.6 dB, white noise -1 .. -3.5 dB. KNOB 4 DEPTH is the FLANGER's and the PHASER's level too (OCT UP /
- * DN playing: full, KNOB 4 its shimmer).
- * The loop recorder, tape-stop, freeze and octave-shifter buffer effects are intentionally not built. KNOB 1, 2 and 4 retain FILTER, CRUSH and DEPTH; the retired THROW macro is inert.
- * MENU > FX LATCH ON (#40, a hand that cannot hold FX, a key and a knob together): a key pressed with FX turns its
- * effect on, the next press turns it off (perf_latched; letting the key or FX go does nothing), the macros keep
- * their values when FX is let go, FX + OCT- turns everything off (ui_layer.c), so does the menu or a dialog.
- * Chain: LPF -> HPF -> CRUSH -> FLANGER -> PHASER, after the master level and before master_out (the limiter); mutes act in the part mixer.
- * Idle (no key, no knob, no ramp left) every stage is skipped: the output is bit-identical. */
+/* PERFORM: compact live performance processing on the master. The FX layer can hold LPF, HPF,
+ * FLANGER and PHASER on the white keys; black keys 1..4 mute tracks 1..4 while held.
+ * The loop recorder, repeat/reverse, tape stop, freeze, octave shifter and delay/reverb throws are retired.
+ * Remaining effects ramp in/out and can be combined. FILTER, CRUSH and DEPTH remain as performance macros.
+ * The processing order is LPF -> HPF -> CRUSH -> FLANGER -> PHASER, after master level and before master_out.
+ * Idle (no key, no knob, no ramp left) every stage is skipped. */
 /* the effects (their numbers are stored: the key map in the settings, ui_layer.c perf_map_put; append-only, before
  * PF_M1), then the mutes of the black keys */
 enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, PF_ODN, PF_FLG, PF_PHS,
