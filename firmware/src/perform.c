@@ -9,7 +9,7 @@
 /* Stable stored key-map codes. The retired buffer-effect numbers remain reserved so old settings still decode;
  * only LPF, HPF, FLANGER and PHASER are exposed as active effects. */
 enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, PF_ODN, PF_FLG, PF_PHS,
-       PF_RTHR, PF_ETHR,                      /* 1.5.1: REV THROW, ECHO THROW */
+       PF_RTHR, PF_ETHR,                      /* retired throw key codes, reserved for old settings */
        PF_M1, PF_N = PF_M1 + NTRK };
 #define PF_NFX PF_M1                          /* the effects a white key can hold */
 #define PF_KEYS 16u                           /* the white keys F3 .. G5 */
@@ -336,7 +336,7 @@ static __attribute__((noinline)) void perf_phaser(int32_t *bl, int32_t *br, uint
     }
 }
 
-/* after the master level: the buffer effect, LPF, HPF, CRUSH on l / r (stereo, Q15) */
+/* after the master level: LPF, HPF, CRUSH, FLANGER and PHASER on l / r (stereo, Q15) */
 static __attribute__((noinline)) void perf_block(int32_t *bl, int32_t *br, uint32_t n)
 {
     uint32_t i, a = pf.act0, sh, hold;
