@@ -135,3 +135,18 @@ A direct source-layout audit of the pinned Rings and stmlib headers establishes 
 At 32-bit float storage, the two inline arrays total 3,072 floats = 12,288 bytes per String. Eight Strings therefore reserve at least **98,304 bytes (96 KiB) per Rings Part**, or **196,608 bytes (192 KiB) for RINGS A and B**, before any other Part members, Strummers, excitation/filter state, stereo scratch, resampling, routing, Clouds or stack allocations. This storage is part of each Part's object footprint even when a selected model does not actively use all String objects; compiler/linker dead-member elimination cannot remove subobjects from a live class instance.
 
 This is a source-derived lower bound, not a target `sizeof` or linker measurement. It materially tightens the memory gate: do not treat the earlier dual-Rings plan as fitting merely because the 64 KiB-per-instance String-and-Reverb allocation was removed. Measure the actual object sizes and section placement with the target compiler once the C++ toolchain path exists. Do not reduce the upstream String delay-line sizes or share mutable lines between A and B to make the budget appear to fit; that would alter DSP behaviour and violate independent-instance requirements.
+
+## Combined internal-memory lower-bound check (2026-11-23)
+
+The current application linker script describes RAM and POOL as two subdivisions of the same 432 KiB SRAM span (72 KiB + 360 KiB); it does not expose a separate external-RAM region. Combining the source-declared figures now known:
+
+| Concurrent allocation | Bytes |
+|---|---:|
+| Existing known POOL subtotal (includes master tempo delay) | 236,220 |
+| Full Clouds buffer pair (large POOL + small ordinary RAM) | 184,192 |
+| Two Rings Parts' inline String + stiffness delay arrays | 196,608 |
+| **Combined lower bound** | **617,020** |
+
+This exceeds the entire 432 KiB internal SRAM span (442,368 bytes) by **174,652 bytes**, before other Rings Part members, Strummers, Clouds processor state, sample-rate-conversion/FIFO buffers, stereo routing and stacks. Even the previously discussed, unapproved removal of the 131,072-byte master tempo delay would only reduce the arithmetic lower bound to **485,948 bytes**, still **43,580 bytes over** the entire SRAM span before those omitted allocations.
+
+This is not a final impossibility proof for every architecture: the current figures assume the original inline Rings delay-line layout and the reference Clouds buffer placement. A new, measured memory architecture could investigate mutually exclusive model-state overlays, carefully bounded buffer lifetime reuse, or another hardware memory region if the board genuinely exposes one. Such changes must preserve both simultaneously active Rings instances, all five models, full Clouds quality and independent mutable state. Do not remove the tempo delay or reduce DSP buffers as an automatic response. The present layout is a hard blocker, not an approved feature-cut list.
