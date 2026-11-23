@@ -813,8 +813,11 @@ static int auto_list(void)
     turn(EN_K4, 1);
     bad += check("  a song playing: STOP TO EDIT", motion.event[0].value == v && str_eq(ui.msg, "STOP TO EDIT"));
     chain.running = 0;
-    for (i = 0; motion.count < MOTION_MAX; i++)          /* the 128 used (track 2) */
-        motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_REV : P_DLY, 10);
+    /* Fill the shared pool with two retained continuous parameters. P_DLY was retired with the global FX layer;
+     * using it here made motion_set_event reject every second-half insert and left this loop unbounded forever. */
+    for (i = 0; i < MOTION_MAX && motion.count < MOTION_MAX; i++)
+        motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_REV : P_SPRD, 10);
+    bad += check("  the shared event pool reaches 128 without a retired parameter", motion.count == MOTION_MAX);
     turn(EN_K1, 5);
     press(B_OCTUP);
     bad += check("  the 128 used: OCT+ adds nothing, AUTOMATION FULL", motion_count(t) == 1u &&
