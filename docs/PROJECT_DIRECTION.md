@@ -80,7 +80,7 @@ Verify display dimensions, font rasterisation and UI drawing limits before produ
 
 ### Milestone 4 — Additional engines and effects
 - Add the six-operator FM engine and other oscillator sources.
-- Add filtering, dedicated reverb, delay, chorus and distortion.
+- Add filtering and a dedicated optional modular reverb after the Rings/Clouds core is measured. Global delay and chorus are intentionally excluded from the base instrument.
 - Profile supported combinations and define sensible voice limits.
 
 ### Milestone 5 — Finish and release
