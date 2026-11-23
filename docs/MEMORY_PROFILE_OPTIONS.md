@@ -81,15 +81,12 @@ The earlier single-Rings-plus-Clouds estimates are therefore not sufficient to a
 The two-instance requirement is not permission to reduce either Rings engine's fidelity or to silently disable other modules. If the full configuration does not fit, present measured options and user-visible consequences before making a product trade-off.
 
 
-## Original Rings String-and-Reverb model memory requirement (2026-11-23)
+## Rings String-and-Reverb model: explicitly omitted (2026-11-23)
 
-A further pinned-source inspection found a material memory cost that must be included in the dual-instance profile:
+The pinned upstream `rings/dsp/fx/reverb.h` defines a 32,768-sample, 16-bit reverb history (65,536 bytes / 64 KiB) for each independent Rings Part. Two complete instances would therefore require 128 KiB for this mode alone.
 
-- Original `rings/dsp/fx/reverb.h` defines its Rings reverb engine as `FxEngine<32768, FORMAT_16_BIT>`.
-- Its backing store is therefore 32,768 × 2 bytes = **65,536 bytes (64 KiB) per independent Rings Part**.
-- `rings::Part::Init(uint16_t* reverb_buffer)` initializes this engine from the supplied buffer. The upstream implementation expects valid backing storage when the reverb mode is supported.
-- FM1_Locus adds a guard around `reverb_.Init(reverb_buffer)` and calls `Part::Init(NULL)`; its own source comment explicitly ties this to omitting `RESONATOR_MODEL_STRING_AND_REVERB`. That is why its one-Part memory profile cannot be copied as a complete Rings implementation.
+**User-approved decision:** RINGS INTO CLOUDS will not include the original `RESONATOR_MODEL_STRING_AND_REVERB` mode or its dedicated reverb histories. The module will expose five original Rings models. This removes that 128 KiB dual-instance allocation from the resource budget.
 
-For two fully faithful independent Parts, reserve **at least 128 KiB** for two independent Rings reverb histories, in addition to both `rings::Part` objects, both Strummers, excitation/scratch buffers, Clouds storage, resampling/FIFOs, and the existing firmware allocations. Do not share one reverb history between A and B: it would couple their tail state and violate instance independence.
+The Rings wrapper must use the safe no-reverb initialization path only after verifying that the omitted mode cannot be selected and that no code path accesses the uninitialised reverb engine. Keep all other Rings model state independent between RINGS A and RINGS B.
 
-This 128 KiB figure is the exact raw delay-memory capacity required by the upstream type, not a measured total allocation or proof that the FM-1 pool can fit it. The target linker map and actual runtime object sizes still need measurement. If the complete feature set does not fit, present measured alternatives; do not silently remove the sixth Rings mode or shorten its delay memory.
+The remaining memory profile still requires target-linker and runtime measurements for both Parts, both Strummers, excitation/scratch buffers, Clouds, resampling/FIFOs, routing and existing firmware allocations. This decision does not establish that the complete instrument now fits.
