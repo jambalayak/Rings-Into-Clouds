@@ -79,6 +79,8 @@ The final build must retain the build system's minimum 8 KiB pool headroom and 4
 ### Phase 2 — standalone Rings test harness
 
 - Allocate Rings state separately from the legacy per-track engine union.
+- Design the wrapper and state ownership for two simultaneous Rings instances from the beginning; the product acceptance target is two independent instances, not one.
+- Measure one and two rings::Part / rings::Strummer allocations separately, including all per-instance buffers and state.
 - Use the measured current codec rate.
 - Test all supported resonator models, excitation, tune, structure, brightness, damping and position.
 - Keep the original Rings model/polyphony semantics; any omitted model must be an explicit resource decision.
@@ -119,6 +121,8 @@ Do not begin Phase 1 until the following are recorded:
 ## Acceptance criteria
 
 The Rings + Clouds milestone is not complete until:
+
+- Two independent Rings instances can run simultaneously with separate parameters, triggers, presets and audio outputs.
 
 - Original upstream DSP and modes are present, with all local changes documented.
 - Pitch and timing are correct at the actual FM-1 codec rate.
