@@ -65,7 +65,7 @@ def main():
     run("ld", ["-r", str(c_obj.relative_to(ROOT)), str(cpp_obj.relative_to(ROOT)),
                "-o", str(combined.relative_to(ROOT))], ROOT, docker)
     print("PASS: target C/C++ objects compiled and the linker combined them.")
-    print("Covered: C ABI, C++11, placement construction, and the std::fill header dependency.")
+    print("Covered: C ABI, C++11, placement construction, std::fill/max_element, and cmath/cstring header bridges.")
     print("Not covered: complete upstream dependencies, C++ runtime, final firmware link,")
     print("memory use, DSP timing, audio behaviour or physical-device operation.")
 
