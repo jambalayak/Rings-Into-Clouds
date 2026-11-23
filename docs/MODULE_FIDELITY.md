@@ -120,3 +120,25 @@ For each module, maintain a source/revision record, licence record, feature matr
 The inherited Felucca base includes a Rings-derived fixed-point sympathetic-string implementation inside PHYS and a separate sample-based GRAIN engine. The source documents meaningful differences from the original Rings and Clouds. These must be treated as partial foundations only.
 
 No complete Rings, Clouds, Beads, Ripples, Peaks, Marbles, Yarns or Plaits port is established by this document. Implementation status must be updated only after source inspection, integration and tests.
+
+
+## Rings original model coverage — pinned source audit (2026-11-23)
+
+The pinned upstream `rings/dsp/part.h` at eurorack commit `08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4` defines six selectable `ResonatorModel` values:
+
+| Source enum | Original mode |
+|---|---|
+| `RESONATOR_MODEL_MODAL` | Modal resonator |
+| `RESONATOR_MODEL_SYMPATHETIC_STRING` | Sympathetic strings |
+| `RESONATOR_MODEL_STRING` | String resonator |
+| `RESONATOR_MODEL_FM_VOICE` | FM voice |
+| `RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED` | Quantized sympathetic strings |
+| `RESONATOR_MODEL_STRING_AND_REVERB` | String and reverb |
+
+The sixth mode is not merely an optional global reverb effect. In upstream `Part::Process`, it changes string damping, performs stereo pickup cross-mixing, configures the Rings reverb from damping/brightness, processes the reverb and inverts the auxiliary output before the final limiter. It is a distinct original Rings mode and must be included in the faithful target.
+
+FM1_Locus clamps its selected model to `RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED` (enum value 4), thereby excluding `STRING_AND_REVERB` (value 5). That is a Locus-specific resource/feature reduction, not full original Rings model coverage. RINGS INTO CLOUDS must not inherit that cap or omit this sixth mode without an explicit user-approved trade-off.
+
+The original `Part` has a maximum of four internal resonator voices. `set_polyphony()` clamps to this maximum and marks the instance dirty; configuration is deferred until `Process()` calls `ConfigureResonators()`. The upstream API's `Part::Process` also owns the final stereo/aux split and limiter. Our integration must preserve these semantics, while moving expensive dirty configuration out of the audio deadline as a deliberate real-time-safe scheduling adaptation.
+
+The original Strummer is a stateful onset detector with an inhibit timer. Its internal-strum behaviour depends on whether the note and exciter are internal or externally supplied. RINGS A and B each require their own Strummer instance; sharing one would couple onset history and inhibit state across modules.
