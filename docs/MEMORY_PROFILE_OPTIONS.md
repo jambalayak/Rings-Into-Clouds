@@ -90,3 +90,20 @@ The pinned upstream `rings/dsp/fx/reverb.h` defines a 32,768-sample, 16-bit reve
 The Rings wrapper must use the safe no-reverb initialization path only after verifying that the omitted mode cannot be selected and that no code path accesses the uninitialised reverb engine. Keep all other Rings model state independent between RINGS A and RINGS B.
 
 The remaining memory profile still requires target-linker and runtime measurements for both Parts, both Strummers, excitation/scratch buffers, Clouds, resampling/FIFOs, routing and existing firmware allocations. This decision does not establish that the complete instrument now fits.
+
+
+## Linker-boundary arithmetic for a 128 KiB RAM experiment (2026-11-23)
+
+The current linker regions are contiguous and end at the existing guard boundary:
+
+- RAM: origin `0x01C08000`, length 72 KiB, end `0x01C1A000`.
+- POOL: origin `0x01C1A000`, length 360 KiB, end `0x01C74000`.
+
+A purely arithmetic 128 KiB RAM / 304 KiB POOL experiment would keep the same combined 432 KiB span and the same end boundary:
+
+- RAM: origin `0x01C08000`, length 128 KiB, end `0x01C28000`.
+- POOL: origin `0x01C28000`, length 304 KiB, end `0x01C74000`.
+
+This is not an approved linker change. It shifts 56 KiB from POOL to ordinary RAM. With the reference Clouds small buffer of 65,408 bytes in `.bss`, the new RAM region would leave 65,664 bytes before other `.bss/.data` and the mandatory 4 KiB reserve (61,568 bytes after that reserve). Conversely, the POOL becomes smaller by 57,344 bytes and must still accommodate all `.pool` buffers with at least 8 KiB spare. This split cannot be judged without a successful baseline map and exact allocation report.
+
+The earlier candidate that removes the 131,072-byte master tempo delay and 32,768-byte SLICER recordings is a separate, user-visible product trade-off. Neither feature is approved for removal. Do not combine that candidate with the linker split as though it were already accepted. First measure actual RAM/POOL usage and all DSP state; then present the smallest set of explicit alternatives with their audible consequences. The only approved feature omission remains the dedicated Rings String-and-Reverb model/reverb.
