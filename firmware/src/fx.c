@@ -613,7 +613,7 @@ static __attribute__((noinline)) void rev_side_mix(int32_t *l, int32_t *r, uint3
     }
 }
 
-/* INSERT (1.5, Discussions #78 and #177): one effect per track, after DIST and before the SLICER, with a dry / wet
+/* INSERT (1.5, Discussions #78 and #177): one effect per track, after DIST, with a dry / wet
  * MIX. TYPE (P_ITYPE, N_ITYPE; stored, append-only) and its three values A B C (P_IA .. P_IC, what they mean: params.c
  * ins_desc):
  *   SOFT HARD FOLD FUZZ  DRIVE (1x .. ~13x, squared), TONE (two one-pole low-passes at F_CUTOFF), LEVEL (F_DB, as the
@@ -629,14 +629,13 @@ static __attribute__((noinline)) void rev_side_mix(int32_t *l, int32_t *r, uint3
  *                        127), feedback 0 .. 0.4. A DC blocker on the swept copy (a clipped loud input is lopsided).
  * The swept ones are the pedals': their wet is (dry + swept) / 2, the notches need both, so MIX 100 % is the whole
  * effect and less a lighter one. MIX (P_IMIX) blends dry and wet linearly; MIX 0 or TYPE OFF: the track bit for bit
- * as before (nothing runs). MIX glides (2.9 ms, SL_SLOPE); a TYPE change fades the old one out, clears the state,
+ * as before (nothing runs). MIX glides (2.9 ms, INS_SLOPE); a TYPE change fades the old one out, clears the state,
  * fades the new one in; so does a start from MIX 0 (no stale line or filter). With SPREAD (mix_spread) the insert
  * takes the mono sum b, as DIST does; the side passes it by.
- * Order: DIST -> INSERT -> SLICER: the insert colours the sound as DIST does; the SLICER's gate (and its STUT
- * recordings) comes after, so its edges stay sharp (no flanger feedback or phaser ringing smears them) and a STUT
- * repeats the processed sound. State in the pool, per track (ins[], 580 B each); noinline, its own loops: the audio
- * ISR's inlined path gains one test per part (track_t ins_run) */
+ * Order: DIST -> INSERT -> level / pan / sends. State in the pool, per track (ins[], 580 B each); noinline, its own
+ * loops: the audio ISR's inlined path gains one test per part (track_t ins_run) */
 enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_N };
+#define INS_SLOPE 256                    /* 2.9 ms fade at 44.1 kHz */
 #define IL_LEN 256u                     /* FLANG / CHOR: the line, samples (a power of 2: masked) */
 static const uint8_t INS_HOLD[16] = {64, 48, 40, 32, 24, 20, 16, 12, 10, 8, 6, 5, 4, 3, 2, 1};   /* CRUSH RATE */
 typedef struct {
@@ -691,7 +690,7 @@ static __attribute__((noinline)) void ins_drive(ins_t *s, const track_t *t, int3
     int32_t k = ins_lpk(crush ? t->p[P_IC] : t->p[P_IB]), lvl = crush ? 4096 : LEVEL_Q12[t->p[P_IC] & 127];
     for (i = 0; i < n; i++) {
         int32_t x = b[i], y, v;
-        s->w += clamp(tw - s->w, -SL_SLOPE, SL_SLOPE);
+        s->w += clamp(tw - s->w, -INS_SLOPE, INS_SLOPE);
         if (crush) {
             if (!s->cnt) {
                 s->hold = ins_shape(IT_CRUSH, clamp(x, -262144, 262143), sh);
@@ -733,7 +732,7 @@ static __attribute__((noinline)) void ins_swept(ins_t *s, const track_t *t, int3
         for (i = 0; i < n; i++) {
             int32_t x = b[i], xs = clamp((x + 4) >> 3, -16383, 16383), u = xs + ((s->fb * fbk + 16384) >> 15), y = u;
             uint32_t st;
-            s->w += clamp(tw - s->w, -SL_SLOPE, SL_SLOPE);
+            s->w += clamp(tw - s->w, -INS_SLOPE, INS_SLOPE);
             for (st = 0; st < PH_ST; st++) {            /* y = a (u - y1) + u1 */
                 y = clamp(s->px[st] + ((a * (u - s->py[st]) + 8192) >> 14), -65535, 65535);
                 s->px[st] = u;
@@ -754,7 +753,7 @@ static __attribute__((noinline)) void ins_swept(ins_t *s, const track_t *t, int3
         for (i = 0; i < n; i++, s->ph += inc) {
             int32_t x = b[i], r0, r1, v, fr;
             uint32_t d;                                 /* the delay, Q16 samples */
-            s->w += clamp(tw - s->w, -SL_SLOPE, SL_SLOPE);
+            s->w += clamp(tw - s->w, -INS_SLOPE, INS_SLOPE);
             if (chorus) {
                 d = (uint32_t)((140 << 16) + ((osc_sine(s->ph) * (int32_t)dep * 50) >> 5));   /* 3.2 +- 2.3 ms */
             } else {
@@ -805,7 +804,7 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
 }
 
 /* one block of the whole mix (shared with hostsim.c): events -> each part (with its modulation matrix)
- * -> dist -> INSERT -> SLICER -> level / pan / sends -> buses -> master; out: stereo Q15 */
+ * -> dist -> INSERT -> level / pan / sends -> buses -> master; out: stereo Q15 */
 static void events_block(uint32_t n);                    /* seq.c */
 #if FELUCCA_CPU2
 static int32_t wet[CTL];                                 /* (the dry mix and the sends: mx[0], above) */
@@ -839,7 +838,6 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     track_dist(t, b, n);
     if (t->p[P_ITYPE] | t->ins_run)
         track_insert(t, b, n);                          /* (the mono sum, as DIST) */
-    slicer_track_sd(t, b, d, n);
     if ((pf.mute >> (t - trk)) & 1u)
         perf_mute_sd((uint32_t)(t - trk), b, d, n);
     for (i = 0; i < n; i++) {
@@ -896,8 +894,7 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
 #endif
         t->tail = t->p[P_ITYPE] ? 64 : 16;              /* blocks of DIST / INSERT state to run out after the last
                                                          * voice (the INSERT's: 46 ms, a flanger's feedback) */
-    else if ((!t->tail || !(t->p[P_DIST] | t->p[P_ITYPE]) || !--t->tail) && !slicer_busy(t)) {
-        slicer_track(t, 0, n);                          /* (the SLICER's step clock runs on) */
+    else if (!t->tail || !(t->p[P_DIST] | t->p[P_ITYPE]) || !--t->tail) {
         if (t->ins_run && !t->p[P_ITYPE])
             ins_rest(t);                                /* TYPE OFF while silent: no fade-out left for the next note */
         if (MOD(t).on)
@@ -910,7 +907,6 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
         track_dist(t, b, n);
         if (t->p[P_ITYPE] | t->ins_run)
             track_insert(t, b, n);                      /* the INSERT (1.5): off, nothing */
-        slicer_track(t, b, n);                          /* slicer.c: before the level, pan and sends */
         if ((pf.mute >> (t - trk)) & 1u)
             perf_mute((uint32_t)(t - trk), b, n);       /* perform.c: a black key in the FX layer */
     }
