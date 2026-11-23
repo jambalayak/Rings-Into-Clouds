@@ -275,6 +275,12 @@ int main(void)
         ok = sizeof v3 == 2584u && proj_import(&q, &v3, (int)sizeof v3) && proj_ok(&q);
         for (t = 0; t < NTRK && ok; t++) {
             memcpy(ref, full[t], sizeof ref);
+            /* Match proj_fm4's current shared-parameter clamping. Retired global-bus sends
+             * (CHOR/DLY/REV) are inert now and intentionally load as zero. */
+            for (i = 0; i < P_E0; i++) {
+                const param_desc_t *pd = param_desc_of(ENGI_DIGITAL, i);
+                ref[i] = (int16_t)clamp(ref[i], pd->min, pd->max);
+            }
             pr = fm4_convert_ref(ref, v);
             fm6_pack(v, pk);
             ok = q.t[t].engine == ENGI_FM6 && q.t[t].preset == pr && pr == FM4_TO_FM6[(k + t + 4u) % FM4_NPRESETS] &&
