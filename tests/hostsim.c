@@ -33,7 +33,6 @@ static struct { volatile uint32_t notes, buttons; } fm1_in;
 #include "../firmware/src/params.c"
 #include "../firmware/src/mod.c"
 #include "../firmware/src/voice.c"
-#include "../firmware/src/slicer.c"
 #include "../firmware/src/fx.c"
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
 #include "../firmware/bsp/chip/usb.c"
@@ -73,8 +72,6 @@ static void host_tracks_init(void)                /* as felucca_init: defaults, 
     uint32_t i, k;
     for (i = 0; i < G_COUNT; i++)
         song.g[i] = GP[i].def;
-    song.g[G_RTYPE] = 0;                          /* ROOM, the power-on reverb until 1.2: the renders (goldens) as
-                                                   * before, ROOM bit for bit; HALL, the default since: reverb_test.c */
     for (k = 0; k < NTRK; k++) {
         for (i = 0; i < P_E0; i++)
             trk[k].p[i] = TP[i].def;
@@ -84,12 +81,12 @@ static void host_tracks_init(void)                /* as felucca_init: defaults, 
     song.master_q12 = 4096;
 }
 
-/* the factory preset as ui.c apply_preset_to sets it (sound, sends; not the steps, not the track's own:
- * the mix, ARP, SCL, the pattern parameters, the SLICER);
+/* the factory preset as ui.c apply_preset_to sets it (sound; retired global FX sends are always zero; not the steps, not the track's own:
+ * the mix, ARP, SCL, the pattern parameters);
  * the engine as the UI asks for it (eng_req: the audio side switches; host_preset: at once) */
 static void host_preset_values(track_t *t, uint32_t e, uint32_t pi, const preset_t *p)
 {
-    static const uint8_t FX_DEF[4] = {0, 24, 28, 36};
+    static const uint8_t FX_DEF[4] = {0, 0, 0, 0};
     uint32_t i;
     t->eng_req = (uint8_t)e;
     t->preset = (uint8_t)pi;
