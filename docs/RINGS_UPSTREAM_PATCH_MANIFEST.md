@@ -200,3 +200,25 @@ model. It does not prevent a separate optional modular reverb processor being
 designed later, under its own memory and CPU budget. No such processor is added
 by this patch.
 
+
+
+### Reverb allocation and upstream null-buffer hazard
+
+The pinned `rings/dsp/fx/reverb.h` defines its engine as
+`FxEngine<32768, FORMAT_16_BIT>`. Its `Init(uint16_t* buffer)` calls
+`engine_.Init(buffer)`; the pinned `rings/dsp/fx/fx_engine.h` stores that
+pointer and clears the full configured buffer with `std::fill`. Therefore
+each Rings `Part` requires a separate **32,768 × uint16_t = 65,536-byte
+(64 KiB)** external reverb buffer while this member exists. Two Parts would
+consume 131,072 bytes (128 KiB) for a feature the user explicitly declined.
+
+The FM1_Locus reference calls `part->Init(NULL)`. That call is not safe with
+this pinned upstream implementation: `FxEngine::Init` clears the supplied
+buffer, so a null pointer is invalid. Do not copy that call or assume the
+reverb is inert merely because the sixth model is not selected.
+
+Removing the `Reverb` member and its Init call as specified above eliminates
+the need for this buffer entirely. The source-based saving is 64 KiB per
+independent Rings Part, 128 KiB for RINGS A and B, before any other object-size
+or alignment effects. This is an upstream allocation calculation, not a
+measured linker delta.
