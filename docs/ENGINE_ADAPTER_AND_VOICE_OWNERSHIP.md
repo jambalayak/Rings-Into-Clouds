@@ -163,3 +163,25 @@ This avoids the incorrect design of creating a separate Rings Part per Felucca `
 - [ ] Correct 44.1-to-48 kHz treatment and 32-to-24 chunk scheduling, including excitation alignment and stereo latency.
 - [ ] Per-instance resource measurement for two Rings Parts, including two reverb buffers and all auxiliary state.
 - [ ] Regression tests for two simultaneous notes/instances, voice stealing, note-off tails, and independent parameter/model changes.
+
+
+## Host render lifecycle verified in `firmware/src/voice.c`
+
+The track render path confirms the following order for each control block:
+
+1. It calls `engine_t.block(track)` once before iterating active host voices.
+2. It calls `engine_t.render(track, voice, ...)` once for each active host voice that reaches the render stage.
+3. It calls `engine_t.post(track, out, n)` once after the voice loop, regardless of whether any host voice rendered; the return value contributes to the track's active/tail count.
+
+This is an important enabling detail: `post` can keep a persistent per-track Rings Part processing resonator and reverb tails when all host note voices have been released. However, it does **not** solve event delivery by itself.
+
+### Adapter event bridge candidate
+
+- Use `note_on` as the host note-on/retrigger event to update a fixed-size per-track event mailbox (note, velocity, gate/trigger, pitch bend/modulation snapshot as appropriate).
+- Use `block` to consume the mailbox once per block and prepare the Rings performance state, excitation and strum decision.
+- Use `post` to process the persistent Rings Part and add its stereo output to the track's output bus, including tails.
+- Do not render the same Rings Part from every host voice's `render` callback; that would multiply processing and potentially trigger it several times per block.
+- Note-off must be observed separately. The host voice's gate transition and release lifecycle must be traced to determine a safe bounded event hook; a one-shot note-on mailbox is not sufficient for correct internal/external strummer behaviour.
+- The `post` callback receives the track's mono `out` buffer, not a dedicated stereo pair. The second Rings output therefore needs a separately allocated track stereo/aux bus or a documented routing extension. Do not silently collapse the aux pickup if independent stereo/dual-output routing is a product requirement.
+
+The `post` callback is called after voice rendering and receives the same block length `n`; Rings processing must still obey its 24-sample maximum chunk size and the verified FM-1 sample-rate strategy above.
