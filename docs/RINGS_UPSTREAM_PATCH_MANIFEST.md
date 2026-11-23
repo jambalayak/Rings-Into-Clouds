@@ -51,6 +51,25 @@ The project enum terminator must become `RESONATOR_MODEL_LAST = 5`. No placehold
 - Do not remove or alter the retained model's normal String dispersion, sympathetic-string LFOs, excitation, limiter, note filter, or stereo OUT/AUX behaviour.
 - Do not substitute the FM-1 shared reverb bus for the omitted model. The omission is a removed model, not a hidden routing change.
 
+## Memory-layout adaptation without DSP reduction
+
+The original `String` class embeds two delay arrays in every object:
+
+- `StringDelayLine`: 2,048 floats per String.
+- `StiffnessDelayLine`: 1,024 floats per String.
+- Eight Strings per Part, two independent Parts: 49,152 floats total, or 196,608 bytes at 32 bits per float.
+
+This storage is a major SRAM constraint. The first memory adaptation must preserve both array lengths and the original delay-line read/write/interpolation algorithms while moving the arrays out of each `String` object:
+
+1. Add a pointer-backed delay-line storage variant (or equivalent source-compatible wrapper) whose only per-object state is its buffer pointer, write pointer and delay value.
+2. Initialise each `String` with its own external 2,048-float string buffer and 1,024-float stiffness buffer. `String::Init` must clear both buffers exactly as upstream `DelayLine::Init` does.
+3. Give each `rings::Part` a distinct storage descriptor. The descriptor must map every one of its eight Strings to unique arrays; RINGS A and RINGS B must never alias.
+4. Place the external arrays deliberately across ordinary RAM and POOL using named linker sections. This is a placement change only; it does not reduce the 196,608-byte storage requirement.
+5. Keep the arrays static and aligned. No allocation, clearing, locking or page placement may occur in the audio interrupt.
+6. Compare the adapted delay-line class against upstream for wraparound, integer and fractional reads, Hermite reads, allpass operation and reset. Then compare retained Rings model audio against upstream reference renders.
+
+The combined memory lower bound remains tight even after the approved base-firmware removals. External storage is necessary to control placement, but is not by itself proof that two full Rings instances plus Clouds fit. The final target map must account for all other DSP state and required headroom before the integration is accepted.
+
 ## Runtime and adapter invariants
 
 - Each active RINGS A/B instance owns its own `rings::Part`, `rings::Strummer`, performance state, patch state, event history and scratch buffers.
