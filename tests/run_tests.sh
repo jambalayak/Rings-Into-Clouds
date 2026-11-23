@@ -114,20 +114,7 @@
 # PHASE FOLD 1.5.5 (tests/fold155_test.c; #104): E7 FOLD (0..127, default 0, the presets at 0), FOLD 0 bit for bit with
 #                   1.5.1's loop, bounded and without DC at FOLD 1..127 (every WAVE, MIX / RING, SUB, notes 12..127),
 #                   brighter with FOLD, the gain falling with the pitch above A4, the cost; build/fold155_demo/phase_fold.wav.
-# PERFORM (tests/perform_test.c): the FX hold layer (src/perform.c): 1/16 starts, stereo buffer effects, the
-#                   too-long REPEAT, the SLICER interplay, silent layer keys, idle bit-identical, cost; build/perform_demo/;
-#                   OCT UP / DN (the harmonizer): pitch, stereo, clicks, the shimmer bounded, cost; FLANGER / PHASER (1.2): no DC,
-#                   bounded, the sweep in time with the tempo, clean release, stacked with REPEAT / LPF / HPF, cost; the key
-#                   map (any effect or none on any key, a key remapped while held, FX LATCH); build/fx_demo/; 1.5.1: the
-#                   delay's dotted TIME (lengths, the 1/4D clamp, the knob order), REV / ECHO THROW (the sends as at 127,
-#                   the glide, ECHO's capped feedback bounded, the tails ringing out, assignable); build/throw_demo/.
-# REVERB (tests/reverb_test.c): REVERB TYPE (src/fx.c): ROOM bit for bit as before, SPRING's decay against SIZE,
-#                   its chirp (group delay rising with frequency), stability at the corners, level, a model change
-#                   without a click, its cost against ROOM (+30 % at most); demos in build/fx_demo/. 1.2's HALL: SPRING
-#                   bit for bit as before, decay against SIZE and DAMP, stability, exact silence after the tail (27
-#                   settings and levels), no offset, level, stereo, echo density / ringing / flutter against ROOM, SPRING
-#                   and COMB8 (8 combs + 4 allpasses, host only, for comparison), model changes both ways, cost; the
-#                   listening set in build/reverb_demo/ (drums, pluck, piano: dry and each model at SIZE 40 / 90 / 127).
+# PERFORMANCE: compact retained filters, flanger / phaser, track mutes and legacy key-map rejection.
 # SLICE (tests/slice_test.c): slice tables, AUTO onsets of a user-slot loop, reverse, keys, modes, the MAN slices
 #                   (SLICES page) and their store in the slot (src/slice_store.c); the presets and the loop;
 #                   demos in build/slice_demo/.
