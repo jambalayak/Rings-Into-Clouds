@@ -361,7 +361,7 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
     return 1;
 }
 
-/* a track muted by its black key: its signal ramps to 0 and back (fx.c mix_part, after the SLICER) */
+/* a track muted by its black key: its signal ramps to 0 and back (fx.c mix_part, after the track's insert) */
 static __attribute__((noinline)) void perf_mute(uint32_t k, int32_t *b, uint32_t n)
 {
     uint32_t i;
@@ -430,7 +430,7 @@ static inline int32_t pf_mix(int32_t x, int32_t y, int32_t w)
 /* the loop: frame f of it, both channels (Q15) */
 static inline void pb_put(uint32_t f, int32_t l, int32_t r)
 {
-    int16_t *p = &perf_buf_store[0][0] + 2u * (f & (PB_FRAMES - 1u));
+    int16_t *p = perf_buf_store + 2u * (f & (PB_FRAMES - 1u));
     p[0] = (int16_t)clamp(l, -32768, 32767);
     p[1] = (int16_t)clamp(r, -32768, 32767);
 }
@@ -438,7 +438,7 @@ static inline void pb_put(uint32_t f, int32_t l, int32_t r)
 static inline void pb_at(uint32_t s, uint32_t n, int32_t *l, int32_t *r)
 {
     uint32_t f = s >> 1 < n ? s >> 1 : n - 1u;    /* (an odd loop's last sample: the frame before) */
-    const int16_t *p = &perf_buf_store[0][0] + 2u * (f & (PB_FRAMES - 1u));
+    const int16_t *p = perf_buf_store + 2u * (f & (PB_FRAMES - 1u));
     const int16_t *q;                               /* a frame is the mean of samples 2f, 2f + 1: sample s */
     if (s & 1u)                                     /* lies a quarter frame from it, towards f + 1 or f - 1 */
         q = f + 1u < n ? p + 2 : p;
@@ -498,8 +498,8 @@ static inline void hb_tap(uint32_t ph, int32_t *l, int32_t *r)
         *l = *r = 0;
         return;
     }
-    p = &perf_buf_store[0][0] + 2u * ((pf.wr - di) & HB_MASK);
-    q = &perf_buf_store[0][0] + 2u * ((pf.wr - di - 1u) & HB_MASK);
+    p = perf_buf_store + 2u * ((pf.wr - di) & HB_MASK);
+    q = perf_buf_store + 2u * ((pf.wr - di - 1u) & HB_MASK);
     *l = p[0] + (((q[0] - p[0]) * f) >> 15);
     *r = p[1] + (((q[1] - p[1]) * f) >> 15);
 }
@@ -576,8 +576,8 @@ static inline void perf_buf(int32_t *pl, int32_t *pr)
         if (pf.wr >= 2u) {                          /* read behind the writing, slower and slower */
             uint32_t f = pf.tpos >> 16;
             int32_t fr = (int32_t)((pf.tpos >> 1) & 0x7FFFu), a, b, env;
-            const int16_t *p = &perf_buf_store[0][0] + 2u * (f & (PB_FRAMES - 1u));
-            const int16_t *s = &perf_buf_store[0][0] + 2u * ((f + 1u) & (PB_FRAMES - 1u));
+            const int16_t *p = perf_buf_store + 2u * (f & (PB_FRAMES - 1u));
+            const int16_t *s = perf_buf_store + 2u * ((f + 1u) & (PB_FRAMES - 1u));
             a = p[0];
             b = s[0];
             yl = (a + (((b - a) * fr) >> 15)) << 1;
