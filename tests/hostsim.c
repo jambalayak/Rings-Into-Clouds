@@ -3,10 +3,10 @@
 /* Host-side render of the FELUCCA DSP (engines, voices, FX, sequencer) to a WAV,
  * for debugging sound without hardware. Same sources as the firmware.
  *   tests/run_tests.sh builds it into build/host/;
- *   build/host/hostsim ENGINE PRESET MONO OUT.wav [CHORUS]
+ *   build/host/hostsim ENGINE PRESET MONO OUT.wav
  * env: SECS=n renders n s (the 2 s note pattern repeats), CHORD[=k] holds k keys
  * (default 4, up to 8), DRUMS=1 adds GM drum hits (part 4: DRUM), BENCH=1 prints the render time,
- * DIST=d, LEVEL=l, SENDS=c,d,r, SWEEP=1, NOTE=k, OCT=o, PSET=id:v,..., VSWEEP=1, PSWEEP=id:a:b,
+ * DIST=d, LEVEL=l, SWEEP=1, NOTE=k, OCT=o, PSET=id:v,..., VSWEEP=1, PSWEEP=id:a:b,
  * PRESET=1 (the whole preset: sends, voice mode), STEPS=n,n,... (a pattern, 0 = rest; see below).
  * TRACKS=DIR: the 4-track test (tracks_demo below): a bass / pad / lead / drums (DRUM) pattern
  * with live recording into DIR (mix + solos), checks, and the cost against one track. */
@@ -851,13 +851,9 @@ int main(int argc, char **argv)
     }
     fm6_track_loaded(&inst);                            /* FM6: the preset's patch */
     inst.p[P_VOICE] = (int16_t)mono;
-    inst.p[P_CHOR] = argc > 5 ? atoi(argv[5]) : 24;      /* as felucca_init */
-    inst.p[P_DLY] = argc > 5 ? atoi(argv[5]) : 28;
-    inst.p[P_REV] = argc > 5 ? atoi(argv[5]) : 36;
+    inst.p[P_CHOR] = inst.p[P_DLY] = inst.p[P_REV] = 0; /* retired global buses */
     if (getenv("PRESET"))                               /* PRESET=1: sends, voice mode too (then SENDS, PSET) */
         host_preset(&inst, (uint32_t)eng, (uint32_t)preset);
-    if (getenv("SENDS"))                                 /* SENDS=chorus,delay,reverb */
-        sscanf(getenv("SENDS"), "%hd,%hd,%hd", &inst.p[P_CHOR], &inst.p[P_DLY], &inst.p[P_REV]);
     if (getenv("OCT"))                                   /* OCT=o: keyboard octave shift (key 7 = C4 + 12 o) */
         song.octave = (int8_t)atoi(getenv("OCT"));
     if (getenv("PSET")) {                               /* PSET=id:value,... (track parameter ids, P_E0 = 61) */
