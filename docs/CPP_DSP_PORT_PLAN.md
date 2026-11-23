@@ -252,8 +252,9 @@ The repository's current `tools/check_cpp_toolchain.py` has been inspected. It i
 
 - It checks that `clang++`, `clang` and `ld` executables exist in the configured JieLi toolchain.
 - It compiles one C caller and one C++11 object with `-target pi32v2 -mcpu=r3 -mfprev1`, `-fno-exceptions`, `-fno-rtti`, `-fno-threadsafe-statics`, `-fno-use-cxa-atexit` and `-nostdinc++`.
-- It combines the two objects using `ld -r`. It does not perform a final firmware link, link a C++ runtime, resolve `new`/placement-new or pure-virtual support, exercise static initialization, or validate upstream DSP dependencies.
-- It uses `-O2`, while the current C unity build's normal C flags use `-Os`. This is acceptable for the minimal ABI probe, but not evidence of final DSP code size or CPU cost.
+- The C++ object exercises placement construction, `std::fill`, `std::max_element`, and probe-only `<cmath>` / `<cstring>` header bridges. These are a narrow smoke subset based on direct includes found in candidate Rings/Clouds translation units; the transitive dependency audit remains incomplete.
+- It combines the two objects using `ld -r`. It does not perform a final firmware link, resolve all C++ ABI/runtime or math-library symbols, exercise static initialization, or validate upstream DSP dependencies.
+- It now uses `-Os`, matching the firmware's normal C unity build optimisation level. This does not prove final DSP code size or CPU cost.
 - `BUILDING.md` documents how to run it, but the probe has not been executed in this work session. No PASS is claimed.
 
 The next build-system milestone is therefore not just “clang++ exists”: it is a staged proof. First run the existing object/ABI probe on the actual JieLi toolchain; then add a minimal freestanding C++ runtime only for symbols proven necessary; then perform a full final-link smoke image using the real linker script and existing `build.py` safety checks. Keep `.init_array`, exception/unwind support, RTTI, unexpected soft-float helpers and unbounded constructors out unless a deliberate, measured design proves they are needed.
