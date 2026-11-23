@@ -7,6 +7,9 @@ RINGS INTO CLOUDS is a dedicated FM-1 instrument, not a reskin of SLOOP, HORATIO
 Default patch: `Exciter / Oscillator → Resonator → Granular Processor → Spatial Effects → Stereo Output`. This is not a fixed chain. Planned routing includes resonator before or after granular processing, resonator to reverb, granular feedback/freeze workflows, external or USB audio into granular processing where supported, and parallel dry/processed paths. First map Felucca's existing audio graph, voice allocation, FX buses and inter-core boundaries.
 
 ## Sound systems
+### Dual independent Rings engines
+Provide two simultaneous, independent instances of the same Rings DSP engine, exposed as RINGS A and RINGS B on separate FM-1 parts. Each has its own model, exciter/strummer state, parameters, modulation, preset and audio route. Both must be editable separately and audible together, subject to a measured shared CPU/voice/memory budget. This is a core requirement; see docs/DUAL_RINGS_REQUIREMENTS.md.
+
 ### Resonator
 Develop a Rings-inspired resonator with Modal, Sympathetic and Inharmonic models, plus pluck, strike, bow and noise excitation. Keep a Rings-derived FM voice distinct from a separate six-operator DX-style FM synthesizer. Investigate the Disastrous Peace Easter-egg engine separately, subject to source and implementation verification.
 
@@ -55,13 +58,13 @@ Verify display dimensions, font rasterisation and UI drawing limits before produ
 - Record build/test results and CPU budgets.
 
 ### Milestone 1 — First playable RINGS → CLOUDS instrument
-- Implement one reliable resonator voice path and a granular processor.
+- Implement one reliable resonator voice path and a granular processor, while designing instance APIs and state ownership for two independent Rings engines from the outset.
 - Connect keyboard and physical controls.
 - Add a small starter preset bank and original module-inspired performance screen.
 - Validate audio, stability, CPU and memory on emulator and physical FM-1.
 
 ### Milestone 2 — Resonator and granular depth
-- Add resonator models and excitation choices.
+- Add resonator models and excitation choices; bring up RINGS A and RINGS B as separate instances and validate simultaneous operation.
 - Add granular texture, freeze and buffer controls.
 - Add safe routing options and preset persistence.
 
