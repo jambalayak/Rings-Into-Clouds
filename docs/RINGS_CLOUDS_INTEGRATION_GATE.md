@@ -170,7 +170,14 @@ The linker reserves 360 KiB (368,640 bytes) for `.pool`. The following existing 
 
 This subtotal excludes the HALL state, per-track insert state and any other pool allocations discovered by the linker. It is therefore a lower bound on current pool use, not a complete map.
 
-FM1_Locus documents 184 KiB (188,416 bytes) of Clouds buffers alone. Subtracting only the known subtotal from the 360 KiB pool leaves 132,420 bytes before the excluded allocations and before the required 8 KiB spare headroom. Thus the full Clouds buffers do not fit alongside all current allocations, even before Rings state, resampler histories, FIFOs and batch buffers are added.
+FM1_Locus documents 184 KiB (188,416 bytes) of Clouds buffers alone. Subtracting only the known subtotal from the 360 KiB pool leaves 132,420 bytes before the excluded allocations and before the required 8 KiB spare headroom. Thus the full Clouds buffers exceed the remaining known pool by at least 51,772 bytes, even before the excluded allocations, Rings state, resampler histories, FIFOs and batch buffers are added.
 
 A likely resource-profile experiment is to disable or substantially shorten the existing 131,072-byte master delay line, since a full Clouds processor brings its own delay/granular capabilities. This is only a candidate: quantify the exact linked pool and decide which Felucca effects remain available before changing defaults. Do not remove or reduce any feature without recording the user-visible consequence.
 
+
+
+### C++ port reference
+
+FM1_Locus already contains a compact target C++ support layer under `firmware/cxx/` and a separate C++ build path. Its build uses clang++ for selected `.cc` files, `-std=gnu++11`, no exceptions/RTTI/thread-safe statics/CXA atexit, no system C++ headers, and a small custom header/runtime set. Its C-to-C++ boundary is intentionally narrow.
+
+This is a valuable implementation reference, but its build script is app-oriented and cannot simply replace this repository's build. Port only the required compiler/linker rules and C++ support headers/runtime after checking the current base toolchain version. Keep C++ class objects behind a small C ABI wrapper.
