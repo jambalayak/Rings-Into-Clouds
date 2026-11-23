@@ -1,0 +1,59 @@
+name: FM-1 build and regression
+
+on:
+  push:
+    branches:
+      - rings-into-clouds-development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fm1-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out firmware and submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Prepare Python build dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install Pillow fonttools
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+
+      - name: Install pinned AC79 SDK
+        run: |
+          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+            https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git \
+            "${HOME}/fw-AC79_AIoT_SDK"
+
+      - name: Build FM-1 firmware
+        run: ./build.sh
+
+      - name: Run host regression suite
+        run: tests/run_tests.sh
+
+      - name: Upload tested development build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-into-clouds-dev-${{ github.sha }}
+          path: |
+            build/felucca.fwsc
+            build/felucca.bin
+            build/felucca.map
+            build/felucca.sections.txt
+          if-no-files-found: error
+          retention-days: 7
