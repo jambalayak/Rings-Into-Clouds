@@ -13,7 +13,7 @@ This is a planning calculation based on source-declared static buffers and the c
 
 The build requires at least 4 KiB ordinary-RAM headroom and 8 KiB POOL headroom.
 
-The current source-declared POOL subtotal previously inventoried is 236,220 bytes. It includes the 131,072-byte master tempo delay and 32,768 bytes of SLICER recording buffers. It is a lower bound: HALL state, insert state and any allocations not yet enumerated must be measured.
+The current source-declared POOL subtotal previously inventoried is 236,220 bytes. It includes the 131,072-byte master tempo delay and the 32,768-byte performance-loop store (formerly shared with SLICER). It is a lower bound: HALL state, insert state and any allocations not yet enumerated must be measured.
 
 ## What the LOCUS source actually allocates
 
@@ -43,7 +43,7 @@ Then place both Clouds buffers in POOL:
 | Existing known allocations after delay removal | 105,148 |
 | Clouds large buffer | 118,784 |
 | Clouds small buffer (relocated from .bss) | 65,408 |
-| **Subtotal before Rings and working buffers** | **256,572** |
+| **Subtotal before Rings and working buffers** | **289,340** |
 
 This leaves 21,956 bytes in a 304 KiB POOL region, or 13,764 bytes after the required 8 KiB headroom. That remaining space must still cover Rings/Strummer/Clouds object state, resampler histories, FIFOs, batch buffers, and every currently omitted allocation. It is unlikely to be sufficient.
 
@@ -110,7 +110,7 @@ The remaining candidate to remove the 131,072-byte master tempo delay is a separ
 
 ## SLICER removal: approved product decision (2026-11-23)
 
-**User decision:** remove Felucca's SLICER feature from RINGS INTO CLOUDS. Do not expose its GATE or STUT modes, pattern/rate/depth controls, per-track clock UI or SLICER menu/layer. This is a deliberate product simplification and an approved memory trade-off, not a temporary build flag.
+**User decision:** remove Felucca's SLICER feature from RINGS INTO CLOUDS. Do not expose its GATE or STUT modes, pattern/rate/depth controls, per-track clock UI or SLICER menu/layer. This is a deliberate product simplification and an approved code/state reduction, not a temporary build flag.
 
 The SLICER runtime and DSP code have been removed. **The 32 KiB recording buffer is not reclaimed:** Felucca's performance-layer looper (REPEAT, REVERSE, TAPE STOP, FREEZE and octave effects) had borrowed the SLICER's `sl_buf` storage. To preserve that separate performance feature, the buffer is now explicitly owned by `perform.c` as `perf_buf_store` (4 × 4,096 16-bit samples = 32,768 bytes in `.pool`). The removal therefore saves SLICER code and per-track state, but not this 32 KiB allocation. The exact linker delta remains to be measured.
 
