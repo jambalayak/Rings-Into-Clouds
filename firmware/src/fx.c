@@ -163,7 +163,7 @@ static uint32_t div_samples(uint32_t div)
  * takes the mono sum b, as DIST does; the side passes it by.
  * Order: DIST -> INSERT -> level / pan / sends. State in the pool, per track (ins[], 580 B each); noinline, its own
  * loops: the audio ISR's inlined path gains one test per part (track_t ins_run) */
-enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_N };
+enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_N }; /* IT_CHORUS retired */
 #define INS_SLOPE 256                    /* 2.9 ms fade at 44.1 kHz */
 #define IL_LEN 256u                     /* FLANG / CHOR: the line, samples (a power of 2: masked) */
 static const uint8_t INS_HOLD[16] = {64, 48, 40, 32, 24, 20, 16, 12, 10, 8, 6, 5, 4, 3, 2, 1};   /* CRUSH RATE */
@@ -277,17 +277,15 @@ static __attribute__((noinline)) void ins_swept(ins_t *s, const track_t *t, int3
         return;
     }
     {
-        int32_t chorus = s->type == IT_CHORUS, fbk = c * (chorus ? 103 : 219);   /* 0 .. 0.4 / 0 .. 0.85, Q15 */
+        int32_t fbk = c * 219;                       /* FLANGER feedback, 0 .. 0.85 Q15 */
         uint32_t dq = dep * 516u;                       /* DEPTH, Q16 */
         for (i = 0; i < n; i++, s->ph += inc) {
             int32_t x = b[i], r0, r1, v, fr;
             uint32_t d;                                 /* the delay, Q16 samples */
             s->w += clamp(tw - s->w, -INS_SLOPE, INS_SLOPE);
-            if (chorus) {
-                d = (uint32_t)((140 << 16) + ((osc_sine(s->ph) * (int32_t)dep * 50) >> 5));   /* 3.2 +- 2.3 ms */
-            } else {
-                uint32_t tr = pf_tri(s->ph), sw = (tr * tr) >> 16;   /* longer near the short end (perform.c) */
-                d = (11u << 16) + 209u * (((sw >> 1) * dq) >> 15);  /* 0.25 .. 5 ms */
+            {
+                uint32_t tr = pf_tri(s->ph), sw = (tr * tr) >> 16;
+                d = (11u << 16) + 209u * (((sw >> 1) * dq) >> 15);
             }
             r0 = (int32_t)(s->wp - (d >> 16)) & (int32_t)(IL_LEN - 1u);
             r1 = (r0 - 1) & (int32_t)(IL_LEN - 1u);
@@ -314,6 +312,8 @@ static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint3
 {
     ins_t *s = &ins[(uint32_t)(t - trk) % NTRK];
     int32_t ty = clamp(t->p[P_ITYPE], 0, IT_N - 1), tw;
+    if (ty == IT_CHORUS)
+        ty = IT_OFF; /* legacy stored value: chorus is no longer part of the instrument */
     if (s->type != ty && !s->w)                         /* faded out: the new type from rest */
         s->type = (uint8_t)ty;
     tw = s->type == ty && ty ? ins_mixq(t->p[P_IMIX]) : 0;
