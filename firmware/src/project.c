@@ -14,9 +14,9 @@
  * Format 5 ("FUN5", read only) = format 4 with the drum grid: a step is 10 bytes (step_t: its lane hits and
  * their accents after the 8 bytes it was), and each track has 40 reserved bytes (lane[8][5], written 0: room
  * for per-lane sounds of the DRUM engine). 4 ("FUN4": PROJ_NP_V4 parameters, the modulation matrix), 3
- * ("FUN3": PROJ_NP_V3, the SLICER), 2 ("FUN2") and 1 ("FUN1": PROJ_NP_V2) are read and converted, mapped by
+ * ("FUN3": PROJ_NP_V3, legacy SLICER parameter slots), 2 ("FUN2") and 1 ("FUN1": PROJ_NP_V2) are read and converted, mapped by
  * count as user presets are (the first np - 8 are P_LEVEL.. in order, the last 8 P_E0..P_E7; the
- * parameters added since take their defaults: the SLICER OFF, every matrix slot OFF). Their steps get no
+ * parameters added since take their defaults: legacy SLICER slots inert, every matrix slot OFF). Their steps get no
  * hits; on a DRUM track their notes that are a lane's note become its hits (proj_grid: the same notes and
  * velocities play, the grid shows them as its own).
  * Their engine bytes are kept: formats 1 and 2 had engines 0..7 (ANALOG .. WHEEL), and the engines
@@ -27,7 +27,7 @@
  * when written since, 0 before (a reserved byte, always written 0: the format and its size did not
  * change). proj_drums_to_part turns such a track 4 into a DRUM part with its default kit (the GM map, so
  * its drum steps still play drums; until 1.0.2 it was the SAMPLE engine's PERC set), keeping its steps, its
- * pattern and mix parameters (LEN DIV SWING GATE, PAN MUTE), its SLICER, and the drum level and reverb send
+ * pattern and mix parameters (LEN DIV SWING GATE, PAN MUTE), inert legacy SLICER slots, and the drum level and reverb send
  * as LEVEL and REV.
  *
  * The byte `phys` (reserved, always 0, before 1.0) says what a PHYS track's MODEL means: 0 MODEL 2 was
@@ -1117,7 +1117,7 @@ static int project_restore_runtime(const project_t *input)
         } else if (p->t[k].preset == PROJ_DEF_KEEP) {   /* the steps, LEVEL PAN MUTE, LEN DIV SWING GATE kept */
             memcpy(keep, t->p, sizeof keep);
             fm1_irq_off();                           /* publish the legacy sound as one bounded parameter batch */
-            proj_legacy_drums(t);                     /* (keeps the SLICER: param_kept) */
+            proj_legacy_drums(t);                     /* (keeps only active track settings: param_kept) */
             t->p[P_REV] = keep[P_REV];                  /* and the drums' reverb send */
             for (i = P_AMODE; i <= P_TRANS; i++)        /* the drum part had no arp or scale */
                 t->p[i] = TP[i].def;
