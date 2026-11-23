@@ -129,3 +129,37 @@ The current linker map reserves 72 KiB for ordinary RAM and 360 KiB for POOL, wi
 - [ ] Implement the isolated C ABI wrapper and host-side adapter tests.
 - [ ] Measure dedicated per-part Rings state before adding it to the live engine table.
 - [ ] Integrate only after two-instance isolation and resource tests pass.
+
+
+## Pinned Rings DSP semantics: decisive adapter constraints
+
+Inspected upstream `pichenettes/eurorack` at pinned commit `08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4`:
+
+- `rings::Part` is a **per-instrument resonator processor**, not a per-note oscillator. One Part owns up to four internal resonator voices, excitation filters, pluckers, DC blockers, note filtering, limiter, and a reverb object.
+- Its `Process(performance_state, patch, in, out, aux, size)` accepts an excitation input block and emits two output channels. It internally selects/rotates its active resonator voice when `performance_state.strum` is asserted.
+- `PerformanceState` is block-level: `strum`, `internal_exciter`, `internal_strum`, `internal_note`, `tonic`, `note`, `fm`, and `chord`. `Patch` carries `structure`, `brightness`, `damping`, and `position`.
+- `Strummer::Process` consumes an optional excitation signal and updates the block-level strum event. It can derive strums from note changes or input onsets depending on internal/external settings.
+- The pinned source sets Rings `kMaxPolyphony = 4` and `kMaxBlockSize = 24`; the FM-1 host's control blocks are 32 samples. The adapter must split host blocks into bounded Rings chunks (e.g. 24 + 8), or deliberately establish a different supported block/rate contract. It must not pass 32 samples into fixed 24-sample Rings scratch arrays.
+- The upstream Rings DSP is designed around 48 kHz in this revision, while the current Felucca-derived FM-1 audio clock is approximately 44.1 kHz. Rate adaptation or a verified rate-specific build is required; simply changing a constant without validating filters, delay lengths, pitch and timing is not acceptable.
+
+### Consequence for two independent Rings instances
+
+The correct first architecture is **one Rings `Part` + one `Strummer` + one performance/patch state + one set of scratch/reverb storage per FM-1 track assigned RINGS A or RINGS B**. These are independent processors with their own internal four-resonator polyphony. The host's eight-note allocator remains the global input/event/voice budget; do not allocate a separate full host voice pool for each Rings instance.
+
+The host note lifecycle should be adapted into block-level Rings performance events:
+1. On host note-on/retrigger, update that track's note, velocity/excitation level and pending strum event.
+2. On note-off, update the track's gate/strum policy without destroying resonator tails.
+3. At the track's audio block, prepare the excitation buffer and performance state, run Strummer once for that instance, then process its Rings Part in chunks no larger than 24 samples.
+4. Mix its stereo `out/aux` result into the track bus, preserving both outputs for independent routing.
+5. Keep the Rings Part alive while resonator/reverb tails continue, including when no host note voice is currently active.
+
+This avoids the incorrect design of creating a separate Rings Part per Felucca `voice_t`. It also means the engine adapter needs a persistent per-track runtime and a reliable way to receive note events and render a per-track tail. The current `engine_t.post` hook is a plausible tail/render point, but its exact call conditions and output ownership must be verified in `voice.c` before implementation.
+
+### Still to prove before coding
+
+- [ ] Exact ordering and call conditions of `block`, per-voice `render`, and `post` in host `voice.c`.
+- [ ] How note-on/off/retrigger events are exposed to a per-track runtime without relying on a voice slot that can be stolen or reused.
+- [ ] Whether per-track Rings state can be reserved outside the transient `ENG_MEM_PART` overlay without exhausting linker pool/RAM.
+- [ ] Correct 44.1-to-48 kHz treatment and 32-to-24 chunk scheduling, including excitation alignment and stereo latency.
+- [ ] Per-instance resource measurement for two Rings Parts, including two reverb buffers and all auxiliary state.
+- [ ] Regression tests for two simultaneous notes/instances, voice stealing, note-off tails, and independent parameter/model changes.
