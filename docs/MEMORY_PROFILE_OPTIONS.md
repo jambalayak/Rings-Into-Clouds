@@ -66,3 +66,16 @@ A possible linker split to investigate is 128 KiB ordinary RAM and 304 KiB POOL,
 - Changing the linker split is internal only, but it must preserve stack guards, CPU2 operation and all reserved NOINIT regions.
 
 No feature has been removed and no linker layout has been changed. The candidate must not be silently adopted; its audible trade-offs need an explicit product decision after the measured budget is available.
+
+
+## Dual Rings requirement (added 2026-11-23)
+
+The instrument must run two independent Rings DSP instances at the same time, exposed as RINGS A and RINGS B on separate FM-1 parts. This changes the resource target: the memory and CPU budget must include two mutable Rings object/state sets, two strummer states, per-instance input/output and modulation state, and any per-instance resampling or staging buffers. Do not estimate this as simply doubling the whole first instance: code and immutable lookup tables may be shared, while mutable state must be separate.
+
+The earlier single-Rings-plus-Clouds estimates are therefore not sufficient to approve a final profile. Recalculate with the target compiler and linker after the C++ source import and wrapper exist. Profile at least:
+- one Rings instance alone;
+- two Rings instances simultaneously;
+- two Rings plus one full-quality Clouds processor;
+- two Rings plus Clouds, MIDI clock, modulation and the intended mixer/effects path.
+
+The two-instance requirement is not permission to reduce either Rings engine's fidelity or to silently disable other modules. If the full configuration does not fit, present measured options and user-visible consequences before making a product trade-off.
