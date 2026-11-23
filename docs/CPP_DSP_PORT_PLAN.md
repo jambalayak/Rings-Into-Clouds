@@ -76,6 +76,10 @@ Before importing DSP state, obtain a real baseline linker map and inventory ever
 - [ ] Connect Rings to Clouds with bounded buffers and measure worst-case processing deadlines.
 - [ ] Only then expose real module ports to the modular patch graph.
 
+## Freestanding runtime audit
+
+The reference LOCUS runtime and minimal headers have now been inspected separately. See [`docs/CPP_FREESTANDING_RUNTIME_AUDIT.md`](CPP_FREESTANDING_RUNTIME_AUDIT.md) for the exact findings and the target checks required before adopting any runtime hooks or replacement headers. In particular, do not copy LOCUS's infinite-loop pure-virtual handler, single global errno slot, or insertion-sort `std::sort` implementation without proving the pinned DSP actually needs them and that their use is safe.
+
 ## Current truth
 
 The repository currently contains planning documents only for this integration. No Rings/Clouds source has been imported or built; no firmware build, emulator test, Harbor test or physical FM-1 test is claimed.
