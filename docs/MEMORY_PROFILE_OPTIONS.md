@@ -150,3 +150,15 @@ The current application linker script describes RAM and POOL as two subdivisions
 This exceeds the entire 432 KiB internal SRAM span (442,368 bytes) by **174,652 bytes**, before other Rings Part members, Strummers, Clouds processor state, sample-rate-conversion/FIFO buffers, stereo routing and stacks. Even the previously discussed, unapproved removal of the 131,072-byte master tempo delay would only reduce the arithmetic lower bound to **485,948 bytes**, still **43,580 bytes over** the entire SRAM span before those omitted allocations.
 
 This is not a final impossibility proof for every architecture: the current figures assume the original inline Rings delay-line layout and the reference Clouds buffer placement. A new, measured memory architecture could investigate mutually exclusive model-state overlays, carefully bounded buffer lifetime reuse, or another hardware memory region if the board genuinely exposes one. Such changes must preserve both simultaneously active Rings instances, all five models, full Clouds quality and independent mutable state. Do not remove the tempo delay or reduce DSP buffers as an automatic response. The present layout is a hard blocker, not an approved feature-cut list.
+
+## Optional FM-1 cache-way RAM investigation (2026-11-23)
+
+A later `hugelton/felucca-bsp` revision (`2bd9dbe1fcbb8c67ba6721b2435f3fb0597a202a`) contains an experimental `chip/fm1_cache_ram.h` path that can turn 1–7 data-cache ways into 4 KiB RAM banks at `0x01F28000`, for at most **28,672 bytes (28 KiB)**. Its documentation reports an on-device test by the originating Optimist firmware, but also warns that this BSP implementation itself has not been device-tested and that second-core/DMA access has not been measured.
+
+Important limitations for this project:
+- The currently pinned `firmware/bsp` submodule revision (`9670b5d34082700d0a7413eb6264abe1756c0ece`) does **not** contain this cache-RAM implementation. It would require a reviewed BSP update or a separately reviewed backport.
+- This is SRAM carved out of data-cache ways, not external PSRAM. Seven ways leave only one data-cache way; the BSP notes flash data reads over 16 KiB became 57× slower in that configuration on the measured unit.
+- The feature requires an early boot sequence with interrupts off, the second core stopped, cache invalidation, memory pattern testing and rollback on failure. DMA and CPU1 access remain unverified.
+- Even the maximum 28 KiB would not close the 43,580-byte combined lower-bound deficit calculated after hypothetical removal of the master tempo delay; it also cannot cover the omitted DSP state and buffers.
+
+Treat this only as a possible supplementary memory bank to investigate, not as a solution or an approved change. Do not change the BSP pin, cache-way allocation or boot sequence without a separate source review and hardware validation.
