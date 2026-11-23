@@ -488,6 +488,7 @@ static const char *const PF_NAME[PF_NFX + 1] = {"REPEAT 1/8", "REPEAT 1/16", "RE
     "TAPE STOP", "FREEZE", "OCT UP", "OCT DN", "FLANGER", "PHASER", "REV THROW", "ECHO THROW", "NONE"};
 static const char *const PF_CELL[PF_NFX] = {"1/8", "1/16", "1/32", "REV", "LPF", "HPF", "STOP", "FRZ", "OCT+", "OCT-",
     "FLNG", "PHSR", "VERB", "ECHO"};
+static const uint8_t PF_ACTIVE[4] = {PF_LPF, PF_HPF, PF_FLG, PF_PHS};
 static const char W_NOTE[16] = {'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'};
 /* each pass: the map from the settings to the ISR (a change: seq.c makes a key held take its new effect) */
 static void fx_map_sync(void)
@@ -515,16 +516,19 @@ static void fx_say(uint32_t k, uint32_t e, const char *tail)
 /* PRESETS turned (s) in the FX layer: the key held steps through NONE and the effects, round; none held: how */
 static void fx_assign(int32_t s)
 {
-    uint32_t k = fx_key_held(), p, i, n = PF_NFX + 1u;
+    uint32_t k = fx_key_held(), p, i, j, e, n = 5u;
     if (!k) {
         ui_message("HOLD A KEY: ASSIGN");
         return;
     }
     p = key_place(--k);
-    i = perf_map_of(fx_keys, p);                        /* (the list: NONE, then the effects in order) */
-    i = i < PF_NFX ? i + 1u : 0u;
+    e = perf_map_of(fx_keys, p);
+    i = 0u;
+    for (j = 0; j < 4u; j++)
+        if (PF_ACTIVE[j] == e)
+            i = j + 1u;
     i = (i + (s > 0 ? 1u : n - 1u)) % n;
-    perf_map_put(fx_keys, p, i ? i - 1u : PF_N);
+    perf_map_put(fx_keys, p, i ? PF_ACTIVE[i - 1u] : PF_N);
     lys.rp_dirty = 1;
     fx_map_sync();
     fx_say(k, i ? i - 1u : PF_N, "");
@@ -710,10 +714,9 @@ static void layer_keys(uint32_t keys)
 static void layer_knob(uint32_t k, int32_t s)
 {
     uint32_t l = layer_open();
-    if (l == LAYER_FX) {                                /* perform.c perf_k, not recorded */
-        if (k == 3u && !perf_harm_on())
-            s = -s;                                     /* DEPTH (100 - perf_k[3]) rises to the right (#40: it fell) */
-        perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);   /* (#126) */
+    if (l == LAYER_FX) {                                /* compact live performance controls */
+        if (k != 2u)
+            perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
     } else if (l == LAYER_GLO) {                        /* T1..T4 LEVEL, recorded as on MIXER */
         int16_t *vp = &trk[k].p[P_LEVEL];
         *vp = (int16_t)clamp(*vp + accel(EN_K1 + k, s, TP[P_LEVEL].max - TP[P_LEVEL].min), TP[P_LEVEL].min,
@@ -1174,7 +1177,7 @@ static void layer_cards(uint32_t l)
     char val[12];
     const char *unit;
     uint32_t c;
-    if (l == LAYER_FX) {                                /* FILTER CRUSH THROW DEPTH */
+    if (l == LAYER_FX) {                                /* FILTER CRUSH (reserved) DEPTH */
         int32_t m = perf_k[0];
         fmt_int(val, m < 0 ? -m : m);
         draw_column(0, "FILTER", m ? val : "OFF", m < 0 ? "LP" : m > 0 ? "HP" : "", m ? VAL(0u) : T_DIM, (m + 100) * 5,
@@ -1182,17 +1185,9 @@ static void layer_cards(uint32_t l)
         fmt_int(val, perf_k[1]);
         draw_column(1, "CRUSH", perf_k[1] ? val : "OFF", perf_k[1] ? "%" : "", perf_k[1] ? VAL(1u) : T_DIM,
                     perf_k[1] * 10, ICON_BITS);
-        fmt_int(val, perf_k[2]);
-        draw_column(2, "THROW", perf_k[2] ? val : "OFF", perf_k[2] ? "%" : "", perf_k[2] ? VAL(2u) : T_DIM,
-                    perf_k[2] * 10, ICON_DELAY);
-        if (perf_harm_on()) {                           /* OCT UP / DN playing: KNOB 4 is its shimmer (SHIMR) */
-            fmt_int(val, perf_k[3]);
-            draw_column(3, "SHIMR", perf_k[3] ? val : "OFF", perf_k[3] ? "%" : "", perf_k[3] ? VAL(3u) : T_DIM,
-                        perf_k[3] * 10, ICON_FEEDBACK);
-        } else {
-            fmt_int(val, 100 - perf_k[3]);
-            draw_column(3, "DEPTH", val, "%", VAL(3u), (100 - perf_k[3]) * 10, ICON_MIX);
-        }
+        draw_column(2, "", "", "", T_DIM, 0, ICON_NONE);
+        fmt_int(val, 100 - perf_k[3]);
+        draw_column(3, "DEPTH", val, "%", VAL(3u), (100 - perf_k[3]) * 10, ICON_MIX);
     } else if (l == LAYER_GLO) {                        /* T1..T4 LEVEL (the track's icon; muted: dim) */
         for (c = 0; c < NTRK; c++) {
             param_format(&TP[P_LEVEL], trk[c].p[P_LEVEL], val, &unit);
