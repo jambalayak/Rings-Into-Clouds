@@ -107,3 +107,14 @@ A purely arithmetic 128 KiB RAM / 304 KiB POOL experiment would keep the same co
 This is not an approved linker change. It shifts 56 KiB from POOL to ordinary RAM. With the reference Clouds small buffer of 65,408 bytes in `.bss`, the new RAM region would leave 65,664 bytes before other `.bss/.data` and the mandatory 4 KiB reserve (61,568 bytes after that reserve). Conversely, the POOL becomes smaller by 57,344 bytes and must still accommodate all `.pool` buffers with at least 8 KiB spare. This split cannot be judged without a successful baseline map and exact allocation report.
 
 The earlier candidate that removes the 131,072-byte master tempo delay and 32,768-byte SLICER recordings is a separate, user-visible product trade-off. Neither feature is approved for removal. Do not combine that candidate with the linker split as though it were already accepted. First measure actual RAM/POOL usage and all DSP state; then present the smallest set of explicit alternatives with their audible consequences. The only approved feature omission remains the dedicated Rings String-and-Reverb model/reverb.
+
+
+## SLICER removal: approved product decision (2026-11-23)
+
+**User decision:** remove Felucca's SLICER feature from RINGS INTO CLOUDS. Do not expose its GATE or STUT modes, pattern/rate/depth controls, per-track clock UI or SLICER menu/layer. This is a deliberate product simplification and an approved memory trade-off, not a temporary build flag.
+
+The existing implementation declares `sl_buf[NTRK][4096]` as 16-bit samples in `.pool`: four tracks × 4,096 samples × 2 bytes = **32,768 bytes (32 KiB) of POOL**. Removing SLICER can reclaim this recording storage, plus its runtime state and code. The exact total savings must be confirmed by the target linker after all SLICER references are removed; 32 KiB is the statically identifiable buffer saving, not a measured final image delta.
+
+Implementation must remove the SLICER insert and recording buffers, its per-track clock/step state, transport-start hook, parameter definitions and preset serialization, UI/menu/quick-layer controls, and the `mix_part`/SPREAD side-signal calls. Check all references before deleting `slicer.c`; remove the unity-build include only after its callers and symbols are gone. Preserve the sequencer's own timing/swing/transport behaviour. Do not remove Felucca's master tempo delay, chorus, shared reverbs, distortion, or any Rings/Clouds functionality as part of this decision.
+
+The 32 KiB saving is a useful contribution toward the dual-Rings + Clouds profile, but it does not solve the independent 65,408-byte ordinary-RAM Clouds buffer placement or the remaining POOL headroom. Continue to measure both memory regions separately. No target build or runtime test has yet verified the removal.
