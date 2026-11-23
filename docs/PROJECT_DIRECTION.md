@@ -22,7 +22,11 @@ MIDI clock and transport synchronisation with external hardware is a must-have. 
 ## Modulation and performance
 Plan for Peaks-inspired envelopes and LFOs; a Marbles-inspired generative CV/trigger system; a Yarns-inspired arpeggiator; and a conventional step sequencer. These are distinct systems, not one generic random sequencer.
 
-### Supporting synthesis and effects
+### Removed legacy feature
+
+Felucca SLICER is intentionally excluded from RINGS INTO CLOUDS. Do not carry over its gate/stutter insert, sample-recording buffers, step-pattern controls or menu entries. The project retains the sequencer itself and its MIDI clock/transport timing; removing SLICER must not remove or alter those shared timing systems. See `docs/MEMORY_PROFILE_OPTIONS.md` for the approved decision and memory accounting.
+
+## Supporting synthesis and effects
 Evaluate Plaits-inspired oscillator models, Ripples-inspired filtering, Beads-inspired spatial reverb, delay, chorus and distortion. Implement only after profiling the core resonator/granular path.
 
 ## FM-1 control and interface
