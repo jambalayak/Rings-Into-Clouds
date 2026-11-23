@@ -18,14 +18,14 @@ The interface should combine Mutable Instruments-inspired visual language with t
 
 ## 2. Functional modularity
 
-The user should be able to build a patch by connecting virtual module inputs and outputs, rather than being limited to a fixed internal signal chain.
+The user should be able to build a patch by connecting virtual module inputs and outputs, rather than being limited to a fixed internal signal chain. The legacy global tempo delay, chorus and reverb buses have been removed to keep the base instrument focused. Reverb remains a future optional modular node, not a permanent system bus.
 
 ### Audio patching
 Support a graph of audio modules with selectable source, destination, routing order and parallel paths. The intended topology includes:
 - RINGS A and RINGS B as two independent instances of the same Rings engine, each with separate state, controls, presets and audio ports. Both can run simultaneously on separate parts; neither is a shared-state duplicate. Each instance exposes the two retained Rings output channels as distinct stereo audio signals; the original String-and-Reverb model is intentionally omitted, leaving five original Rings models.
 - Exciter / Plaits / external input -> Rings -> Clouds -> FX -> Mixer
 - Exciter -> Clouds -> Rings -> FX -> Mixer
-- Rings -> Reverb / Delay / Distortion
+- Rings -> optional future Reverb module / Distortion
 - Frozen Clouds buffer -> Rings
 - Parallel dry and processed paths
 - Feedback paths only where stability and headroom can be safely managed
