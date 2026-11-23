@@ -162,3 +162,9 @@ Important limitations for this project:
 - Even the maximum 28 KiB would not close the 43,580-byte combined lower-bound deficit calculated after hypothetical removal of the master tempo delay; it also cannot cover the omitted DSP state and buffers.
 
 Treat this only as a possible supplementary memory bank to investigate, not as a solution or an approved change. Do not change the BSP pin, cache-way allocation or boot sequence without a separate source review and hardware validation.
+
+### Per-track engine-memory overlay correction
+
+The 617,020-byte sum above conservatively retains all four existing 12,888-byte Felucca engine-memory overlays. If RINGS A and B replace the selected engines on two separate parts and their persistent Rings state is deliberately placed in those same per-track overlays, the two replaced 12,888-byte allocations could be subtracted from the baseline subtotal: 25,776 bytes. This is only a possible ownership/layout optimisation; the Rings state is far larger than the current overlay and the per-track union would need to grow to hold it.
+
+Under that optimistic overlay assumption, the combined source-derived lower bound becomes 591,244 bytes with the tempo delay retained, or 460,172 bytes if the 131,072-byte tempo delay were also removed. Even then, the experimental 28,672-byte maximum cache-way RAM would leave only 10,868 bytes below the 432 KiB total SRAM ceiling—and that is before the non-delay-line Rings members, two Strummers, Clouds processor object, conversion/FIFO/stereo buffers, and required reserves. This is arithmetic to guide the next measurement, not evidence that the overlay or cache RAM works.
