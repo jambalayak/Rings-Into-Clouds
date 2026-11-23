@@ -64,11 +64,6 @@ static uint32_t preset_by_name(uint32_t e, const char *n)
 static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails), track 1 = engine e preset pi */
 {
     uint32_t k;
-    memset(dly_buf, 0, sizeof dly_buf);
-    memset(cho_buf, 0, sizeof cho_buf);
-    memset(rev_comb, 0, sizeof rev_comb);
-    memset(rev_ap, 0, sizeof rev_ap);
-    memset(&fx, 0, sizeof fx);
     memset(&pf, 0, sizeof pf);
     for (k = 0; k < NTRK; k++)
         pf.mg[k] = 32768;
@@ -80,7 +75,6 @@ static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails
     mod_seed = 0x2545F491u;
     memset(trk, 0, sizeof trk);
     MOD_W_CLEAR();
-    memset(sl, 0, sizeof sl);
     memset(T_ESYNC(&trk[0]), 0, 3u * sizeof(uint32_t));   /* (one core: the shared one; two: in trk, cleared above) */
     host_tracks_init();
     for (k = 0; k < NPART; k++)
