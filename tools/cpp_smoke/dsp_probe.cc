@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Freestanding C++11 probe: placement construction + the std::fill dependency
-// used by the pinned stmlib delay-line implementation.
+// Freestanding C++11 probe for Rings/Clouds header dependencies and ABI.
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <new>
 
 namespace {
@@ -16,6 +17,7 @@ extern "C" int rings_clouds_cpp_probe(int value) {
 
     int values[4] = {0, 0, 0, 0};
     std::fill(values, values + 4, p->value * 3 + 7);
-    return values[0] + values[1] + values[2] + values[3] == 4 * (value * 3 + 7)
-        ? values[0] : -1;
+    int copied = 0;
+    std::memcpy(&copied, std::max_element(values, values + 4), sizeof(copied));
+    return copied;
 }
