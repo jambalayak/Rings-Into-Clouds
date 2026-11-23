@@ -393,11 +393,6 @@ static uint64_t instr_now(void)
 static void fresh(uint32_t pi)                         /* the boot state, track 1 = PHASE preset pi */
 {
     uint32_t k;
-    memset(dly_buf, 0, sizeof dly_buf);
-    memset(cho_buf, 0, sizeof cho_buf);
-    memset(rev_comb, 0, sizeof rev_comb);
-    memset(rev_ap, 0, sizeof rev_ap);
-    memset(&fx, 0, sizeof fx);
     memset(&pf, 0, sizeof pf);
     for (k = 0; k < NTRK; k++)
         pf.mg[k] = 32768;
@@ -409,7 +404,6 @@ static void fresh(uint32_t pi)                         /* the boot state, track 
     mod_seed = 0x2545F491u;
     memset(trk, 0, sizeof trk);
     MOD_W_CLEAR();
-    memset(sl, 0, sizeof sl);
     host_tracks_init();
     for (k = 0; k < NPART; k++)
         host_preset(&trk[k], k ? 0u : ENGI_PHASE, k ? 0u : pi);
