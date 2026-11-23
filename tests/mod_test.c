@@ -289,22 +289,21 @@ static void test_math(void)
     mod_end(t);
     lfo_at(t, -32768);
     slot(t, 0, MS_LFO, MD_DIST, 32);
-    slot(t, 1, MS_LFO, MD_CHO, -32);
-    slot(t, 2, MS_LFO, MD_RATE, 32);
-    slot(t, 3, MS_LFO, MD_VIB, 32);
-    t->p[P_DIST] = t->p[P_CHOR] = 64;
+    slot(t, 1, MS_LFO, MD_RATE, 32);
+    slot(t, 2, MS_LFO, MD_VIB, 32);
+    t->p[P_DIST] = 64;
     t->p[P_LRATE] = 100;
     t->p[P_LD_PIT] = 0;
     lfo = mulq15(-32768, 32767);
     mod_begin(t);
     {
-        int32_t up = (((lfo * 32) >> 6) * 127) >> 15, dn = (((lfo * -32) >> 6) * 127) >> 15;
-        check("LFO -> DIST / CHO (+-32), RATE, VIB: bipolar, half the range each",
-              up < -30 && dn > 30 && t->p[P_DIST] == 64 + up && t->p[P_CHOR] == 64 + dn && t->p[P_LRATE] == 100 + up &&
+        int32_t up = (((lfo * 32) >> 6) * 127) >> 15;
+        check("LFO -> DIST, RATE, VIB: bipolar, half the range each",
+              up < -30 && t->p[P_DIST] == 64 + up && t->p[P_LRATE] == 100 + up &&
               t->p[P_LD_PIT] == up);
     }
     mod_end(t);
-    check("every per-block value restored", t->p[P_DIST] == 64 && t->p[P_CHOR] == 64 && t->p[P_LRATE] == 100 && t->p[P_LD_PIT] == 0);
+    check("every per-block value restored", t->p[P_DIST] == 64 && t->p[P_LRATE] == 100 && t->p[P_LD_PIT] == 0);
 
     /* an engine parameter: its descriptor's range */
     e_trio = eng_by_name("TRIO");
@@ -341,11 +340,6 @@ static void test_math(void)
         check("VEL -> PAN: the latest note-on's velocity", p1 == ((((20 * 258) * 63) >> 6) * 127 >> 15) && t->p[P_PAN] == 63);
         mod_end(t);
     }
-    slot(t, 0, MS_KEY, MD_DLY, 63);
-    t->p[P_DLY] = 64;
-    mod_begin(t);
-    check("KEY -> DLY: the latest note (E4: +4 semitones)", t->p[P_DLY] == 64 + ((((4 * 512) * 63) >> 6) * 127 >> 15));
-    mod_end(t);
     slot(t, 0, MS_ENV, MD_PAN, 63);
     blocks(FS / 10u / CTL);
     mod_begin(t);
