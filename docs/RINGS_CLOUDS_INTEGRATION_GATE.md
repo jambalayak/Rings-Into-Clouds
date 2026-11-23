@@ -83,7 +83,7 @@ The final build must retain the build system's minimum 8 KiB pool headroom and 4
 - Measure one and two rings::Part / rings::Strummer allocations separately, including all per-instance buffers and state.
 - Use the measured current codec rate.
 - Test all supported resonator models, excitation, tune, structure, brightness, damping and position.
-- Keep the original Rings model/polyphony semantics; any omitted model must be an explicit resource decision.
+- Keep the original Rings model/polyphony semantics for the five supported models. The String-and-Reverb model is explicitly omitted by user decision; do not expose it in the UI.
 - Compare host output against the upstream reference at matched sample rate.
 
 ### Phase 3 — standalone Clouds test harness
@@ -202,10 +202,14 @@ For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte 
 The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
 
 
-## Additional full-fidelity Rings memory gate (2026-11-23)
+## Approved Rings model scope and memory decision (2026-11-23)
 
-The original sixth Rings model, `RESONATOR_MODEL_STRING_AND_REVERB`, is part of the pinned upstream model enum and must be retained for a faithful port. Its reverb uses `FxEngine<32768, FORMAT_16_BIT>`, requiring 65,536 bytes of backing memory per Part. Therefore the minimum dual-Rings design must budget two independent 64 KiB reverb histories (128 KiB total) in addition to both Parts and all other state.
+The pinned upstream Rings source defines a sixth `RESONATOR_MODEL_STRING_AND_REVERB` mode. Its dedicated reverb uses `FxEngine<32768, FORMAT_16_BIT>`, requiring 65,536 bytes (64 KiB) of backing memory per independent Part.
 
-FM1_Locus's `Part::Init(NULL)` is only valid because its local patch skips reverb initialization and its model selection clamps before the omitted String-and-Reverb mode. That Locus reduction is not an acceptable default for this project.
+**User-approved product decision:** omit the String-and-Reverb model and its dedicated per-instance reverb buffers. The FM-1 implementation will expose the other five original Rings models: Modal, Sympathetic Strings, String, FM Voice and Quantized Sympathetic Strings. Do not expose the omitted mode in the UI or describe the port as all-six-model/full Rings.
 
-**Gate:** do not declare the dual Rings architecture resource-feasible until a target link/map and runtime accounting include both reverb buffers, both mutable Parts, both Strummers, Clouds, resampling, routing and existing firmware state with the required headroom. If it fails, report measured resource data and explicit options; do not silently remove the model, share reverb state, or reduce original delay capacity.
+This removes the need to reserve 128 KiB for two Rings reverb histories. It does not remove the need to measure both independent `rings::Part` objects, both Strummers, excitation/scratch state, Clouds buffers, resampling, routing and existing firmware allocations. Keep the other five models faithful; this decision is not permission to reduce their algorithms or buffers.
+
+FM1_Locus's `Part::Init(NULL)` is a useful reference for the omitted-reverb configuration, but its other scheduling and sample-rate assumptions still require independent review.
+
+**Gate:** record the five-model scope in the module UI, source patch manifest and tests. Validate that no String-and-Reverb code path dereferences an absent reverb buffer.
