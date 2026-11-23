@@ -234,7 +234,7 @@ static void test_types(void)
                             dc[s] = sy > dc[s] ? sy : dc[s];    /* not average out in 1 s; the odd check below) */
                         if (ia == 1 && ic != 1) {           /* MIX 50 % halfway, MIX 0 the input */
                             run_ins((int32_t)ty, COR[ia], COR[ib], COR[ic], 64, sig_b);
-                            for (i = SL_RAMP; i < NS; i++) {
+                            for (i = 32768u / INS_SLOPE; i < NS; i++) {
                                 int32_t want = sig_in[i] + mulq16(sig_a[i] - sig_in[i], 64u * 258u * 2u);
                                 lin &= abs(sig_b[i] - want) <= 1;
                             }
@@ -284,7 +284,7 @@ static void test_glide(void)
     for (i = 1; i < 4u; i++)
         track_insert(t, sig_a + i * CTL, CTL);
     w4 = ins[0].w;
-    ck("MIX 0 -> 100 %: the wet share glides in over 2.9 ms (128 samples)", w1 == CTL * SL_SLOPE && w4 == 32768);
+    ck("MIX 0 -> 100 %: the wet share glides in over 2.9 ms (128 samples)", w1 == CTL * INS_SLOPE && w4 == 32768);
     t->p[P_IMIX] = 0;
     track_insert(t, sig_a + 4u * CTL, CTL);
     wm = ins[0].w;
