@@ -167,3 +167,36 @@ and `ReadHermite(float)`. Its current object layout is exactly a write
 pointer, delay value and inline sample array (plus the non-copyable
 declaration); a replacement may substitute a buffer pointer for the inline
 array, but must not change the update order or interpolation arithmetic.
+
+
+### Explicit removal of the Rings reverb implementation
+
+A direct inspection of the pinned upstream `rings/dsp/part.h` and `rings/dsp/part.cc`
+reveals that removing only the `RESONATOR_MODEL_STRING_AND_REVERB` enum entry is
+not sufficient. The upstream `Part` still includes `rings/dsp/fx/reverb.h`,
+owns a `Reverb reverb_` member, accepts a reverb buffer in `Part::Init()`,
+initialises that member, and executes its processing branch for the omitted model.
+
+The user's approved scope is five Rings resonator models with **no additional Rings
+reverb**. The eventual local patch must therefore, together:
+
+1. Remove `RESONATOR_MODEL_STRING_AND_REVERB` from the exposed model enum and all
+   model-selection/configuration logic.
+2. Remove the `rings/dsp/fx/reverb.h` include and `Reverb reverb_` member from
+   `rings::Part`.
+3. Change `Part::Init(uint16_t* reverb_buffer)` to an initialization signature
+   that requires no reverb buffer, and remove `reverb_.Init(reverb_buffer)`.
+4. Remove the omitted model's processing branch and all reverb parameter calls.
+5. Exclude the Rings reverb implementation from the imported source/dependency set
+   unless another retained upstream component demonstrably requires it.
+6. Keep the retained five model values and behaviour stable; update every caller,
+   adapter and test for the revised Init signature.
+7. Add a source audit that fails if `STRING_AND_REVERB`, `reverb_`,
+   `reverb_buffer` or Rings-specific reverb includes remain in the imported Part
+   implementation.
+
+This is a deliberate product-scope reduction, not an approximation of the sixth
+model. It does not prevent a separate optional modular reverb processor being
+designed later, under its own memory and CPU budget. No such processor is added
+by this patch.
+
