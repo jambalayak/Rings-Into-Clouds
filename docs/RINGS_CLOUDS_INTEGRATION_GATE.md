@@ -200,3 +200,12 @@ This makes the RAM region an equally serious gate. The base linker provides only
 For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte known subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers, omitted current allocations and the required 8 KiB headroom. That is also not a viable complete integration without a deliberate memory-layout/resource redesign.
 
 The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
+
+
+## Additional full-fidelity Rings memory gate (2026-11-23)
+
+The original sixth Rings model, `RESONATOR_MODEL_STRING_AND_REVERB`, is part of the pinned upstream model enum and must be retained for a faithful port. Its reverb uses `FxEngine<32768, FORMAT_16_BIT>`, requiring 65,536 bytes of backing memory per Part. Therefore the minimum dual-Rings design must budget two independent 64 KiB reverb histories (128 KiB total) in addition to both Parts and all other state.
+
+FM1_Locus's `Part::Init(NULL)` is only valid because its local patch skips reverb initialization and its model selection clamps before the omitted String-and-Reverb mode. That Locus reduction is not an acceptable default for this project.
+
+**Gate:** do not declare the dual Rings architecture resource-feasible until a target link/map and runtime accounting include both reverb buffers, both mutable Parts, both Strummers, Clouds, resampling, routing and existing firmware state with the required headroom. If it fails, report measured resource data and explicit options; do not silently remove the model, share reverb state, or reduce original delay capacity.
