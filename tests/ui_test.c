@@ -3259,12 +3259,12 @@ static int test_layer(void)
         step_t before[NSTEP];
         uint32_t cur = ui.cursor;
         memcpy(before, TSEL->step, sizeof before);
-        btn_down(B_FX); key_down(white(2)); frame();
+        btn_down(B_FX); key_down(white(4)); frame();
         ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && (kb_layer >> white(2)) & 1u &&
-             (perf_held & PF_BIT(PF_R32));                    /* white key 3 (A3): REPEAT 1/32 */
+             (perf_held & PF_BIT(PF_LPF));                    /* white key 5 (C4): retained LPF */
         for (i = 0; i < 40u; i++) events_block(CTL);
         ok &= !memcmp(before, TSEL->step, sizeof before) && ui.cursor == cur;
-        bad += check("FX + a key: the map at once; no voice, no MIDI, no recording, no step written", ok);
+        bad += check("FX + LPF key: map at once; no voice, no MIDI, no recording, no step written", ok);
         key_up(white(2)); frame();
         bad += check("  the key let go: its effect off, no note-off sent", !perf_held && !kb_layer && mo_w == mo);
         btn_up(B_FX); frame();
@@ -3280,25 +3280,20 @@ static int test_layer(void)
     ok &= gates() > 0 && !((kb_layer >> white(0)) & 1u);
     key_up(white(0)); key_up(white(4)); frame();
     bad += check("FX let go first: the key holds its effect and the map; a new key is a note", ok && !ui.layer && !perf_held);
-    /* OCT UP (G4) and OCT DN (A4), the 9th and 10th white keys: held effects, silent; KNOB 4 the shimmer while
-     * held, back to 0 with FX; B4 on does nothing */
+    /* The compact key map keeps LPF / HPF / FLANGER / PHASER; all other white keys are unassigned. */
     ui_power_on();
     usb.config = 1; mo = mo_w;
-    btn_down(B_FX); key_down(white(8)); frame();
-    ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && perf_held == PF_BIT(PF_OUP);
-    perf_begin(CTL);                                    /* (an audio block: OCT UP runs, KNOB 4 is SHIMR) */
+    btn_down(B_FX); key_down(white(10)); frame();
+    ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && perf_held == PF_BIT(PF_FLG);
+    perf_begin(CTL);
     turn(EN_K4, 40);
     ok &= perf_k[3] == 40;
-    key_up(white(8)); key_down(white(9)); frame();
-    ok &= perf_held == PF_BIT(PF_ODN) && !gates() && mo_w == mo;
-    key_up(white(9)); key_down(white(10)); frame();
-    ok &= perf_held == PF_BIT(PF_FLG) && (kb_layer >> white(10)) & 1u && !gates();   /* (1.2: B4 FLANGER, C5 PHASER) */
-    key_up(white(10)); key_down(white(12)); frame();
-    ok &= perf_held == PF_BIT(PF_RTHR) && (kb_layer >> white(12)) & 1u && !gates();   /* (1.5.1: D5 REV THROW) */
-    key_up(white(12)); key_down(white(14)); frame();
-    ok &= !perf_held && (kb_layer >> white(14)) & 1u && !gates();
-    key_up(white(14)); btn_up(B_FX); frame();
-    bad += check("FX + G4 / A4: OCT UP / OCT DN held, silent, no MIDI; KNOB 4 turns; B4 FLANGER, D5 REV THROW, F5 nothing; FX let go: K4 0",
+    key_up(white(10)); key_down(white(11)); frame();
+    ok &= perf_held == PF_BIT(PF_PHS) && !gates() && mo_w == mo;
+    key_up(white(11)); key_down(white(12)); frame();
+    ok &= !perf_held && (kb_layer >> white(12)) & 1u && !gates();
+    key_up(white(12)); btn_up(B_FX); frame();
+    bad += check("FX layer: FLANGER / PHASER retained, other keys unassigned; depth knob resets on exit",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
     /* Global delay, chorus and reverb were removed. Their stored IDs are inert; no FX pages expose them. */
     ok = TP[P_CHOR].max == 0 && TP[P_DLY].max == 0 && TP[P_REV].max == 0 && GP[G_DTIME].max == 0 && GP[G_RTYPE].max == 0;
