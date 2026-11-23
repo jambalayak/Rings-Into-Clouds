@@ -70,6 +70,47 @@ This storage is a major SRAM constraint. The first memory adaptation must preser
 
 The combined memory lower bound remains tight even after the approved base-firmware removals. External storage is necessary to control placement, but is not by itself proof that two full Rings instances plus Clouds fit. The final target map must account for all other DSP state and required headroom before the integration is accepted.
 
+### Exact upstream delay-line API findings
+
+The pinned `stmlib/dsp/delay_line.h` implementation was inspected at stmlib revision
+`d18def816c51d1da0c108236928b2bbd25c17481`. Its storage adaptation must preserve these
+observable operations, not just the nominal buffer sizes:
+
+- `Init()` delegates to `Reset()`; reset clears every sample, sets delay to 1 and
+  write pointer to 0.
+- `Write()` writes at the current pointer then decrements with wraparound.
+- `Allpass()` reads at `(write_ptr + delay) % max_delay`, writes the allpass
+  recurrence, and returns the original output recurrence.
+- `Read()` supports configured delay, integer delay, linear fractional interpolation,
+  and Hermite interpolation with the original four neighboring samples.
+- `WriteRead()` writes before reading.
+
+A pointer-backed replacement must retain these exact indexing and update semantics, including
+the order of write and read. Do not replace modulo arithmetic with a mask unless equivalence
+is proven for the exact power-of-two capacities and target integer widths. Keep the upstream
+implementation available in the host reference test so the adapted implementation can be
+compared sample-for-sample over wraparound and reset cases.
+
+### Build-system gate discovered during source review
+
+`tools/build.py` currently compiles `firmware/src/felucca.c` as one C translation
+unit and links a single firmware object. It has no source list or C++ object integration for
+the upstream Rings/Clouds translation units. `tools/check_cpp_toolchain.py` is only a
+smoke probe for compiling one C++ object and combining it with a C object; it explicitly
+does not verify the C++ runtime or upstream dependencies.
+
+Before importing DSP code, the build work must therefore establish:
+
+1. An explicit, pinned list of required `.cc` translation units and include roots.
+2. The target C++ ABI and compiler flags, including a deliberate no-exceptions/no-RTTI policy
+   if compatible with every dependency.
+3. A C-compatible adapter boundary between the existing C firmware and the C++ DSP objects.
+4. A complete link with the actual target linker, with no accidental host standard-library,
+   exception, RTTI, static-initialisation or heap dependencies.
+5. Map-file accounting for every object and section, and a repeatable build command that keeps
+   the existing app-slot, RAM and POOL headroom checks.
+
+No C++ source or DSP code has been added to the firmware build at this stage.
 ## Runtime and adapter invariants
 
 - Each active RINGS A/B instance owns its own `rings::Part`, `rings::Strummer`, performance state, patch state, event history and scratch buffers.
