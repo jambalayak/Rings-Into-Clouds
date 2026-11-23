@@ -28,7 +28,7 @@ All RINGS INTO CLOUDS artwork, icons, typography treatments and screen compositi
 
 This is an early development fork. At this stage the repository contains the Felucca FM-1 hardware/platform foundation; the new RINGS INTO CLOUDS sound architecture and interface are a development plan, not yet a completed implementation. Do not install experimental builds on hardware unless a release is explicitly marked for testing.
 
-See [docs/PROJECT_DIRECTION.md](docs/PROJECT_DIRECTION.md) for the staged plan and technical constraints.
+See [docs/PROJECT_DIRECTION.md](docs/PROJECT_DIRECTION.md) for the staged plan, [docs/MEMORY_PROFILE_OPTIONS.md](docs/MEMORY_PROFILE_OPTIONS.md) for the memory trade-offs, and [docs/MODULAR_REVERB_PLAN.md](docs/MODULAR_REVERB_PLAN.md) for the future optional reverb design.
 
 ## Build foundation
 
