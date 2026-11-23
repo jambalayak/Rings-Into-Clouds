@@ -1185,7 +1185,7 @@ static void layer_cards(uint32_t l)
         fmt_int(val, perf_k[1]);
         draw_column(1, "CRUSH", perf_k[1] ? val : "OFF", perf_k[1] ? "%" : "", perf_k[1] ? VAL(1u) : T_DIM,
                     perf_k[1] * 10, ICON_BITS);
-        draw_column(2, "", "", "", T_DIM, 0, ICON_NONE);
+        draw_column(2, "", "", "", T_DIM, 0, 0);
         fmt_int(val, 100 - perf_k[3]);
         draw_column(3, "DEPTH", val, "%", VAL(3u), (100 - perf_k[3]) * 10, ICON_MIX);
     } else if (l == LAYER_GLO) {                        /* T1..T4 LEVEL (the track's icon; muted: dim) */
