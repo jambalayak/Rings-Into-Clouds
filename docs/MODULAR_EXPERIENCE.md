@@ -22,6 +22,7 @@ The user should be able to build a patch by connecting virtual module inputs and
 
 ### Audio patching
 Support a graph of audio modules with selectable source, destination, routing order and parallel paths. The intended topology includes:
+- RINGS A and RINGS B as two independent instances of the same Rings engine, each with separate state, controls, presets and audio ports. Both can run simultaneously on separate parts; neither is a shared-state duplicate.
 - Exciter / Plaits / external input -> Rings -> Clouds -> FX -> Mixer
 - Exciter -> Clouds -> Rings -> FX -> Mixer
 - Rings -> Reverb / Delay / Distortion
@@ -83,7 +84,7 @@ When a patch exceeds the available budget:
 - Never silently remove a connection or change a module's algorithm.
 - Keep audio deadline protection and safe feedback limiting.
 
-Start with a reliable small graph and expand only after profiling. The first milestone is a working, editable audio route with at least one resonator, one granular processor, a mixer and a spatial effect. Then add modulation and event routing.
+Start with a reliable small graph and expand only after profiling. The first milestone is a working, editable audio route with two independently editable Rings instances, one granular processor, a mixer and a spatial effect, subject to target resource measurements. Then add modulation and event routing.
 
 ## 6. Validation
 
