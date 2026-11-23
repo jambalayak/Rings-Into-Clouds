@@ -135,9 +135,9 @@ The pinned upstream `rings/dsp/part.h` at eurorack commit `08460a69a7e1f7a81c5a2
 | `RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED` | Quantized sympathetic strings |
 | `RESONATOR_MODEL_STRING_AND_REVERB` | String and reverb |
 
-The sixth mode is not merely an optional global reverb effect. In upstream `Part::Process`, it changes string damping, performs stereo pickup cross-mixing, configures the Rings reverb from damping/brightness, processes the reverb and inverts the auxiliary output before the final limiter. It is a distinct original Rings mode and must be included in the faithful target.
+The sixth mode is not merely an optional global reverb effect. In upstream `Part::Process`, it changes string damping, performs stereo pickup cross-mixing, configures the Rings reverb from damping/brightness, processes the reverb and inverts the auxiliary output before the final limiter. It is a distinct original Rings mode. **Product decision (2026-11-23): RINGS INTO CLOUDS will omit this mode and its dedicated reverb to save memory.**
 
-FM1_Locus clamps its selected model to `RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED` (enum value 4), thereby excluding `STRING_AND_REVERB` (value 5). That is a Locus-specific resource/feature reduction, not full original Rings model coverage. RINGS INTO CLOUDS must not inherit that cap or omit this sixth mode without an explicit user-approved trade-off.
+FM1_Locus clamps its selected model to `RESONATOR_MODEL_SYMPATHETIC_STRING_QUANTIZED` (enum value 4), thereby excluding `STRING_AND_REVERB` (value 5). RINGS INTO CLOUDS has now explicitly approved the same model omission as a resource trade-off. The supported Rings model set is therefore the first five modes in the table; do not expose or advertise String and Reverb in the UI. This is an adapted Rings port, not complete six-model stock Rings.
 
 The original `Part` has a maximum of four internal resonator voices. `set_polyphony()` clamps to this maximum and marks the instance dirty; configuration is deferred until `Process()` calls `ConfigureResonators()`. The upstream API's `Part::Process` also owns the final stereo/aux split and limiter. Our integration must preserve these semantics, while moving expensive dirty configuration out of the audio deadline as a deliberate real-time-safe scheduling adaptation.
 
