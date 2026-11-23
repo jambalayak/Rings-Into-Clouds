@@ -772,7 +772,7 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
  * (until 1.0.2 the SAMPLE engine's PERC set, retired since) */
 static void proj_legacy_drums(track_t *t)
 {
-    static const uint8_t FX_DEF[4] = {0, 24, 28, 36};
+    static const uint8_t FX_DEF[4] = {0, 0, 0, 0};
     const preset_t *pr = &ENGINES[ENGI_DRUM]->presets[0];
     uint32_t i;
     t->eng_req = ENGI_DRUM;
