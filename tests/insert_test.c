@@ -3,7 +3,7 @@
 /* Host test of the per-track INSERT (1.5, Discussions #78 and #177; src/fx.c track_insert), on the real sources:
  *   build/host/insert_test [DEMO_DIR]      (run_tests.sh builds and runs it; demos in build/insert_demo/)
  * 1. bit for bit: TYPE OFF with any A B C MIX, and MIX 0 of every type, render the phrases the defaults render (POLY,
- *    SPREAD, the sends' tails); MIX 100 % of every type changes them.
+ *    SPREAD, the dry signal); MIX 100 % of every type changes them.
  * 2. each TYPE on a chord and on 8 loud voices, A B C at their corners: no DC (its mean against the input's), bounded,
  *    MIX 0 = the input bit for bit (nothing runs), MIX 100 % = the wet: MIX 50 % is exactly halfway between the dry
  *    and it (the effect's state does not depend on MIX).
@@ -62,11 +62,6 @@ static uint32_t preset_by_name(uint32_t e, const char *n)
 static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails), track 1 = engine e preset pi */
 {
     uint32_t k;
-    memset(dly_buf, 0, sizeof dly_buf);
-    memset(cho_buf, 0, sizeof cho_buf);
-    memset(rev_comb, 0, sizeof rev_comb);
-    memset(rev_ap, 0, sizeof rev_ap);
-    memset(&fx, 0, sizeof fx);
     memset(&pf, 0, sizeof pf);
     memset(ins, 0, sizeof ins);
     for (k = 0; k < NTRK; k++)
@@ -80,7 +75,6 @@ static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails
     song.playing = 0;
     memset(trk, 0, sizeof trk);
     MOD_W_CLEAR();
-    memset(sl, 0, sizeof sl);
     memset(&motion, 0, sizeof motion);
     host_tracks_init();
     for (k = 0; k < NPART; k++)
@@ -100,7 +94,7 @@ static void set_ins(track_t *t, int32_t ty, int32_t a, int32_t b, int32_t c, int
 
 /* ------------------------------------------------------------------ 1 --- */
 static int32_t ph_ty = -1, ph_a, ph_b, ph_c, ph_mix, ph_sprd;
-/* the hash of a phrase on track 1 (ANALOG SOFT PAD, POLY, the preset's sends) in a fork()ed child: the INSERT as ph_*
+/* the hash of a phrase on track 1 (ANALOG SOFT PAD, POLY, the preset's sound) in a fork()ed child: the INSERT as ph_*
  * says (ph_ty -1: the defaults), SPREAD ph_sprd */
 static uint64_t phrase(void)
 {
@@ -530,7 +524,7 @@ static int demos(const char *dir)
         }
         trk[0].p[P_SLEN] = trk[1].p[P_SLEN] = 16;
         trk[0].seq_active = trk[1].seq_active = 1;
-        trk[0].p[P_REV] = trk[1].p[P_REV] = 20;
+        
         snprintf(name, sizeof name, "%d_%s", ty, N_ITYPE[ty]);
         for (k = 0; name[k]; k++)
             name[k] = (char)(name[k] >= 'A' && name[k] <= 'Z' ? name[k] + 32 : name[k]);
