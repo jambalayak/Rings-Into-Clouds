@@ -13,7 +13,7 @@ This repository is an independent project. It is not affiliated with or endorsed
 - **Flexible signal routing:** the resonator and granular processor should be independently routable rather than permanently locked to one serial chain.
 - **Generative performance:** a Marbles-inspired random CV/trigger system, a separate arpeggiator, and a conventional step sequencer.
 - **Additional sound sources:** Plaits-inspired oscillator models and a distinct six-operator FM engine.
-- **Effects and modulation:** filtering, envelopes, LFOs, delay, chorus, distortion and a dedicated spatial reverb.
+- **Effects and modulation:** filtering, envelopes, LFOs and modulation. Legacy global delay, chorus and reverb have been removed to prioritise Rings and Clouds; a dedicated optional modular reverb is planned for a later stage.
 - **Performance-first controls:** the FM-1 keyboard and physical controls remain central; deep editing is organised into clear module pages.
 
 The intended first playable milestone is a reliable keyboard-playable resonator → granular signal path with working audio, usable presets and a coherent interface. More engines and generative features follow in measured stages.
