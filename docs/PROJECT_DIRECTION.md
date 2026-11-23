@@ -4,7 +4,7 @@
 RINGS INTO CLOUDS is a dedicated FM-1 instrument, not a reskin of SLOOP, HORATIO or Clipper. Felucca is the hardware and firmware foundation; the instrument architecture, sound design, interface and presets are developed for this project. The central experience is to play a resonator as an expressive instrument, then transform its sound through granular processing.
 
 ## Signal architecture
-Default patch: `Exciter / Oscillator → Resonator → Granular Processor → Spatial Effects → Stereo Output`. This is not a fixed chain. Planned routing includes resonator before or after granular processing, resonator to reverb, granular feedback/freeze workflows, external or USB audio into granular processing where supported, and parallel dry/processed paths. First map Felucca's existing audio graph, voice allocation, FX buses and inter-core boundaries.
+Default patch: `Exciter / Oscillator → Resonator → Granular Processor → Stereo Output`. This is not a fixed chain. Planned routing includes resonator before or after granular processing, granular feedback/freeze workflows, external or USB audio into granular processing where supported, and parallel dry/processed paths. A dedicated reverb may be added later as an optional modular processor. The inherited global tempo delay, chorus and reverb buses have been removed to keep the base instrument focused and free memory for Rings and Clouds.
 
 ## Sound systems
 ### Dual independent Rings engines
@@ -27,7 +27,7 @@ Plan for Peaks-inspired envelopes and LFOs; a Marbles-inspired generative CV/tri
 Felucca SLICER is intentionally excluded from RINGS INTO CLOUDS. Do not carry over its gate/stutter insert, sample-recording buffers, step-pattern controls or menu entries. The project retains the sequencer itself and its MIDI clock/transport timing; removing SLICER must not remove or alter those shared timing systems. See `docs/MEMORY_PROFILE_OPTIONS.md` for the approved decision and memory accounting.
 
 ## Supporting synthesis and effects
-Evaluate Plaits-inspired oscillator models, Ripples-inspired filtering, Beads-inspired spatial reverb, delay, chorus and distortion. Implement only after profiling the core resonator/granular path.
+Evaluate only the supporting modules that serve this instrument. The inherited global tempo delay, global chorus and global reverb have been removed. A dedicated optional reverb module remains a future goal; it must have a measured memory/CPU budget and be patchable/bypassable. Keep useful per-track distortion and insert processing only where it supports the modular design.
 
 ## FM-1 control and interface
 - Keep the physical keyboard playable on the main performance page.
