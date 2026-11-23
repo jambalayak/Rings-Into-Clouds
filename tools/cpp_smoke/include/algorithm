@@ -10,6 +10,16 @@ inline void fill(It first, It last, const T& value) {
         *first = value;
     }
 }
+
+template <typename It>
+inline It max_element(It first, It last) {
+    if (first == last) return last;
+    It best = first;
+    while (++first != last) {
+        if (*best < *first) best = first;
+    }
+    return best;
+}
 }
 
 #endif
