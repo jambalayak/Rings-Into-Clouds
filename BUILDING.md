@@ -110,6 +110,16 @@ It is a demo: the page keeps the flash's storage sectors (projects, user presets
 MIDI out, the editor, updates), TRS MIDI and the user sample slots are not emulated. A build of it is on the site:
 <https://hugelton.github.io/Felucca/webapp/try/>.
 
+## C++ DSP toolchain probe (Rings/Clouds development)
+
+Before adding upstream C++ DSP sources, check that the configured JieLi toolchain can compile a C++11 translation unit and link it with a C object:
+
+```
+python3 tools/check_cpp_toolchain.py
+```
+
+The probe uses the FM-1 target flags and writes temporary objects under `build/cpp-smoke/`. It does not change the firmware build, and it does not prove that the full C++ runtime, Rings/Clouds dependencies, memory footprint or audio scheduling are ready. A successful result is only the first build-system gate.
+
 ## Tests
 
 ```
