@@ -32,21 +32,20 @@ A plausible experiment is to reclaim memory from legacy features that overlap wi
 | Change | POOL bytes reclaimed |
 |---|---:|
 | Disable/remove Felucca master tempo delay | 131,072 |
-| Disable/remove SLICER recording buffers | 32,768 |
-| **Total reclaimed** | **163,840** |
+| **Total reclaimed if the delay is removed** | **131,072** |
 
-If both features were removed, the known existing POOL subtotal would fall from 236,220 to 72,380 bytes.
+If the master tempo delay alone were removed, the known existing POOL subtotal would fall from 236,220 to 105,148 bytes. The 32,768-byte performance-loop store remains allocated.
 
 Then place both Clouds buffers in POOL:
 
 | Allocation | POOL bytes |
 |---|---:|
-| Existing known allocations after the two removals | 72,380 |
+| Existing known allocations after delay removal | 105,148 |
 | Clouds large buffer | 118,784 |
 | Clouds small buffer (relocated from .bss) | 65,408 |
 | **Subtotal before Rings and working buffers** | **256,572** |
 
-This leaves 54,724 bytes in a 304 KiB POOL region, or 46,532 bytes after the required 8 KiB headroom. That remaining space must still cover Rings/Strummer/Clouds object state, resampler histories, FIFOs, batch buffers, and every currently omitted allocation. It may not be sufficient.
+This leaves 21,956 bytes in a 304 KiB POOL region, or 13,764 bytes after the required 8 KiB headroom. That remaining space must still cover Rings/Strummer/Clouds object state, resampler histories, FIFOs, batch buffers, and every currently omitted allocation. It is unlikely to be sufficient.
 
 A possible linker split to investigate is 128 KiB ordinary RAM and 304 KiB POOL, preserving the combined 432 KiB budget. At 128 KiB RAM, the 65,408-byte Clouds small buffer would leave 61,568 bytes for existing .bss after the 4 KiB headroom. The actual current .bss size must be measured before this split is considered viable. The linker origins and stack/NOINIT boundaries must be checked for overlap.
 
@@ -62,10 +61,10 @@ A possible linker split to investigate is 128 KiB ordinary RAM and 304 KiB POOL,
 ## User-visible consequences if the candidate is adopted
 
 - Removing the master tempo delay removes Felucca's shared tempo-synchronised delay effect. Clouds' internal granular delay/feedback is not a drop-in replacement for that effect.
-- Removing SLICER removes its per-track gate/stutter insert and its four recording buffers.
+- SLICER processing and its per-track gate/stutter state have been removed. The 32 KiB store remains for the performance-layer looper, so this does not reclaim POOL buffer memory.
 - Changing the linker split is internal only, but it must preserve stack guards, CPU2 operation and all reserved NOINIT regions.
 
-No feature has been removed and no linker layout has been changed. The candidate must not be silently adopted; its audible trade-offs need an explicit product decision after the measured budget is available.
+The SLICER has now been removed by explicit user decision. The master tempo delay remains and must not be removed without a separate user decision. No linker layout has been changed.
 
 
 ## Dual Rings requirement (added 2026-11-23)
@@ -106,7 +105,7 @@ A purely arithmetic 128 KiB RAM / 304 KiB POOL experiment would keep the same co
 
 This is not an approved linker change. It shifts 56 KiB from POOL to ordinary RAM. With the reference Clouds small buffer of 65,408 bytes in `.bss`, the new RAM region would leave 65,664 bytes before other `.bss/.data` and the mandatory 4 KiB reserve (61,568 bytes after that reserve). Conversely, the POOL becomes smaller by 57,344 bytes and must still accommodate all `.pool` buffers with at least 8 KiB spare. This split cannot be judged without a successful baseline map and exact allocation report.
 
-The earlier candidate that removes the 131,072-byte master tempo delay and 32,768-byte SLICER recordings is a separate, user-visible product trade-off. Neither feature is approved for removal. Do not combine that candidate with the linker split as though it were already accepted. First measure actual RAM/POOL usage and all DSP state; then present the smallest set of explicit alternatives with their audible consequences. The only approved feature omission remains the dedicated Rings String-and-Reverb model/reverb.
+The remaining candidate to remove the 131,072-byte master tempo delay is a separate, user-visible product trade-off and is not approved. SLICER processing is already removed, but its former 32,768-byte buffer is retained by the performance looper. Do not treat that buffer as reclaimed. First measure actual RAM/POOL usage and all DSP state; then present any remaining alternatives with their audible consequences. The other approved feature omission remains the dedicated Rings String-and-Reverb model/reverb.
 
 
 ## SLICER removal: approved product decision (2026-11-23)
@@ -117,7 +116,7 @@ The SLICER runtime and DSP code have been removed. **The 32 KiB recording buffer
 
 Implementation removes the SLICER insert and its per-track clock/step state, transport-start hook, UI page, and `mix_part`/SPREAD signal calls. The four legacy parameter slots remain reserved/inert so older project records still map correctly. The performance-layer looper remains intact and owns the former shared 32 KiB buffer. Preserve the sequencer's own timing/swing/transport behaviour. Do not remove Felucca's master tempo delay, chorus, shared reverbs, distortion, or any Rings/Clouds functionality as part of this decision.
 
-The 32 KiB saving is a useful contribution toward the dual-Rings + Clouds profile, but it does not solve the independent 65,408-byte ordinary-RAM Clouds buffer placement or the remaining POOL headroom. Continue to measure both memory regions separately. No target build or runtime test has yet verified the removal.
+The removal saves SLICER DSP code and per-track state, but not the 32 KiB buffer because the performance looper still requires it. This does not solve the independent 65,408-byte ordinary-RAM Clouds buffer placement or the remaining POOL headroom. Continue to measure both memory regions separately. No target build or runtime test has yet verified the removal.
 
 
 ## Source removal status
