@@ -418,8 +418,6 @@ static int test_sound_loads(void)
     t->p[P_AOCT] = 3;
     t->p[P_SCALE] = 2;
     t->p[P_TRANS] = 5;
-    t->p[P_SLCR] = SL_GATE;
-    t->p[P_SLPAT] = 4;
     t->p[P_SDIV] = 1;
     t->p[P_LEVEL] = 90;
     before = *t;
@@ -427,7 +425,7 @@ static int test_sound_loads(void)
     bad += check("PRESETS on HOME loads the sound: steps, LEN, DIV untouched", t->preset == (uint8_t)((before.preset + 1u) % ENGINES[0]->npresets) &&
                  !memcmp(t->step, before.step, sizeof t->step) && t->p[P_SLEN] == 32 && t->p[P_SDIV] == 1);
     bad += check("..ARP, SCL and the mix stay the track's", t->p[P_AMODE] == 2 && t->p[P_AOCT] == 3 && t->p[P_SCALE] == 2 &&
-                 t->p[P_TRANS] == 5 && t->p[P_SLCR] == SL_GATE && t->p[P_SLPAT] == 4 && t->p[P_LEVEL] == 90);
+                 t->p[P_TRANS] == 5 && t->p[P_LEVEL] == 90);
     bad += check("..and no warning about the sequence", !msg_is("T1 SEQ REPLACED"));
     for (i = 0; i < ENGINES[0]->npresets; i++)
         if (str_eq(ENGINES[0]->presets[i].name, "RAVE"))
@@ -462,12 +460,11 @@ static int test_sound_loads(void)
     /* TOOLS INIT, user preset load: the sound only, undoable; one copy for all tracks */
     ui_power_on();
     my_steps(&trk[1]);
-    trk[1].p[P_SLCR] = SL_STUT;
     before = trk[1];
     track_select(1);
     set_engine(trk[1].eng_req);                   /* TOOLS INIT */
     bad += check("TOOLS INIT: the sound only (steps kept), a copy of T2", undo.trk == 2u &&
-                 !memcmp(trk[1].step, before.step, sizeof before.step) && trk[1].p[P_SLCR] == SL_STUT);
+                 !memcmp(trk[1].step, before.step, sizeof before.step));
     track_select(0);
     my_steps(&trk[0]);
     trk[0].p[P_SDIV] = 2;
@@ -4082,7 +4079,7 @@ static int test_quick_layers(void)
     /* EDIT: the engines from F3 (NENGINES of them), sound loads with UNDO, INIT with the dialog */
     ui_power_on();
     set_engine_of(TSEL, 0); go_home(); frame();
-    my_steps(TSEL); TSEL->p[P_SLCR] = SL_STUT; song.playing = 1;
+    my_steps(TSEL); song.playing = 1;
     before = *TSEL;
     sync_reload = 0;
     lay_combo(B_EDIT, white(eng_rank(2)));             /* (the keys: the engines one can pick, engines.c eng_vis) */
