@@ -307,13 +307,17 @@ static __attribute__((noinline)) void ins_rest(track_t *t)
     t->ins_run = 0;
 }
 
+static inline int32_t track_insert_type(const track_t *t)
+{
+    int32_t ty = clamp(t->p[P_ITYPE], 0, IT_N - 1);
+    return ty == IT_CHORUS ? IT_OFF : ty;
+}
+
 /* the track's INSERT on its block b (mix_part, mix_spread): nothing while TYPE is OFF or MIX is 0 and faded */
 static __attribute__((noinline)) void track_insert(track_t *t, int32_t *b, uint32_t n)
 {
     ins_t *s = &ins[(uint32_t)(t - trk) % NTRK];
-    int32_t ty = clamp(t->p[P_ITYPE], 0, IT_N - 1), tw;
-    if (ty == IT_CHORUS)
-        ty = IT_OFF; /* legacy stored value: chorus is no longer part of the instrument */
+    int32_t ty = track_insert_type(t), tw;
     if (s->type != ty && !s->w)                         /* faded out: the new type from rest */
         s->type = (uint8_t)ty;
     tw = s->type == ty && ty ? ins_mixq(t->p[P_IMIX]) : 0;
@@ -373,7 +377,7 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     for (i = 0; i < n; i++)
         d[i] = (d[i] << 1) - b[i];                      /* left - right */
     track_dist(t, b, n);
-    if (t->p[P_ITYPE] | t->ins_run)
+    if (track_insert_type(t) | t->ins_run)
         track_insert(t, b, n);                          /* (the mono sum, as DIST) */
     if ((pf.mute >> (t - trk)) & 1u)
         perf_mute_sd((uint32_t)(t - trk), b, d, n);
@@ -422,10 +426,10 @@ static void mix_part(track_t *t, uint32_t n SM_DECL)
 #else
     if (track_render(t, b, n))
 #endif
-        t->tail = t->p[P_ITYPE] ? 64 : 16;              /* blocks of DIST / INSERT state to run out after the last
+        t->tail = track_insert_type(t) ? 64 : 16;              /* blocks of DIST / INSERT state to run out after the last
                                                          * voice (the INSERT's: 46 ms, a flanger's feedback) */
-    else if (!t->tail || !(t->p[P_DIST] | t->p[P_ITYPE]) || !--t->tail) {
-        if (t->ins_run && !t->p[P_ITYPE])
+    else if (!t->tail || !(t->p[P_DIST] | track_insert_type(t)) || !--t->tail) {
+        if (t->ins_run && !track_insert_type(t))
             ins_rest(t);                                /* TYPE OFF while silent: no fade-out left for the next note */
         if (MOD(t).on)
             mod_end(t);
