@@ -267,3 +267,10 @@ The LOCUS reference places its 118,784-byte large Clouds buffer in POOL but its 
 ## Project-owned Rings source patch manifest
 
 The exact no-reverb five-model source changes are now recorded in [RINGS_UPSTREAM_PATCH_MANIFEST.md](RINGS_UPSTREAM_PATCH_MANIFEST.md). It specifies the enum, `Part::Init` signature, reverb member/init/process removal, retained String dispersion, source pruning, dual-instance invariants and validation gates. This is a reviewable patch specification; the upstream code has not yet been imported or compiled.
+
+
+## Dual Rings object-layout finding (2026-11-23)
+
+The pinned source headers reveal a hard mutable-state floor that must be included before the first C++ object is linked. Each `rings::Part` contains eight `String` objects (`kMaxPolyphony = 4`, `kNumStrings = 8`). Each `String` embeds a 2,048-float delay line and a 1,024-float stiffness delay line; the pinned stmlib `DelayLine` template stores its array inline. At 32-bit float storage this is 12,288 bytes per String, 98,304 bytes per Part, and **196,608 bytes (192 KiB) for two independent Parts**. This excludes all other Part members and wrapper/runtime buffers.
+
+This is a source-derived array-storage lower bound, not a measured `sizeof(Part)` or linker placement. The five-model no-reverb decision removes the two dedicated 64 KiB reverb histories, but does not remove these String arrays: they are members of every Part regardless of selected model. Do not shrink or share them as a resource shortcut. The target compiler's actual class sizes and section placement remain a mandatory gate.
