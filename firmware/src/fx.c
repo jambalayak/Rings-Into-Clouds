@@ -161,7 +161,7 @@ static uint32_t div_samples(uint32_t div)
  * as before (nothing runs). MIX glides (2.9 ms, INS_SLOPE); a TYPE change fades the old one out, clears the state,
  * fades the new one in; so does a start from MIX 0 (no stale line or filter). With SPREAD (mix_spread) the insert
  * takes the mono sum b, as DIST does; the side passes it by.
- * Order: DIST -> INSERT -> level / pan / sends. State in the pool, per track (ins[], 580 B each); noinline, its own
+ * Order: DIST -> INSERT -> level / pan. State in the pool, per track (ins[], 580 B each); noinline, its own
  * loops: the audio ISR's inlined path gains one test per part (track_t ins_run) */
 enum { IT_OFF, IT_SOFT, IT_HARD, IT_FOLD, IT_FUZZ, IT_CRUSH, IT_PHASER, IT_FLANGER, IT_CHORUS, IT_N }; /* IT_CHORUS retired */
 #define INS_SLOPE 256                    /* 2.9 ms fade at 44.1 kHz */
