@@ -11,7 +11,7 @@ struct Probe {
 }
 
 extern "C" int rings_clouds_cpp_probe(int value) {
-    char storage[sizeof(Probe)];
+    alignas(Probe) char storage[sizeof(Probe)];
     Probe* p = new (storage) Probe{value};
 
     int values[4] = {0, 0, 0, 0};
