@@ -807,10 +807,9 @@ static int auto_list(void)
     turn(EN_K4, 1);
     bad += check("  a song playing: STOP TO EDIT", motion.event[0].value == v && str_eq(ui.msg, "STOP TO EDIT"));
     chain.running = 0;
-    /* Fill the shared pool with two retained continuous parameters. P_DLY was retired with the global FX layer;
-     * using it here made motion_set_event reject every second-half insert and left this loop unbounded forever. */
+    /* Fill the shared pool with two retained continuous parameters. P_REV / P_DLY are retired global sends. */
     for (i = 0; i < MOTION_MAX && motion.count < MOTION_MAX; i++)
-        motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_REV : P_SPRD, 10);
+        motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_SPRD : P_PAN, 10);
     bad += check("  the shared event pool reaches 128 without a retired parameter", motion.count == MOTION_MAX);
     turn(EN_K1, 5);
     press(B_OCTUP);
