@@ -79,3 +79,66 @@ Before importing DSP state, obtain a real baseline linker map and inventory ever
 ## Current truth
 
 The repository currently contains planning documents only for this integration. No Rings/Clouds source has been imported or built; no firmware build, emulator test, Harbor test or physical FM-1 test is claimed.
+
+
+## Follow-up source inventory (2026-11-23)
+
+The pinned upstream trees were queried recursively, and the LOCUS source manifest and engine translation unit were inspected. This narrows the initial DSP candidate set, but it is not yet a compiler-generated transitive dependency list.
+
+### Candidate translation units
+
+For the Rings `Part` / `Strummer` path:
+
+- `rings/dsp/part.cc`
+- `rings/dsp/resonator.cc`
+- `rings/dsp/fm_voice.cc`
+- `rings/dsp/string.cc`
+- `rings/resources.cc`
+- `rings/dsp/strummer.h` is header-only in this revision.
+- `rings/dsp/string_synth_*.cc` is not part of the Part path unless the excluded String-and-Reverb model is retained. LOCUS removes that model and its Easter-egg synth files; this is a documented fidelity trade-off, not a full stock Rings port.
+
+For Clouds `GranularProcessor`:
+
+- `clouds/dsp/granular_processor.cc`
+- `clouds/dsp/correlator.cc`
+- `clouds/dsp/mu_law.cc`
+- `clouds/dsp/pvoc/frame_transformation.cc`
+- `clouds/dsp/pvoc/phase_vocoder.cc`
+- `clouds/dsp/pvoc/stft.cc`
+- `clouds/resources.cc`
+
+For stmlib, the directly referenced implementation candidates include:
+
+- `stmlib/utils/random.cc`
+- `stmlib/dsp/atan.cc`
+- `stmlib/dsp/units.cc`
+
+The include scan also confirms substantial header-only dependencies in `stmlib/dsp`, `stmlib/utils`, Rings DSP, and Clouds DSP. This list must be confirmed with generated compiler dependency files and a link before it is treated as final. Do not recursively compile every `.cc` under the upstream trees: that would include module drivers, tests, bootloaders, UI and unrelated modules.
+
+### Exact LOCUS build-system behaviour
+
+Further inspection of LOCUS `tools/build.py` establishes a more precise reference than a generic C++-support recipe:
+
+- `clang++` is invoked as `pi32v2/bin/clang++ -target pi32v2`, with the target sysroot include path.
+- C++ uses `-mcpu=r3 -mfprev1 -O2 -std=gnu++11`, no exceptions/RTTI/thread-safe statics/CXA atexit, `-nostdinc++`, section splitting, dependency generation and a 1024-byte frame warning.
+- The AC79 FPU ABI is single-precision. LOCUS deliberately uses integer and pointer arguments across the generic-C / FPU-C++ boundary; C must not casually pass floats to C++.
+- LOCUS discovers C++ sources from the app directory and the three explicit directories in `third_party.txt`, and compiles a dedicated `firmware/cxx/runtime.cc`.
+- The linker receives all C++ objects plus `libm.a` and `libcompiler_rt.a` inside a linker group.
+- Its link checker rejects unexpected sections such as `.init_array`, `.eh_frame`, and soft-float helper symbols; its C++ build does not permit dynamic global constructors.
+- Minimal replacement headers are local to the C++ path. They are not a complete standard library and must be added only when the exact dependency scan requires them.
+
+The current RINGS INTO CLOUDS build is structurally different: one C unity translation unit, a direct app link, and a size-optimization pass over the C unity unit. The safe adaptation is therefore a separate object list and explicit C++ compile helper, preserving the current C pipeline and its post-link checks. The LOCUS build script itself should not be copied wholesale.
+
+### Important source-fidelity decision
+
+The LOCUS integration is not a byte-for-byte stock Rings implementation. It removes the String-and-Reverb resonator model (and the associated 64 KiB reverb buffer) to fit the FM-1. If RINGS INTO CLOUDS follows that design, the module must be labelled a Rings port with that model omitted, and the UI must not advertise the omitted model. A future full-fidelity profile would need a separate memory strategy. This choice remains open; no Rings source has been imported.
+
+### Current status
+
+- [x] Enumerated upstream Rings/Clouds C++ translation units at the pinned commit.
+- [x] Identified the LOCUS candidate source files and the non-portable parts of its scheduler/build.
+- [ ] Confirm the candidate list using compiler-generated dependency files.
+- [ ] Establish exact target toolchain and C++ runtime availability.
+- [ ] Measure actual baseline map and all statically allocated memory.
+- [ ] Decide explicitly whether the Rings String-and-Reverb model is supported or omitted.
+- [ ] Only then import and compile the DSP.
