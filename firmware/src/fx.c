@@ -361,8 +361,7 @@ static int32_t part_buf[CTL], mix_l[CTL], mix_r[CTL];
  * law PAN has (the far side down, the near one as it is). track_render gives every voice (b, as always) and the left
  * ones (spread_buf); here d = left - right, the side signal, so for a pair of pans L = b (gla + glb) / 2 + d (gla - glb)
  * / 2 (R alike): the mono sum is b's, the level of a centre pan less by SPRD / 256 at most. b goes through DIST and the FX layer's mute key as always; d passes DIST by (the spread of a distorted chord is its voices' clean difference)
- * and gets the mute's ramp (perf_mute_sd). The sends
- * take b, mono, as before. SPRD 0, MONO or LEGATO: mix_part's own loop, bit for bit as before. The cost: a block's
+ * and gets the mute's ramp (perf_mute_sd). SPRD 0, MONO or LEGATO: mix_part's own loop, bit for bit as before. The cost: a block's
  * clear and sum of spread_buf, the side and a wider mix loop, per part; per voice none (it picks its buffer) */
 static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_t n SM_DECL)
 {
@@ -393,7 +392,7 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
 
 /* a part's cost for the second core's split (mix_split, after Jangada's): its voices x its engine's cost per
  * voice (ENG_VCOST: the host's instructions per sample, tests/regress.c CPU at 8 notes held less the idle mix, over the
- * engine's voices), and the DIST, INSERT and sends while it sounds or its tail runs. ENGINES[] order; DIGITAL as FM6
+ * engine's voices), and the DIST / INSERT / stereo mix while it sounds or its tail runs. ENGINES[] order; DIGITAL as FM6
  * when built, nothing when retired. An estimate: it only steers the split, the sound does not depend on it */
 #if FELUCCA_CPU2
 static uint16_t part_cost[NTRK];                        /* the last block's, per part */
@@ -408,7 +407,7 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
 };
 #endif
 
-/* one synth part into the dry mix and the sends of sm (mx[0]; mx[1] on the second core); a part with no voice sounding costs
+/* one synth part into the stereo dry mix of sm (mx[0]; mx[1] on the second core); a part with no voice sounding costs
  * the LFO tick and a cleared buffer only (after the DIST tail has run out) */
 static void mix_part(track_t *t, uint32_t n SM_DECL)
 {
