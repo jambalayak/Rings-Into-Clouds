@@ -1339,7 +1339,6 @@ static void setup(int s)
         break;
     case S_FX_HARM:                                 /* OCT UP playing, KNOB 4 its shimmer; OCT DN held under it */
         song.playing = 1; ui.layer = LAYER_FX;
-        perf_ord[PF_ODN] = ++perf_seq; perf_ord[PF_OUP] = ++perf_seq;
         perf_held = perf_act = PF_BIT(PF_OUP) | PF_BIT(PF_ODN);
         perf_k[3] = 60; ui.hot_col = 3; ui.hot_t = 30;
         break;
