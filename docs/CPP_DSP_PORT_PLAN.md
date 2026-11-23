@@ -195,3 +195,20 @@ A direct source inspection of `tools/build.py` confirms that the current applica
 7. Only then add the pinned Rings translation units, compile, inspect unresolved symbols and linker map, and measure target `sizeof` for all runtime objects.
 
 This is a confirmed integration blocker, not proof that the JieLi compiler cannot compile C++. The compiler executable is Clang, but its target-specific C++ ABI/runtime support must be demonstrated by the smoke test before the Rings port is treated as buildable.
+
+
+## Required no-reverb source adaptation (2026-11-23)
+
+The pinned upstream source was inspected directly after the approved five-model decision. There is an important safety detail: simply passing `nullptr` to `rings::Part::Init(uint16_t*)` is **not safe**. `Part::Init()` unconditionally calls `reverb_.Init(reverb_buffer)`; `Reverb::Init()` calls `FxEngine::Init()`; and `FxEngine::Init()` immediately calls `Clear()`, which writes across the supplied buffer. A null pointer would therefore be dereferenced during initialization even if the String-and-Reverb model is never selected.
+
+The port must make an explicit source patch before either instance is initialized:
+
+- Remove the `Reverb reverb_` member from `rings::Part` so its 65,536-byte backing buffer is not embedded in each object.
+- Remove the unconditional `reverb_.Init()` call from `Part::Init()`.
+- Remove the String-and-Reverb-only reverb processing block at the end of `Part::Process()`.
+- Remove the String-and-Reverb-only damping special case in `RenderStringVoice()`.
+- Exclude the String-and-Reverb enum value from the public FM-1 model mapping and clamp/validate all model values to the five supported entries.
+- Keep all five retained model render paths and their original per-model gains unchanged.
+- Add tests proving both Rings instances initialize without reverb storage, all five retained models render, invalid/omitted model values cannot reach the excluded branch, and A/B state remains independent.
+
+Do not substitute a null buffer, a dummy buffer, or a shared reverb buffer. The firmware's shared effects and Clouds remain separate signal-chain modules. This is a documented source-level adaptation; it is not yet implemented or tested.
