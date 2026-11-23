@@ -132,3 +132,45 @@ The Rings + Clouds milestone is not complete until:
 ## Current status
 
 Source and platform requirements have been inspected and documented. No upstream DSP source has yet been copied into this repository, no Rings/Clouds code has been compiled here, and no target build or physical-device test is claimed.
+
+
+## Additional blockers confirmed by build-system inspection
+
+### C++ translation units are not currently supported by the base build
+
+The current `tools/build.py` compiles `firmware/src/felucca.c` as one C translation unit and links that object with the startup objects. It does not discover or compile standalone `.cc` files, and the current firmware tree does not provide the small C++ support library documented by FM1_Locus.
+
+Rings and Clouds are C++ code. Their integration therefore needs a deliberate build-system change:
+
+- Add an explicit, reproducible list of required C++ source files; do not compile every upstream `.cc` file indiscriminately.
+- Confirm the JieLi clang version's C++ language support and ABI for the target.
+- Provide the required C++ headers/runtime support. FM1_Locus documents its own minimal `firmware/cxx/` library; inspect and adapt only what the selected DSP source actually needs.
+- Compile the C++ objects with compatible ABI, exception, RTTI, constructor and floating-point settings.
+- Link C and C++ objects together without pulling in an unsupported desktop standard library.
+- Add a tiny C ABI wrapper around Rings/Clouds so the existing C firmware does not depend on C++ class layout.
+- Add a build test that fails clearly if a required C++ object or runtime symbol is missing.
+
+This is a prerequisite, not a minor flag change. The integration should not start by pasting C++ headers into the existing `felucca.c` C translation unit.
+
+### Preliminary pool arithmetic
+
+The linker reserves 360 KiB (368,640 bytes) for `.pool`. The following existing allocations are directly visible in the current source:
+
+| Existing allocation | Bytes |
+|---|---:|
+| Four engine-memory regions | 51,552 |
+| Master tempo delay line | 131,072 |
+| Chorus line | 4,096 |
+| Reverb comb storage | 9,874 |
+| Reverb allpass/spring union | 1,994 |
+| Four slicer recordings | 32,768 |
+| Scope snapshot | 1,024 |
+| Flash storage payload buffer | 3,840 |
+| **Known subtotal** | **236,220** |
+
+This subtotal excludes the HALL state, per-track insert state and any other pool allocations discovered by the linker. It is therefore a lower bound on current pool use, not a complete map.
+
+FM1_Locus documents 184 KiB (188,416 bytes) of Clouds buffers alone. Subtracting only the known subtotal from the 360 KiB pool leaves 132,420 bytes before the excluded allocations and before the required 8 KiB spare headroom. Thus the full Clouds buffers do not fit alongside all current allocations, even before Rings state, resampler histories, FIFOs and batch buffers are added.
+
+A likely resource-profile experiment is to disable or substantially shorten the existing 131,072-byte master delay line, since a full Clouds processor brings its own delay/granular capabilities. This is only a candidate: quantify the exact linked pool and decide which Felucca effects remain available before changing defaults. Do not remove or reduce any feature without recording the user-visible consequence.
+
