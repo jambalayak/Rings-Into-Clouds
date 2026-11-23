@@ -174,3 +174,24 @@ Consequently:
 - All expensive Rings setup/configuration must occur outside the audio interrupt. The audio callback receives only bounded block processing calls over already-constructed state.
 
 Before writing the live adapter, produce a target-side memory report for: one Rings instance; two Rings instances; two Rings plus full Clouds; and two Rings plus Clouds with the intended routing, effects and MIDI sync. The two-instance requirement must be treated as a first-class resource test, not postponed until after the single-instance implementation.
+
+
+## Build-pipeline blocker confirmed in current build script (2026-11-23)
+
+A direct source inspection of `tools/build.py` confirms that the current application build is a single C translation unit:
+- It compiles only `firmware/src/felucca.c` to one LLVM IR/object file.
+- The application link step passes the startup/interrupt assembly objects and `felucca.o`; there is no source/object list for separate C++ translation units.
+- The compiler helper currently invokes the JieLi `pi32v2/bin/clang` with `-target pi32v2`, and the linker is invoked directly as `pi32v2/bin/ld`.
+- No C++ standard library, exception runtime, RTTI or global-constructor startup support is configured by this build script.
+
+### Required minimal C++ integration, before importing DSP
+
+1. Add a separate, explicit C++ source manifest for the pinned Rings/stmlib translation units; do not recursively compile upstream directories.
+2. Compile with the same `pi32v2` target, ABI, optimisation and section flags as the C firmware, initially using `-fno-exceptions -fno-rtti -fno-threadsafe-statics` and no standard library unless a verified source dependency requires a runtime feature.
+3. Ensure C++ objects export only narrow `extern "C"` wrapper functions to the C engine table; never expose C++ class layouts or STL containers across the ABI.
+4. Add linker inputs for the C++ objects and prove symbol resolution, global/static initialisation behaviour, and final image sections. Prefer constant/static initialization and explicit prepare functions over global constructors.
+5. Add dependency-file generation for the selected upstream files, so missing transitive translation units are detected deterministically.
+6. Add a minimal compile/link smoke target that builds one trivial C++ wrapper and calls it from C before adding Rings.
+7. Only then add the pinned Rings translation units, compile, inspect unresolved symbols and linker map, and measure target `sizeof` for all runtime objects.
+
+This is a confirmed integration blocker, not proof that the JieLi compiler cannot compile C++. The compiler executable is Clang, but its target-specific C++ ABI/runtime support must be demonstrated by the smoke test before the Rings port is treated as buildable.
