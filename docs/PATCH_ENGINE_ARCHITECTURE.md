@@ -8,7 +8,7 @@ This is an implementation plan, not a claim that the patch graph or new module D
 
 ## 1. Current firmware reality
 
-The inherited firmware is organised around four synth parts. Each part selects one engine at a time, owns its parameter and voice state, and is rendered by the track/voice path. The four parts share a global sounding-voice budget of eight.
+The inherited firmware is organised around four synth parts. Each part selects one engine at a time, owns its parameter and voice state, and is rendered by the track/voice path. Each part also has its own engine-memory region for the selected engine's large mutable state. The four parts share a global sounding-voice budget of eight. This existing model supports selecting the same engine on two parts; a dual-Rings port should use two separate parts and two separate Rings state objects, not a special duplicated engine selector.
 
 The audio interrupt renders short blocks: 128 frames per I2S half, internally processed in 32-sample control blocks. The current mixer combines the four part outputs, applies per-track processing and sends, then processes shared chorus, delay and reverb buses before stereo output.
 
@@ -19,7 +19,7 @@ Consequences:
 - A track-to-track cable cannot be implemented by drawing a cable in the UI; the mixer and DSP ownership must change.
 - A conventional effect insert is not automatically equivalent to a modular processor node.
 - A full graph must not allocate memory, lock, search dynamically or compile its topology inside the audio interrupt.
-- Multiple large module instances need an explicit memory and CPU budget.
+- Multiple large module instances need an explicit memory and CPU budget. The first Rings acceptance target is two simultaneous instances on separate parts, while respecting the shared eight-voice ceiling.
 - Existing voice allocation, engine switching, MIDI, sequencer and preset compatibility should be preserved while the graph is introduced incrementally.
 
 ## 2. Separate the module roles
