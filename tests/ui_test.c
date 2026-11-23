@@ -3,7 +3,7 @@
 /* Host test of the UI (firmware/src/ui*.c with the sound sources of hostsim.c;
  * the display and the HAL are stubs, the buttons and knobs are driven through them):
  *   SOUNDS     a sound load (PRESETS knob / page, TOOLS INIT, user preset) changes the sound only: the
- *              steps, LEN DIV SWING GATE, ARP, SCL, the SLICER and the mix stay the track's. Power-on:
+ *              steps, LEN DIV SWING GATE, ARP, SCL, the mix stays with the track. Power-on:
  *              every sequencer empty.
  *   PATTERNS   SAVE > PHRASES: KNOB 1 PAT (factory patterns, then user presets that hold one), OCT+
  *              LOAD; over the user's steps the REPLACE? dialog (OCT- / OCT+); the PRESETS hint.
@@ -401,7 +401,7 @@ static int gm_hits_play(track_t *t)
     return (int)ok;
 }
 
-/* sounds never touch the steps; the arp, the scale, the SLICER and the pattern parameters are the track's */
+/* sounds never touch the steps; the arp, the scale and the pattern parameters are the track's */
 static int test_sound_loads(void)
 {
     int bad = 0;
@@ -426,7 +426,7 @@ static int test_sound_loads(void)
     turn(EN_PRESET, 1);                           /* HOME: the next preset */
     bad += check("PRESETS on HOME loads the sound: steps, LEN, DIV untouched", t->preset == (uint8_t)((before.preset + 1u) % ENGINES[0]->npresets) &&
                  !memcmp(t->step, before.step, sizeof t->step) && t->p[P_SLEN] == 32 && t->p[P_SDIV] == 1);
-    bad += check("..ARP, SCL, the SLICER and the mix stay the track's", t->p[P_AMODE] == 2 && t->p[P_AOCT] == 3 && t->p[P_SCALE] == 2 &&
+    bad += check("..ARP, SCL and the mix stay the track's", t->p[P_AMODE] == 2 && t->p[P_AOCT] == 3 && t->p[P_SCALE] == 2 &&
                  t->p[P_TRANS] == 5 && t->p[P_SLCR] == SL_GATE && t->p[P_SLPAT] == 4 && t->p[P_LEVEL] == 90);
     bad += check("..and no warning about the sequence", !msg_is("T1 SEQ REPLACED"));
     for (i = 0; i < ENGINES[0]->npresets; i++)
@@ -466,7 +466,7 @@ static int test_sound_loads(void)
     before = trk[1];
     track_select(1);
     set_engine(trk[1].eng_req);                   /* TOOLS INIT */
-    bad += check("TOOLS INIT: the sound only (steps and SLICER kept), a copy of T2", undo.trk == 2u &&
+    bad += check("TOOLS INIT: the sound only (steps kept), a copy of T2", undo.trk == 2u &&
                  !memcmp(trk[1].step, before.step, sizeof before.step) && trk[1].p[P_SLCR] == SL_STUT);
     track_select(0);
     my_steps(&trk[0]);
@@ -4095,7 +4095,7 @@ static int test_quick_layers(void)
     ok &= !memcmp(TSEL->step, before.step, sizeof before.step) && TSEL->p[P_SLEN] == before.p[P_SLEN] &&
           TSEL->p[P_SLCR] == SL_STUT;
     btn_up(B_EDIT); frame();
-    bad += check("EDIT + white key n: the n-th engine shown (FM6 2nd, DRUM last), while playing; steps, LEN, SLICER stay", ok);
+    bad += check("EDIT + white key n: the n-th engine shown (FM6 2nd, DRUM last), while playing; steps and LEN stay", ok);
     hold(B_SAVE);
     bad += check("  SAVE held: UNDO back to before the layer's loads, the steps untouched",
                  TSEL->eng_req == 0u && TSEL->preset == before.preset && !memcmp(TSEL->step, before.step, sizeof before.step));
@@ -5862,15 +5862,7 @@ static int test_momentary(void)
     btn_up(B_LFO); frame();
     bad += check("  OCT+ with LFO held keeps them (no octave shift), LFO let go then changes nothing",
                  ok && TSEL->p[id0] != v0 && ui.home);
-    /* an FX page (a global) and an engine page */
-    open_family(FAM_FX); frame();
-    for (k = 0; k < NPAGES && cur_page()->id[0] != G_RSIZE && cur_page()->id[1] != G_RSIZE; k++) { open_family(FAM_FX); frame(); }
-    g0 = song.g[G_RSIZE];
-    btn_down(B_LFO); frame();
-    turn(cur_page()->id[0] == G_RSIZE ? EN_K1 : EN_K2, 9);
-    ok = song.g[G_RSIZE] != g0;
-    btn_up(B_LFO); frame();
-    bad += check("  a global FX value (REVERB SIZE) too: back on release", ok && song.g[G_RSIZE] == g0 && cur_page()->scope == SC_GLOBAL);
+    /* No global effect page remains; momentary control is exercised on engine pages above. */
     /* not recorded as automation; recording a plain turn still works */
     go_home();
     song.playing = 1; song.rec = 1u << song.sel;
@@ -7722,7 +7714,7 @@ static int test_fx_latch(void)
 }
 
 /* #48: the note divisions step by their length, longest first (triplets between their neighbours), on every list
- * that has them (SEQ DIV, ARP RATE, the delay's TIME, the SLICER's RATE); the stored values and their sound stay */
+ * that has them (SEQ DIV, ARP RATE, the supported sequencer and arp divisions); the stored values and their sound stay */
 static int test_div_order(void)
 {
     int bad = 0, ok = 1;
@@ -7777,7 +7769,7 @@ static int test_div_order(void)
     turn(EN_K2, -2);
     ok &= TSEL->p[P_SDIV] == 4;
     btn_up(B_SEQ); frame();
-    bad += check("#48 the pages' knobs step the divisions by length (SEQ TOOLS, ARP, DLY, SLICER)", ok && found >= 3u);
+    bad += check("#48 the pages' knobs step the divisions by length (SEQ TOOLS and ARP)", ok && found >= 2u);
     return bad;
 }
 
