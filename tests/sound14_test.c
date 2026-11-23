@@ -71,11 +71,7 @@ static uint32_t preset_by_name(uint32_t e, const char *n)
 static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails), track 1 = engine e preset pi */
 {
     uint32_t k;
-    memset(dly_buf, 0, sizeof dly_buf);
-    memset(cho_buf, 0, sizeof cho_buf);
-    memset(rev_comb, 0, sizeof rev_comb);
-    memset(rev_ap, 0, sizeof rev_ap);
-    memset(&fx, 0, sizeof fx);
+    memset(ins, 0, sizeof ins);                    /* current per-track INSERT state */
     memset(&pf, 0, sizeof pf);
     for (k = 0; k < NTRK; k++)
         pf.mg[k] = 32768;
@@ -87,7 +83,6 @@ static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails
     mod_seed = 0x2545F491u;
     memset(trk, 0, sizeof trk);
     MOD_W_CLEAR();
-    memset(sl, 0, sizeof sl);
     host_tracks_init();
     for (k = 0; k < NPART; k++)
         host_preset(&trk[k], k ? 0u : e, k ? 0u : pi);
@@ -578,35 +573,6 @@ static void test_spread_fx(void)
     uint32_t k, i, closed = 0;
     double side_closed = 0, side_open = 0;
     char msg[160];
-    /* SLICER GATE, pattern 1 (x.x.), DEPTH 100 %: in the closed steps L and R both near silent */
-    fresh(0, preset_by_name(0, "SOFT PAD"));
-    dry(t);
-    t->p[P_ATK] = 0;
-    t->p[P_SPRD] = 127;
-    t->p[P_SLCR] = SL_GATE;
-    t->p[P_SLPAT] = 1;
-    t->p[P_SLDEPTH] = 127;
-    slicer_start();
-    for (i = 0; i < 4u; i++)
-        trk_note_on(t, CHORD[i], 100);
-    blocks(FS / 4u / CTL);
-    for (k = 0; k < FS / CTL; k++) {
-        double s = 0;
-        blocks(1);
-        for (i = 0; i < CTL; i++) {
-            double d = (double)out_buf[2u * i] - out_buf[2u * i + 1u];
-            s += d * d;
-        }
-        if (sl[0].gc >= 32000 && !sl[0].bit) {
-            side_closed += s;
-            closed++;
-        } else if (!sl[0].gc) {
-            side_open += s;
-        }
-    }
-    snprintf(msg, sizeof msg, "SLICER GATE: the side closes with the gate (L - R energy closed / open %.2e, %u blocks)",
-             side_closed / (side_open + 1), closed);
-    check(msg, closed > 10u && side_closed < side_open * 1e-4);
     /* the mute key (FX layer, black key 1): both sides ramp to silence. What is left after it is the master's DC
      * blockers settling: as much at SPRD 127 as at 0, and L - R no more than that (the side muted with the mid) */
     {
@@ -637,30 +603,6 @@ static void test_spread_fx(void)
                  all[1][1] / all[1][0], side[1][1] / side[1][0], all[0][1] / all[0][0]);
         check(msg, side[1][0] > 0 && all[1][1] / all[1][0] < 2 * all[0][1] / all[0][0] + 1e-3 &&
               side[1][1] <= all[1][1] && all[0][1] < all[0][0] * 0.05);
-    }
-    /* the sends: mono (a chord with SPRD 127 and only REV: what the wet bus gets is the same) */
-    {
-        uint64_t hw[2];
-        uint32_t r;
-        for (r = 0; r < 2u; r++) {
-            fresh(0, preset_by_name(0, "SOFT PAD"));
-            dry(t);
-            t->p[P_REV] = 100;
-            t->p[P_SPRD] = (int16_t)(r ? 127 : 0);
-            for (i = 0; i < 4u; i++)
-                trk_note_on(t, CHORD[i], 100);
-            blocks(FS / 4u / CTL);
-            uint64_t hs = 0xCBF29CE484222325ull;   /* (blocks() hashes the output into hash: its own) */
-            for (k = 0; k < FS / 4u / CTL; k++) {
-                blocks(1);
-                for (i = 0; i < CTL; i++) {
-                    hs ^= (uint32_t)send_r[i];
-                    hs *= 0x100000001B3ull;
-                }
-            }
-            hw[r] = hs;
-        }
-        check("the sends take the mono mix: REV's send the same at SPRD 127 as at 0", hw[0] == hw[1]);
     }
 }
 
