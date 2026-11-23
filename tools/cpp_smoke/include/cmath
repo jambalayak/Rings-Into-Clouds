@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Probe-only C math header bridge; not a production standard-library replacement.
+#ifndef RIC_CPP_SMOKE_CMATH
+#define RIC_CPP_SMOKE_CMATH
+#include <math.h>
+#endif
