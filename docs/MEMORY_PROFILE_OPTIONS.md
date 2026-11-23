@@ -122,3 +122,16 @@ The removal saves SLICER DSP code and per-track state, but not the 32 KiB buffer
 ## Source removal status
 
 The source-level SLICER path has been disconnected from the unity build, FX mixer and sequencer. The SLICER page is removed from the parameter page list. The performance looper's storage is now explicitly declared in `perform.c`; it remains 32 KiB by design. Legacy SLICER parameter IDs remain reserved for project compatibility. `slicer.c` has been deleted and its unity-build include removed. The sequencer start hook and FX mixer calls are gone. The retained performance looper now owns its buffer directly. A full repository-wide reference audit and target firmware build/runtime test are still pending.
+
+
+## Dual Rings source-declared delay-line floor (2026-11-23)
+
+A direct source-layout audit of the pinned Rings and stmlib headers establishes a larger mandatory mutable-state floor than the previous estimate captured:
+
+- `rings/dsp/part.h` declares `String string_[kNumStrings]`, with `kMaxPolyphony = 4` and `kNumStrings = kMaxPolyphony * 2 = 8`.
+- `rings/dsp/string.h` embeds both `StringDelayLine` (`DelayLine<float, 2048>`) and `StiffnessDelayLine` (`DelayLine<float, 1024>`) in every `String` object.
+- The pinned `stmlib/dsp/delay_line.h` stores `T line_[max_delay]` inline in each DelayLine. These are not shared lookup tables or heap allocations.
+
+At 32-bit float storage, the two inline arrays total 3,072 floats = 12,288 bytes per String. Eight Strings therefore reserve at least **98,304 bytes (96 KiB) per Rings Part**, or **196,608 bytes (192 KiB) for RINGS A and B**, before any other Part members, Strummers, excitation/filter state, stereo scratch, resampling, routing, Clouds or stack allocations. This storage is part of each Part's object footprint even when a selected model does not actively use all String objects; compiler/linker dead-member elimination cannot remove subobjects from a live class instance.
+
+This is a source-derived lower bound, not a target `sizeof` or linker measurement. It materially tightens the memory gate: do not treat the earlier dual-Rings plan as fitting merely because the 64 KiB-per-instance String-and-Reverb allocation was removed. Measure the actual object sizes and section placement with the target compiler once the C++ toolchain path exists. Do not reduce the upstream String delay-line sizes or share mutable lines between A and B to make the budget appear to fit; that would alter DSP behaviour and violate independent-instance requirements.
