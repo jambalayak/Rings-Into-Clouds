@@ -101,3 +101,33 @@ This source inspection does **not** yet establish complete bidirectional MIDI sy
 ## Status
 
 This is a product requirement and implementation specification. The inherited firmware has external clock-input foundations, but bidirectional, whole-instrument MIDI synchronisation has not yet been verified or implemented as a complete RINGS INTO CLOUDS feature.
+
+
+## Verified base-firmware transport capabilities
+
+Source audit against the repository's pinned Felucca-BSP submodule commit `9670b5d34082700d0a7413eb6264abe1756c0ece`:
+
+- USB-MIDI is a bidirectional class-compliant interface. EP1 OUT feeds the USB input queue; EP1 IN is driven by a bounded 64-event output queue.
+- The audio side can enqueue a four-byte USB-MIDI event through `midi_out_try(pkt)`; the TIMER5 USB poll drains queued events to EP1 IN. This gives the master-clock implementation a non-blocking transport path from the audio timing domain.
+- TRS MIDI is UART1 RX on PH8 at 31,250 baud. The current driver explicitly documents and configures RX only; no TRS transmit path is established.
+- The existing MIDI clock module implements external clock following and transport, but no internal-clock-to-USB-MIDI F8/FA/FB/FC scheduler was found.
+
+### Master clock implementation design
+
+1. Add an internal-clock pulse scheduler in the audio timing domain, using sample-count/fixed-point phase accumulation rather than TIMER5 wall-clock polling. Emit exactly 24 pulses per quarter note across the supported tempo range.
+2. On transport Start, queue USB-MIDI FA before the first F8 pulse. On Continue, queue FB and resume phase without restarting the song. On Stop, queue FC and stop further F8 events.
+3. Encode each event as a valid USB-MIDI event packet (cable 0, correct CIN, realtime status in the first MIDI byte).
+4. Use the existing bounded output queue only. Never wait for USB endpoint readiness in the audio ISR. If disconnected or full, drop/record diagnostics according to a defined policy and keep the internal sequencer timing unaffected.
+5. Avoid clock feedback: when external USB clock is selected as the active master, disable outgoing clock by default (or require an explicit thru mode with loop protection). Do not echo incoming F8/FA/FB/FC automatically.
+6. Use the USB link counter to reset/reconcile output state after reconnect; do not replay a stale backlog of clock pulses.
+7. TRS master output is a separate hardware investigation. It needs a verified TX-capable pin, mux, electrical interface and connector path. The current PH8 RX path is not enough evidence.
+
+At 240 BPM, 24 PPQN produces 96 clock events per second, well below the 2 kHz USB service cadence. This rate comparison is not a jitter measurement; timing accuracy must still be tested with a MIDI analyser or receiving hardware.
+
+## Master/slave status labels
+
+Until implementation and hardware tests pass:
+- USB MIDI IN: existing base capability.
+- TRS MIDI IN: existing base capability.
+- USB MIDI OUT: transport path exists; clock generation is a firmware task.
+- TRS MIDI OUT: unsupported/unverified; do not claim it.
