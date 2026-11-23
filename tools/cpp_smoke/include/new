@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Probe-only placement-new declaration. No allocating operator new is provided.
+#ifndef RIC_CPP_SMOKE_NEW
+#define RIC_CPP_SMOKE_NEW
+#include <stddef.h>
+
+inline void* operator new(size_t, void* p) noexcept { return p; }
+
+#endif
