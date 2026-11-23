@@ -58,7 +58,7 @@ enum { PF_R8, PF_R16, PF_R32, PF_REV, PF_LPF, PF_HPF, PF_TAPE, PF_FRZ, PF_OUP, P
 #define PF_MUTE (((1u << NTRK) - 1u) << PF_M1)
 #define PF_MOD (PF_BIT(PF_FLG) | PF_BIT(PF_PHS))   /* FLANGER, PHASER: their own stages after CRUSH */
 #define PF_STORE_LEN 4096u                    /* 16-bit words per track-sized segment */
-static int16_t perf_buf_store[2u * NTRK * PF_STORE_LEN] __attribute__((section(".pool")));
+static int16_t perf_buf_store[NTRK * PF_STORE_LEN] __attribute__((section(".pool")));
 #define PB_FRAMES (NTRK * PF_STORE_LEN / 2u) /* stereo frames: 8192, 371 ms at 22.05 kHz */
 #define PB_MAX (2u * PB_FRAMES)               /* the longest loop, 44.1 kHz samples */
 #define PB_TAPE 32000u                        /* TAPE STOP takes 1 beat, at most this (it lags a quarter of it) */
