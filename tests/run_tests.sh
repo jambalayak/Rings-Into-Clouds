@@ -5,7 +5,7 @@
 #   tests/run_tests.sh
 #
 # Regression suite (tests/regress.c, tests/target_budget.py; details at the top of regress.c):
-#   golden renders  every engine x preset, the GM map on DRUM, voice modes, FX sends, a 4-track mix: one hash
+#   golden renders  every engine x preset, the GM map on DRUM, voice modes and a 4-track mix: one hash
 #                   each in tests/golden.txt. A change of the sound fails with the list of renders.
 #   health          clipping, DC, peak level, voices free after the release, silence at the end.
 #   CPU             instructions / sample per preset and mix (tests/cpu_baseline.txt, +25 %), ns printed;
@@ -31,7 +31,7 @@
 #                   (build/ui_new/align.txt). MENU > LARGE: every screen again (FLAT, LINE, every palette) and the page / value
 #                   sweep with the tall cards, the same lint and alignment; sheet_LARGE_GREY.png, sheet_LARGE_MONO.png.
 # UI (tests/ui_test.c): the UI sources against stub display / buttons / knobs: sound loads keep the steps and
-#                   the track's ARP / SCL / SLICER, the SAVE > PHRASES loader and its REPLACE? dialog, the
+#                   the track's ARP / SCL, the SAVE > PHRASES loader and its REPLACE? dialog, the
 #                   one-step undo of both (SAVE held), REC on TRACKS / SEQ / ARP, STEP and ARP while recording,
 #                   MIDI IN ROUT, saves refused while playing and the OVERWRITE? dialog, MUTE on TRACKS KNOB 1, FM6's operator
 #                   pages (each byte alone, SLOT OWN, the sound, undo, the macros, projects / user presets),
@@ -101,7 +101,7 @@
 # SOUND (tests/sound14_test.c; #132 #104 #148): the matrix's S&H / SLEW sources (a value per LFO cycle, the glide) and
 #                   DEPTH destination (the LFO's gain; none = untouched), ANALOG WAVE SYNC / SUB (pitch, no DC, bounded,
 #                   the band-limited restart), SPREAD (SPRD 0 / MONO / LEGATO bit for bit, a note hard left / right, the
-#                   mono sum, UNISON, the SLICER's gate and the mute key on both sides, mono sends), the cost; demos in
+#                   mono sum, UNISON, the mute key on both sides), the cost; demos in
 #                   build/sound14_demo/.
 # INSERT (tests/insert_test.c, 1.5; #78 #177): the per-track INSERT (src/fx.c track_insert): TYPE OFF and MIX 0 bit for
 #                   bit (POLY, SPREAD), each TYPE at its corners on 3 and 8 voices (no DC, bounded, MIX 50 % halfway
@@ -414,17 +414,10 @@ if [ -f build/gen/felucca_tables.h ]; then
     mkdir -p build/fold155_demo
     run "PHASE FOLD (1.5.5): FOLD 0 bit for bit, bounded, no DC, brighter with FOLD, alias-aware gain, cost, demo" \
         "$OUT/fold155_test" build/fold155_demo
-    $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/slicer_test" tests/slicer_test.c -lm
-    mkdir -p build/slicer_demo
-    run "SLICER: no clicks, timing, sync with the sequencer, STUT, cost, demos" "$OUT/slicer_test" build/slicer_demo
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/swing_test" tests/swing_test.c -lm
-    run "SWING: track + global at most 100, sequencer and SLICER step lengths, the SWG display" "$OUT/swing_test"
-    $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/perform_test" tests/perform_test.c -lm
-    mkdir -p build/perform_demo build/fx_demo build/throw_demo
-    run "FX layer effects: on the 1/16, stereo, too-long REPEAT, SLICER, silent keys, idle bit-identical, clicks, OCT UP / DN, FLANGER, PHASER, the key map, dotted TIME, REV / ECHO THROW, cost, demos" "$OUT/perform_test" build/perform_demo build/fx_demo build/throw_demo
-    $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/reverb_test" tests/reverb_test.c -lm
-    mkdir -p build/reverb_demo
-    run "REVERB TYPE: ROOM / SPRING bit-identical, SPRING and HALL decay / stability / level, HALL silence / stereo / ringing, model changes, cost, demos" "$OUT/reverb_test" build/fx_demo build/reverb_demo
+    run "SWING: track + global at most 100, sequencer timing, the SWG display" "$OUT/swing_test"
+    $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/perform_compact_test" tests/perform_compact_test.c -lm
+    run "compact performance layer: retained filters / FLANGER, bounded output, legacy key-map rejection" "$OUT/perform_compact_test"
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/regress" tests/regress.c -lm
     run "regression: golden renders, health, voices, CPU budget (2ND CORE OFF: one core)" "$OUT/regress" tests/golden.txt tests/cpu_baseline.txt
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/regress_cpu2_0" tests/regress.c -lm
