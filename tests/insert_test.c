@@ -290,7 +290,7 @@ static void test_glide(void)
     wm = ins[0].w;
     for (i = 5; i < 9u; i++)
         track_insert(t, sig_a + i * CTL, CTL);
-    ck("  and out again; then nothing runs (the input as it is)", wm == 32768 - CTL * SL_SLOPE && !ins[0].w &&
+    ck("  and out again; then nothing runs (the input as it is)", wm == 32768 - CTL * INS_SLOPE && !ins[0].w &&
        !memcmp(sig_a + 8u * CTL, sig_in + 8u * CTL, CTL * sizeof(int32_t)));
     /* a TYPE change while it plays: SOFT fades out, FLANG fades in from rest */
     t->p[P_IMIX] = 127;
@@ -303,7 +303,7 @@ static void test_glide(void)
         ok &= i < 19u ? ins[0].type == IT_SOFT && ins[0].w > 0 : 1;
     }
     track_insert(t, sig_a + 20u * CTL, CTL);
-    ok &= ins[0].type == IT_FLANGER && ins[0].w == CTL * SL_SLOPE;
+    ok &= ins[0].type == IT_FLANGER && ins[0].w == CTL * INS_SLOPE;
     for (i = 21; i < 24u; i++)
         track_insert(t, sig_a + i * CTL, CTL);
     {   /* no click: the largest step of the output over the change against the input's own */
