@@ -210,6 +210,6 @@ The pinned upstream Rings source defines a sixth `RESONATOR_MODEL_STRING_AND_REV
 
 This removes the need to reserve 128 KiB for two Rings reverb histories. It does not remove the need to measure both independent `rings::Part` objects, both Strummers, excitation/scratch state, Clouds buffers, resampling, routing and existing firmware allocations. Keep the other five models faithful; this decision is not permission to reduce their algorithms or buffers.
 
-FM1_Locus's `Part::Init(NULL)` is a useful reference for the omitted-reverb configuration, but its other scheduling and sample-rate assumptions still require independent review.
+A direct inspection of the pinned upstream `rings/dsp/part.cc` and `rings/dsp/fx/fx_engine.h` shows that passing `NULL` to `Part::Init()` is **not safe in this revision**: initialization unconditionally clears the supplied reverb buffer. The FM-1 port must remove the `Reverb` member and its init/process calls in a documented source patch; it must not pass a null or dummy pointer. See `docs/CPP_DSP_PORT_PLAN.md` for the exact patch checklist.
 
-**Gate:** record the five-model scope in the module UI, source patch manifest and tests. Validate that no String-and-Reverb code path dereferences an absent reverb buffer.
+**Gate:** record the five-model scope in the module UI, source patch manifest and tests. Prove that both instances initialize without reverb storage, that all five retained model paths render, and that the excluded model cannot be selected.
