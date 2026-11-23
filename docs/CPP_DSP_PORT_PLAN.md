@@ -131,7 +131,7 @@ The current RINGS INTO CLOUDS build is structurally different: one C unity trans
 
 ### Important source-fidelity decision
 
-The LOCUS integration is not a byte-for-byte stock Rings implementation. It removes the String-and-Reverb resonator model (and the associated 64 KiB reverb buffer) to fit the FM-1. If RINGS INTO CLOUDS follows that design, the module must be labelled a Rings port with that model omitted, and the UI must not advertise the omitted model. A future full-fidelity profile would need a separate memory strategy. This choice remains open; no Rings source has been imported.
+The LOCUS integration is not a byte-for-byte stock Rings implementation. It removes the String-and-Reverb resonator model (and the associated 64 KiB reverb buffer) to fit the FM-1. **RINGS INTO CLOUDS has explicitly adopted this omission by user decision (2026-11-23).** The module must be labelled an adapted Rings port with five original models; the UI must not advertise String and Reverb. The remaining five models retain their fidelity requirements. No Rings source has been imported yet.
 
 ### Current status
 
@@ -140,7 +140,7 @@ The LOCUS integration is not a byte-for-byte stock Rings implementation. It remo
 - [ ] Confirm the candidate list using compiler-generated dependency files.
 - [ ] Establish exact target toolchain and C++ runtime availability.
 - [ ] Measure actual baseline map and all statically allocated memory.
-- [ ] Decide explicitly whether the Rings String-and-Reverb model is supported or omitted.
+- [x] User decision: omit Rings String-and-Reverb and its dedicated reverb buffer; support the other five original models.
 - [ ] Only then import and compile the DSP.
 
 
