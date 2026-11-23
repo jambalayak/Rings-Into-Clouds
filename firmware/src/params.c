@@ -11,10 +11,6 @@ static const char *const N_LPOL[] = {"BI", "UNI"};
 static const char *const N_AMODE[] = {"OFF", "UP", "DN", "UPDN", "RND", "ORD", "REPEAT",   /* (append-only: seq.c AM_*) */
                                        "DNUP", "UP+8", "CONV", "DIVG", "PINKY", "THUMB", "WALK", "CHORD"};
 static const char *const N_DIV[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/2", "1/1", "2BAR", "4BAR"};
-/* the delay's TIME (G_DTIME): N_DIV's ten (their values kept), then 1.5.1's dotted ones appended (stored values:
- * append-only). A list of its own: ARP RATE, SEQ DIV and LFO SYNC keep N_DIV's ten (fx.c delay_samples) */
-static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/2", "1/1", "2BAR", "4BAR",
-                                      "1/8D", "1/16D", "1/4D"};
 static const char *const N_SCALE[] = {"CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM",
                                     "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"};
 static const char *const N_ONOFF[] = {"OFF", "ON"};
@@ -53,7 +49,6 @@ static const char *const N_MIDI_INPUT[] = {"USB", "TRS"};
 static const char *const N_ROUTE[] = {"CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK"};
 static const char *const N_NOTE[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 static const char *const N_DASH[] = {"--"};
-static const char *const N_RTYPE[] = {"ROOM", "SPRING", "HALL"};   /* G_RTYPE: the reverb bus's model (fx.c) */
 static const char *const N_GO[] = {"--", "GO"};
 static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* legacy values; retained only to read older project parameter arrays */
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* legacy SLICER rate values; no active control */
@@ -122,9 +117,9 @@ static const param_desc_t TP[P_COUNT] = {
     [P_SSWING] = PD("SWG", F_PCT, 0, 100, 0),
     [P_SGATE] = PD("GATE", F_PCT, 1, 127, 64),
     [P_DIST] = PD("DST", F_PCT, 0, 127, 0),
-    [P_CHOR] = PD("CHO", F_PCT, 0, 127, 0),
-    [P_DLY] = PD("DLY", F_PCT, 0, 127, 0),
-    [P_REV] = PD("REV", F_PCT, 0, 127, 0),
+    [P_CHOR] = PD("-", F_INT, 0, 0, 0), /* retired global-bus sends; IDs retained for old projects */
+    [P_DLY] = PD("-", F_INT, 0, 0, 0),
+    [P_REV] = PD("-", F_INT, 0, 0, 0),
     [P_VOICE] = PE("VCE", N_VOICE, 0),
     [P_GLIDE] = PD("GLD", F_TIME, 0, 127, 0),
     [P_GLMODE] = PE("GLMOD", N_GLMODE, 0),
@@ -200,14 +195,14 @@ static const param_desc_t GP[G_COUNT] = {
     [G_SWING] = PD("SWG", F_PCT, 0, 100, 0),
     [G_CLOCK] = PE("CLK", N_CLOCK, 0),
     [G_TUNE] = PD("TUNE", F_INT, -50, 50, 0),     /* cents; edited on MENU > AUDIO TUNE (1.2: menu_items.c MI_TUNE) */
-    [G_DTIME] = PE("TIME", N_DTIME, 1),
-    [G_DFDBK] = PD("FDBK", F_PCT, 0, 120, 60),
-    [G_DCOLOR] = PD("COLR", F_PCT, 0, 127, 70),
-    [G_DMIX] = PD("MIX", F_PCT, 0, 127, 90),
-    [G_RSIZE] = PD("SIZE", F_PCT, 0, 127, 90),
-    [G_RDAMP] = PD("DAMP", F_PCT, 0, 127, 60),
-    [G_CRATE] = PD("CRT", F_LFOHZ, 0, 127, 40),
-    [G_CDEPTH] = PD("CDP", F_PCT, 0, 127, 60),
+    [G_DTIME] = PD("-", F_INT, 0, 0, 0), /* retired global buses; IDs retained for old projects */
+    [G_DFDBK] = PD("-", F_INT, 0, 0, 0),
+    [G_DCOLOR] = PD("-", F_INT, 0, 0, 0),
+    [G_DMIX] = PD("-", F_INT, 0, 0, 0),
+    [G_RSIZE] = PD("-", F_INT, 0, 0, 0),
+    [G_RDAMP] = PD("-", F_INT, 0, 0, 0),
+    [G_CRATE] = PD("-", F_INT, 0, 0, 0),
+    [G_CDEPTH] = PD("-", F_INT, 0, 0, 0),
     /* G_MIDI, G_SYNC, G_INFO: the old SYSTEM page's (gone in 1.2), on no page: MIDI's value was never read (its card
      * showed the USB state), SYNC was a placeholder, CPU a reading; the USB state and the CPU load are MENU > SYSTEM >
      * INFO's now (ui_menu.c). Kept: the ids and G_COUNT are fixed by the formats and the protocol */
@@ -226,7 +221,7 @@ static const param_desc_t GP[G_COUNT] = {
     [G_CLRSEQ] = PE("CLRSQ", N_GO, 0),
     [G_INITSND] = PE("INIT", N_GO, 0),
     /* the reverb's model on the REVERB page: the id of the old GM drum channel (G_DRCH, inert since 1.0) */
-    [G_RTYPE] = PE("TYPE", N_RTYPE, 2),         /* HALL at power-on since 1.2 (ROOM before; projects keep theirs) */
+    [G_RTYPE] = PD("-", F_INT, 0, 0, 0), /* retired global reverb; reserved ID */
     /* inert: they set the GM drum part (level, reverb send), which is gone (drums are the DRUM engine
      * on any part). On no page; kept so the ids and G_COUNT, which the project format and the
      * editor protocol depend on, do not move */
@@ -301,11 +296,9 @@ static int32_t enum_step(const param_desc_t *d, int32_t from, int32_t v)
  * -> the shown order of d's values (index: position, entry: value), 0 = the values' own order */
 static const uint8_t DIV_ORDER[10] = {9, 8, 7, 6, 0, 1, 4, 2, 5, 3};   /* 4BAR 2BAR 1/1 1/2 1/4 1/8 8T 1/16 16T 1/32 */
 static const uint8_t SLDIV_ORDER[6] = {0, 3, 1, 4, 2, 5};              /* 1/8 8T 1/16 16T 1/32 32T */
-static const uint8_t DTIME_ORDER[13] = {9, 8, 7, 6, 12, 0, 10, 1, 11, 4, 2, 5, 3};   /* 4BAR 2BAR 1/1 1/2 1/4D 1/4 1/8D
-                                                                                      * 1/8 1/16D 8T 1/16 16T 1/32 */
 static const uint8_t *enum_order(const param_desc_t *d)
 {
-    return d->names == N_DIV ? DIV_ORDER : d->names == N_SLDIV ? SLDIV_ORDER : d->names == N_DTIME ? DTIME_ORDER : 0;
+    return d->names == N_DIV ? DIV_ORDER : d->names == N_SLDIV ? SLDIV_ORDER : 0;
 }
 static int32_t enum_rank(const param_desc_t *d, int32_t v)   /* v's place in the shown order (+ min): the gauges */
 {
@@ -462,12 +455,10 @@ static const page_t PAGES[] = {
     {"LFO 2", FAM_LFO, SC_TRACK, GR_LFO, {P_LSYNC, P_LTRIG, P_LPOL, 0xFF}},   /* 1.2: SYNC TRIG POL */
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
     {"MOD", FAM_LFO, SC_TRACK, GR_MOD, {0xFF, P_M1SRC, P_M1DST, P_M1AMT}},   /* KNOB 1: the slot (mod_ui_slot) */
-    {"FX", FAM_FX, SC_TRACK, GR_FX, {P_DIST, P_CHOR, P_DLY, P_REV}},
+    {"DRIVE", FAM_FX, SC_TRACK, GR_FX, {P_DIST, 0xFF, 0xFF, 0xFF}},
     {"INSERT", FAM_FX, SC_TRACK, GR_INS, {P_ITYPE, P_IA, P_IB, P_IC}},   /* 1.5: the track's INSERT (fx.c) */
     {"INSERT 2", FAM_FX, SC_TRACK, GR_INS, {P_IMIX, 0xFF, 0xFF, 0xFF}},  /* .. its dry / wet */
-    {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
-    {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL */
-    {"CHORUS", FAM_FX, SC_GLOBAL, GR_NONE, {G_CRATE, G_CDEPTH, 0xFF, 0xFF}},
+    /* Global delay, chorus and reverb pages retired. Future reverb will be a separately budgeted modular processor. */
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_TRANS}},
     {"CHORD", FAM_SCL, SC_TRACK, GR_CHORD, {P_CHRD, P_VOIC, 0xFF, 0xFF}},   /* SCL again: the chord keys (chord.c) */
     {"EDIT 1", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E0, P_E1, P_E2, P_E3}},
