@@ -401,9 +401,9 @@ static int steal_test(const char *dir)
         t->p[P_E4] = 127;                          /* filter open, no resonance, no drive */
         t->p[P_E5] = t->p[P_E6] = 0;
         t->p[P_ED_FLT] = 0;
-        t->p[P_ATK] = 40;                          /* slow attack, full sustain, no sends */
+        t->p[P_ATK] = 40;                          /* slow attack, full sustain, dry */
         t->p[P_SUS] = 127;
-        t->p[P_DIST] = t->p[P_CHOR] = t->p[P_DLY] = t->p[P_REV] = 0;
+        t->p[P_DIST] = 0;
         t->p[P_VOICE] = V_POLY;
         t->p[P_LEVEL] = 90;
     }
@@ -851,8 +851,7 @@ int main(int argc, char **argv)
     }
     fm6_track_loaded(&inst);                            /* FM6: the preset's patch */
     inst.p[P_VOICE] = (int16_t)mono;
-    inst.p[P_CHOR] = inst.p[P_DLY] = inst.p[P_REV] = 0; /* retired global buses */
-    if (getenv("PRESET"))                               /* PRESET=1: sends, voice mode too (then SENDS, PSET) */
+        if (getenv("PRESET"))                               /* PRESET=1: voice mode too (then PSET) */
         host_preset(&inst, (uint32_t)eng, (uint32_t)preset);
     if (getenv("OCT"))                                   /* OCT=o: keyboard octave shift (key 7 = C4 + 12 o) */
         song.octave = (int8_t)atoi(getenv("OCT"));
