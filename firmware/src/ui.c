@@ -374,7 +374,7 @@ static const page_t *page_over;   /* a quick layer's own four knobs (ui_layer.c)
 static const page_t *cur_page(void) { return page_over ? page_over : &PAGES[ui.page]; }
 
 /* MENU > LARGE (#15, Discussion #80: what KNOB 1..4 do, in bigger type). Per page type:
- *   LK_TALL  HOME and the value pages (EDIT ENV LFO MOD FX SLICER SCL CHORD ARP VOICE, MIXER, CLOCK,
+ *   LK_TALL  HOME and the value pages (EDIT ENV LFO MOD FX SCL CHORD ARP VOICE, MIXER, CLOCK,
  *            TOOLS): tall cards (a K1..K4 keycap, the icon, the label in M, the value in L,
  *            in M or S when L is too wide or lacks a glyph for any value of the knob (#251: one size per knob,
  *            ui_draw.c span_face), the unit under it, the gauge), the panel a strip: HOME's
