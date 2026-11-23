@@ -211,7 +211,7 @@ The port must make an explicit source patch before either instance is initialize
 - Keep all five retained model render paths and their original per-model gains unchanged.
 - Add tests proving both Rings instances initialize without reverb storage, all five retained models render, invalid/omitted model values cannot reach the excluded branch, and A/B state remains independent.
 
-Do not substitute a null buffer, a dummy buffer, or a shared reverb buffer. The firmware's shared effects and Clouds remain separate signal-chain modules. This is a documented source-level adaptation; it is not yet implemented or tested.
+Do not substitute a null buffer, a dummy buffer, or a shared reverb buffer. Clouds remains a separate processor; any future reverb must be an explicit optional modular node. This is a documented source-level adaptation; it is not yet implemented or tested.
 
 
 ## Stereo engine-output integration gate (source audit, 2026-11-23)
