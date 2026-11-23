@@ -32,8 +32,7 @@
  * last stage's output fed back (0.4) into the first; out (x + all-passed) / 2 * 0.9: two notches moving, the peaks
  * +1.6 dB, white noise -1 .. -3.5 dB. KNOB 4 DEPTH is the FLANGER's and the PHASER's level too (OCT UP /
  * DN playing: full, KNOB 4 its shimmer).
- * The buffer: the SLICER's recordings (perf_buf_store, 32 KB) borrowed as one stereo loop of 8192 frames at 22.05 kHz
- * (371 ms). While borrowed, STUT tracks play live; their recordings are dropped afterwards. A REPEAT 1/8 or
+ * A dedicated 32 KiB performance-loop store holds 8192 stereo frames at 22.05 kHz (371 ms). A REPEAT 1/8 or
  * REVERSE longer than the loop at the tempo (below 81 BPM) does nothing (the map shows it dimmed).
  * KNOB 1..4 with FX: the macros FILTER (the LPF / HPF), CRUSH, THROW (the dry mix into the delay and reverb
  * sends), DEPTH (the buffer effects' level, FLANGER's and PHASER's; OCT UP / DN: the shimmer).
