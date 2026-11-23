@@ -6,10 +6,6 @@
  * gives them (perf_map: the settings, ui_layer.c; any effect on any key, or none). The default (PF_DEF, 1.1.5's
  * keys and the two of 1.2 after them):
  *   LPF | HPF, FLANGER, PHASER; black keys 1..4 (F#3 G#3 A#3 C#4): tracks 1..4 muted while held.
- * REV THROW / ECHO THROW (1.5.1): while held every track's reverb / delay send is full (as REV / DLY 127; perf_throw),
- * ECHO THROW also lifts the delay's feedback to 0.7 if it is lower (fx.c fx_buses); both glide in and out over 11.6 ms
- * (THR_SLOPE). Let go, the sends are the tracks' own again and what the buses hold rings out. The buses are the song's
- * (no RAM of their own); the tracks' REV / DLY / FDBK values are never touched (nothing saved, nothing recorded).
  * Effects end when let go, with a 2.9 ms ramp. LPF, HPF, FLANGER and PHASER can be combined.
  * OCT UP / OCT DN: a harmonizer, the mix an octave up / down beside itself (after the author's earlier
  * fxHarmonizer, the classic rotating-delay shifter): two read taps of a delay sweep 128 .. 2176 samples, half a sweep apart, at the
@@ -78,7 +74,7 @@ static volatile uint32_t perf_held;   /* ISR: the effects held (PF_*) */
 static volatile uint8_t perf_latch_on;   /* main: MENU > FX LATCH ON (#40): a key with FX toggles its effect */
 static volatile uint32_t perf_latched;   /* ISR: the effects latched (FX LATCH; main clears it: OCT-, the menu) */
 static volatile uint32_t perf_act;    /* ISR: .. running (a 1/16 one from its start on) */
-static uint32_t perf_ord[PF_N], perf_seq;   /* press order: the last pressed buffer effect plays */
+
 
 /* the ZDF state-variable filter at cutoff index i (30 Hz * 2^(i / 7), 0..63: up to 15.4 kHz), k = 1:
  * a1 a2 a3 in Q14 (tools: g = tan(pi fc / fs), a1 = 1 / (1 + g (g + k)), a2 = g a1, a3 = g a2) */
@@ -98,19 +94,9 @@ static const int16_t PF_SVF[64][3] = {
 };
 
 static struct {
-    uint32_t ph, P, split;             /* samples since play; the 1/16; this block: where a 1/16 starts */
-    uint32_t act, act0;                /* running after / before split */
-    uint8_t busy, sync, mute;          /* sync: a 1/16 starts with the next block; mute: tracks to ramp */
-    /* the buffer */
-    uint8_t mode, src, next, rev;      /* BM_*, the effect it plays (PF_N none), one waiting for the fade, REVERSE */
-    uint8_t state, odd, xrev;          /* LOOP: 0 recording, 1 playing; the sample of a pair; the old loop's */
-    uint32_t len, wr, rp;              /* loop length (samples), frames written, read (samples into the loop) */
-    uint32_t xrp, xlen, xn;            /* the loop it switched from, faded over xn samples */
-    uint32_t tv, dv, tpos;             /* TAPE: speed Q16, its step, read position Q16 frames */
-    uint32_t gp[2], gs[2];             /* FREEZE: grain positions (samples), starts (frames) */
-    uint32_t hph, hinc;                /* OCT UP / DN: tap A's place in the sweep (Q32), its step a sample */
-    int32_t hfb;                       /* .. the shimmer now, Q15 (glides to KNOB 4's a block at a time) */
-    int32_t w, tw, hl, hr;             /* the buffer's share and its target, Q15; the first of a pair */
+    uint32_t ph, P;                    /* samples since transport start; quarter-note subdivision */
+    uint32_t act, act0;                /* effects running this block */
+    uint8_t sync, mute;                /* sync: reset phase on next block; mute: tracks to ramp */
     /* the filters, CRUSH, THROW, mutes */
     int32_t lc, hc, la, ha;            /* cutoffs (Q8 index) and shares (Q15) of LPF and HPF */
     int32_t lz[4], hz[4];              /* their states: L ic1 ic2, R ic1 ic2 */
@@ -118,15 +104,12 @@ static struct {
     uint32_t lt, ht;                   /* samples the LPF / HPF key has been held */
     int32_t cw, cc, chl, chr;          /* CRUSH share, amount, held sample */
     uint32_t cn;
-    int32_t td;                        /* THROW: the share of the dry mix sent, Q15 */
-    int32_t rw, ew, rw1, ew1;          /* REV / ECHO THROW: their shares (Q15) at this block's start and end */
-    uint8_t thr;                       /* .. either at work this block (mix_part: perf_throw) */
     int32_t mg[NTRK];                  /* mute gains, Q15 (32768 = open) */
     /* FLANGER, PHASER */
     int32_t fw, pw;                    /* their shares, Q15 */
     uint32_t fwp, fn;                  /* FLANGER: the frame written next; frames written since it started */
     int32_t px[2][PH_ST], py[2][PH_ST], pfb[2];   /* PHASER: each stage's last input and output, L and R; the fed back */
-} pf = {.src = PF_N, .next = PF_N, .lc = PF_TOP, .mg = {32768, 32768, 32768, 32768}};
+} pf = {.lc = PF_TOP, .mg = {32768, 32768, 32768, 32768}};
 
 static int16_t fl_buf[FL_LEN][2];      /* FLANGER's line: L R, at half the level (headroom) */
 
@@ -138,16 +121,27 @@ static uint32_t perf_map_of(const uint8_t *b, uint32_t p)
     if ((i & 7u) > 3u)
         c |= (uint32_t)b[(i >> 3) + 1u] << (8u - (i & 7u));
     c &= 31u;
-    return c == 1u ? PF_N : c >= 2u && c - 2u < PF_NFX ? c - 2u : PF_DEF[p];
+    uint32_t e = c >= 2u ? c - 2u : PF_N;
+    return c == 1u ? PF_N : c >= 2u && e < PF_NFX &&
+           (e == PF_LPF || e == PF_HPF || e == PF_FLG || e == PF_PHS) ? e : PF_DEF[p];
 }
 static void perf_map_put(uint8_t *b, uint32_t p, uint32_t e)
 {
-    uint32_t i = 5u * p, sh = i & 7u, c = e == PF_DEF[p] ? 0u : e >= PF_NFX ? 1u : e + 2u, two = sh > 3u, v;
+    uint32_t i = 5u * p, sh = i & 7u, c, two = sh > 3u, v;
+    if (e != PF_N && e != PF_LPF && e != PF_HPF && e != PF_FLG && e != PF_PHS)
+        e = PF_N;
+    c = e == PF_DEF[p] ? 0u : e >= PF_NFX ? 1u : e + 2u;
     v = b[i >> 3] | (two ? (uint32_t)b[(i >> 3) + 1u] << 8 : 0u);
     v = (v & ~(31u << sh)) | c << sh;
     b[i >> 3] = (uint8_t)v;
     if (two)
         b[(i >> 3) + 1u] = (uint8_t)(v >> 8);
+}
+
+/* Only these four live processors remain in the compact performance layer. */
+static uint32_t perf_avail(void)
+{
+    return PF_BIT(PF_LPF) | PF_BIT(PF_HPF) | PF_BIT(PF_FLG) | PF_BIT(PF_PHS) | PF_MUTE;
 }
 
 /* seq.c keyboard_block: a layer key down / up (e: PF_*, PF_N = no effect) */
@@ -158,7 +152,6 @@ static void perf_press(uint32_t e, int down)
     if (perf_latch_on) {                  /* FX LATCH: a press turns it on or off, letting go only ends a hold begun before it */
         if (down) {
             perf_latched ^= PF_BIT(e);
-            perf_ord[e] = ++perf_seq;
         } else {
             perf_held &= ~PF_BIT(e);      /* (FX LATCH switched on during the hold: the momentary effect ends) */
         }
@@ -166,7 +159,6 @@ static void perf_press(uint32_t e, int down)
     }
     if (down) {
         perf_held |= PF_BIT(e);
-        perf_ord[e] = ++perf_seq;
     } else {
         perf_held &= ~PF_BIT(e);
     }
@@ -179,11 +171,13 @@ static void perf_start(void) { pf.ph = 0; pf.sync = 1; }      /* seq_start: a 1/
 static __attribute__((noinline)) int perf_begin(uint32_t n)
 {
     uint32_t held = perf_kill ? 0u : (perf_held | perf_latched | (perf_solo ? (~(uint32_t)perf_solo & 15u) << PF_M1 : 0u)) & perf_avail();
-    uint32_t q, k, ph0, bnd;
+    uint32_t k;
     int32_t m;
-    if (!held && !pf.busy && !(perf_k[0] | perf_k[1] | perf_k[2])) {   /* idle: the clock only */
+    if (!held && !pf.la && !pf.ha && !pf.cw && !pf.fw && !pf.pw && !pf.fn && !pf.mute &&
+        !(perf_k[0] | perf_k[1] | perf_k[3])) {
         pf.ph += n;
         pf.sync = 0;
+        pf.act = pf.act0 = 0;
         perf_act = 0;
         return 0;
     }
@@ -192,19 +186,10 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
         pf.ph = 0;
         pf.sync = 0;
     }
-    ph0 = pf.ph % pf.P;                             /* the 1/16 in this block (n: none) */
-    bnd = ph0 ? (pf.P - ph0 < n ? pf.P - ph0 : n) : 0u;
     pf.ph += n;
-    pf.act &= held;                                 /* let go: at once */
-    pf.act |= held & ~PF_Q;
-    pf.act0 = pf.act;
-    q = held & PF_Q & ~pf.act;
-    pf.split = n;
-    if (q && (!song.playing || bnd < n)) {
-        pf.split = song.playing ? bnd : 0u;
-        pf.act |= q;
-    }
-    perf_act = pf.act;
+    pf.act = held;
+    pf.act0 = held;
+    perf_act = held;
     /* the filters: LPF from open down over a bar while its key is held, KNOB 1 left; HPF up, KNOB 1 right */
     m = perf_k[0];
     {
@@ -232,19 +217,10 @@ static __attribute__((noinline)) int perf_begin(uint32_t n)
             pf.hk[k] = (int16_t)(PF_SVF[j][k] + (((PF_SVF[j < 63 ? j + 1 : 63][k] - PF_SVF[j][k]) * g) >> 8));
         }
     }
-    {   /* REV / ECHO THROW: their shares glide (THR_SLOPE a sample) to full while held, back to 0 when let go */
-        int32_t s = THR_SLOPE * (int32_t)n;
-        pf.rw = pf.rw1;
-        pf.ew = pf.ew1;
-        pf.rw1 += clamp((pf.act & PF_BIT(PF_RTHR) ? 32768 : 0) - pf.rw1, -s, s);
-        pf.ew1 += clamp((pf.act & PF_BIT(PF_ETHR) ? 32768 : 0) - pf.ew1, -s, s);
-        pf.thr = (pf.rw | pf.rw1 | pf.ew | pf.ew1) != 0;
-    }
     pf.mute = 0;
     for (k = 0; k < NTRK; k++)
         if (((held >> (PF_M1 + k)) & 1u) || pf.mg[k] != 32768)
             pf.mute |= (uint8_t)(1u << k);
-    pf.busy = 1;
     return 1;
 }
 
@@ -439,5 +415,5 @@ static __attribute__((noinline)) void perf_block(int32_t *bl, int32_t *br, uint3
         perf_flanger(bl, br, n);
     if ((pf.act & PF_BIT(PF_PHS)) || pf.pw)
         perf_phaser(bl, br, n);
-    pf.busy = pf.act || pf.la || pf.ha || pf.cw || pf.mute || pf.fw || pf.pw || pf.fn || perf_k[0] || perf_k[1] || perf_k[3];
+
 }
