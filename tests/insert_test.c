@@ -147,6 +147,7 @@ static void test_identity(void)
         ck(sp ? "SPREAD 64: TYPE OFF with A B C MIX set renders the defaults' phrase bit for bit"
               : "TYPE OFF with A B C MIX set renders the defaults' phrase bit for bit", phrase() == h0);
         for (ty = 1; ty < IT_N; ty++) {
+            if (ty == IT_CHORUS) continue; /* retired; track_insert_type maps it to OFF */
             ph_ty = ty; ph_a = 127; ph_b = 127; ph_c = 127; ph_mix = 0;
             ok0 &= phrase() == h0;
             ph_mix = 127;
@@ -206,6 +207,7 @@ static void test_types(void)
     uint32_t nv, ty, ia, ib, ic, i;
     printf("insert: the types on 3 and 8 saws (peak in 72000 / 192000), A B C at 0 64 127 (27 settings), MIX 100 %%:\n");
     for (ty = 1; ty < IT_N; ty++) {
+        if (ty == IT_CHORUS) continue; /* retired; track_insert_type maps it to OFF */
         int32_t pk[2] = {0, 0};
         double dc[2] = {0, 0};
         int same0 = 1, lin = 1, diff = 0;
