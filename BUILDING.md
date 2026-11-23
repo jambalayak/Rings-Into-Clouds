@@ -142,7 +142,7 @@ against the same golden renders.
 
 The regression suite (`tests/regress.c`) renders every engine and preset and compares a
 hash of each render with `tests/golden.txt`; it also checks levels, voices and the CPU
-cost (`tests/cpu_baseline.txt`, `tests/target_budget.txt`). After an intended change of
+cost (`tests/cpu_baseline.txt`, `tests/target_budget.txt`). The approved removal of global FX sends changes preset render hashes; refresh `tests/golden.txt` with `GOLDEN_UPDATE=1 sh tests/run_tests.sh` only after reviewing the intended sound changes. After an intended change of
 the sound, `GOLDEN_UPDATE=1 sh tests/run_tests.sh` rewrites the hashes; `BUDGET_UPDATE=1`
 does the same for the cost files.
 
