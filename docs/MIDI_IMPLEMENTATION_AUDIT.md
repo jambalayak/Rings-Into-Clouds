@@ -39,7 +39,7 @@ The USB-MIDI receive parser and TRS parser feed the shared MIDI input queue. The
 - No physical FM-1 loopback or external-device master test has been run.
 - Song Position Pointer (F2), clock-loss policy and duplicate USB/TRS clock-source arbitration require additional verification against the complete queue/transport implementation.
 
-Therefore, the base currently gives us meaningful **MIDI slave/input** functionality, but **MIDI master/output is not yet verified and must not be advertised as working**.
+Therefore, the base currently gives us meaningful **USB and TRS MIDI slave/input** functionality. **USB MIDI master/output is supported by the existing USB transport and can be implemented in firmware; TRS MIDI master/output remains unverified and is not supported by the inspected RX-only UART path.** Do not advertise TRS clock output until connector wiring and a TX route are proven.
 
 ## RINGS INTO CLOUDS requirements
 
@@ -48,9 +48,10 @@ Therefore, the base currently gives us meaningful **MIDI slave/input** functiona
 3. Prevent double-clocking when the same master reaches both input paths.
 4. Add robust clock-loss detection and define whether playback stops, holds, or falls back to internal tempo. The chosen behaviour must be consistent across sequencer, arp, LFO and tempo-aware effects.
 5. Evaluate F2 Song Position Pointer and Continue semantics.
-6. Verify the FM-1 USB-MIDI OUT endpoint and hardware TRS connector routing before designing master output. Do not assume the TRS input jack can transmit.
-7. If hardware supports MIDI OUT, implement 24 PPQN clock plus Start/Continue/Stop from the internal transport with bounded jitter and no input/output feedback loop.
-8. Test with at least one external hardware clock master and one external slave, then test simultaneous USB and TRS connection cases.
+6. Implement USB-MIDI OUT clock/transport using the existing audio-ISR producer / TIMER5 USB endpoint consumer queue. Keep the queue bounded and define what happens on disconnect/full queue.
+7. Verify the FM-1 TRS connector pinout and any UART TX route before considering TRS master output; current UART1 MIDI path is RX-only.
+8. Implement 24 PPQN clock plus Start/Continue/Stop from internal transport over USB, with bounded jitter and no input/output feedback loop.
+9. Test with at least one external hardware clock master and one external USB MIDI slave, then test simultaneous USB and TRS input cases.
 
 ## Acceptance tests
 
