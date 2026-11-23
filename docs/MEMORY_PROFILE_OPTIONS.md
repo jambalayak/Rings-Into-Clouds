@@ -122,4 +122,4 @@ The 32 KiB saving is a useful contribution toward the dual-Rings + Clouds profil
 
 ## Source removal status
 
-The source-level SLICER path has been disconnected from the unity build, FX mixer and sequencer. The SLICER page is removed from the parameter page list. The performance looper's storage is now explicitly declared in `perform.c`; it remains 32 KiB by design. Legacy SLICER parameter IDs remain reserved for project compatibility. `slicer.c` deletion and a full-reference audit are pending; no firmware build or runtime test has been run.
+The source-level SLICER path has been disconnected from the unity build, FX mixer and sequencer. The SLICER page is removed from the parameter page list. The performance looper's storage is now explicitly declared in `perform.c`; it remains 32 KiB by design. Legacy SLICER parameter IDs remain reserved for project compatibility. `slicer.c` has been deleted and its unity-build include removed. The sequencer start hook and FX mixer calls are gone. The retained performance looper now owns its buffer directly. A full repository-wide reference audit and target firmware build/runtime test are still pending.
