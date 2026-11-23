@@ -403,7 +403,7 @@ static void test_stored(void)
     ck("user presets: 111 parameters kept; one of 104 (1.2 .. 1.4): the INSERT OFF, its engine values in place", ok);
     /* the pages: DRIVE, INSERT and INSERT 2; the labels and values per TYPE */
     {
-        uint32_t p, ps = 0, pi = 0, pi2 = 0, pd = 0;
+        uint32_t p, ps = 0, pi = 0, pi2 = 0, pd = NPAGES;
         char val[16];
         const char *u;
         track_t *t = &trk[0];
