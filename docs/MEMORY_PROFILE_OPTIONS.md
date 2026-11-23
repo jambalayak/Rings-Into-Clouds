@@ -67,6 +67,21 @@ That leaves only 30,928 bytes inside the full 432 KiB SRAM span for all other Ri
 
 The region split is also a separate constraint. With the current 72 KiB RAM region, Clouds' 65,408-byte small buffer leaves only 8,320 bytes for every other `.bss/.data` allocation before the required 4 KiB reserve. A 128 KiB RAM / 304 KiB POOL split is one possible experiment, but the Rings delay-line arrays would then need deliberate placement across both regions to avoid overfilling POOL. The current inline Rings object layout does not provide that split automatically.
 
+### Dedicated Rings reverb allocation removed from the target budget
+
+The pinned upstream `rings::Part` includes a separate `Reverb` object whose
+`FxEngine<32768, FORMAT_16_BIT>` requires a caller-owned 32,768-sample
+`uint16_t` buffer. That is 65,536 bytes per Part, or 131,072 bytes for the two
+independent Rings instances. The approved five-model port removes the member,
+its initialisation and its processing path, so these buffers are not part of
+the RINGS INTO CLOUDS target allocation.
+
+The 411,440-byte combined lower-bound table above already excludes these two
+reverb buffers; it is not an additional saving to subtract from that total.
+This 128 KiB is a source-derived avoided allocation, not a measured linker
+delta. The separate Clouds-native reverb remains part of the Clouds processor
+and is not included in this Rings-specific calculation.
+
 ## Possible architecture work (not yet implemented)
 
 1. **Externalise Rings delay-line storage without changing its algorithm.** Adapt the pinned DelayLine/String storage interface so each Rings instance owns independent arrays, but those arrays can be placed in separate linker regions. Do not shorten delay lengths or share mutable buffers between A and B.
