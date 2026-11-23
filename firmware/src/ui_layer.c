@@ -531,7 +531,7 @@ static void fx_assign(int32_t s)
     perf_map_put(fx_keys, p, i ? PF_ACTIVE[i - 1u] : PF_N);
     lys.rp_dirty = 1;
     fx_map_sync();
-    fx_say(k, i ? i - 1u : PF_N, "");
+    fx_say(k, i ? PF_ACTIVE[i - 1u] : PF_N, "");
     ui.force = 1;
 }
 /* EDIT with a key held in the FX layer: its default effect back */
