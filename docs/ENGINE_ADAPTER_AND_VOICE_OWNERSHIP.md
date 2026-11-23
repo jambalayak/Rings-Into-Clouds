@@ -210,7 +210,7 @@ This approach is still a design proposal until the adapter code and tests exist,
 A source inspection of `firmware/src/fx.c` establishes the current output topology:
 
 - `track_render()` produces one mono block per track.
-- `mix_part()` applies the track's DIST/INSERT/SLICER/mute path, then level, pan and mono chorus/delay/reverb sends.
+- `mix_part()` applies the track's DIST/INSERT/mute path, then level, pan and mono chorus/delay/reverb sends.
 - The dry mix accumulators are stereo (`mix_l`, `mix_r`), but the three shared send buses are mono.
 - With CPU2 enabled, each core owns a `mixsum_t` containing stereo dry sums and mono send sums. The two sums are merged before the shared FX/master path.
 - The current engine `post(track, out, n)` callback receives only the mono track buffer. It cannot directly return Rings' native `out` and `aux` stereo pair.
@@ -225,7 +225,7 @@ Introduce a bounded stereo processor-output path at the per-track mix stage:
 2. Add an explicit optional stereo post-processor callback or equivalent per-track stereo result contract. It must run once per track/block, not once per host voice.
 3. Give the stereo processor separate left/right scratch or bus buffers whose lifetime and ownership are explicit. Do not alias the mono `out` buffer or another track's scratch.
 4. Preserve Rings' native two outputs as distinct left/right signals through level, pan and master mixing. Define how pan is applied without destroying the module's stereo width.
-5. Keep the normal track mute/level behaviour predictable. Decide explicitly whether existing mono DIST/INSERT/SLICER processing is bypassed, adapted to stereo, or applied before/after the Rings processor; do not silently collapse the pair.
+5. Keep the normal track mute/level behaviour predictable. Decide explicitly whether existing mono DIST/INSERT processing is bypassed, adapted to stereo, or applied before/after the Rings processor; do not silently collapse the pair.
 6. If the patch graph exposes the two outputs as separate ports, connect those exact buffers to the graph. A visible cable must select a real signal, not a UI-only route.
 7. Extend the CPU2 `mixsum_t` ownership/merge path so stereo module output is accumulated safely whichever core renders that part. Do not let both cores write the same scratch or accumulator.
 8. Add regression tests for mono-engine bit-for-bit compatibility, Rings stereo separation, pan/level/mute, simultaneous RINGS A/B isolation, CPU2 on/off equivalence, and output clipping/headroom.
