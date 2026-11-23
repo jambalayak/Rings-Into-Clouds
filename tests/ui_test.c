@@ -2932,9 +2932,9 @@ static int test_product_ux(void)
     ui_power_on(); press(B_HOME);
     bad += check("1.2: HOME tapped on HOME opens the four-channel MIXER", cur_page()->graph == GR_TRK && !ui.home &&
                  cur_fam() == FAM_TRK && FAM_BTN[cur_fam()] == B_HOME);
-    int16_t len = TSEL->p[P_SLEN], send = TSEL->p[P_REV];
+    int16_t len = TSEL->p[P_SLEN], spread = TSEL->p[P_SPRD];
     turn(EN_K3, 1);
-    bad += check("MIXER K3 edits reverb, never sequence length", TSEL->p[P_SLEN] == len && TSEL->p[P_REV] == send + 1);
+    bad += check("MIXER K3 edits stereo spread, never sequence length", TSEL->p[P_SLEN] == len && TSEL->p[P_SPRD] == spread + 1);
     press(B_HOME);
     ok = !ui.home && !ui.menu && str_eq(cur_page()->title, "CLOCK") && cur_fam() == FAM_TRK && FAM_BTN[cur_fam()] == B_HOME;
     {   /* (CLOCK: HOME's LED lit, as on MIXER; GLO's not) */
@@ -3172,7 +3172,7 @@ static int test_layer(void)
     bad += check("FX tap: nothing on press, the FX page when let go", ok && !ui.home && cur_page()->fam == FAM_FX);
     frames(320);                                       /* (not a double tap: #83) */
     press(B_FX);
-    bad += check("  a second tap: the next page of the family (SLICER)", str_eq(cur_page()->title, "SLICER"));
+    bad += check("  a second tap: the next page of the family (INSERT)", str_eq(cur_page()->title, "INSERT"));
     ui_power_on();
     btn_down(B_FX);
     for (flash = 0, i = 0; i < 22u; i++) { frame(); flash |= ui.layer; }      /* 0.35 s */
@@ -3303,30 +3303,11 @@ static int test_layer(void)
     key_up(white(14)); btn_up(B_FX); frame();
     bad += check("FX + G4 / A4: OCT UP / OCT DN held, silent, no MIDI; KNOB 4 turns; B4 FLANGER, D5 REV THROW, F5 nothing; FX let go: K4 0",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
-    /* REVERB > TYPE (FX family, global): ROOM / SPRING / HALL on KNOB 1 (HALL at power-on since 1.2), kept by a
-     * project */
-    ui_power_on();
-    go_title("REVERB");
-    ok = cur_page()->fam == FAM_FX && cur_page()->id[0] == G_RTYPE && cur_page()->id[1] == G_RSIZE &&
-         cur_page()->id[2] == G_RDAMP && song.g[G_RTYPE] == 2 && str_eq(GP[G_RTYPE].names[2], "HALL");
-    turn(EN_K1, -2);
-    ok &= song.g[G_RTYPE] == 0 && str_eq(GP[G_RTYPE].names[song.g[G_RTYPE]], "ROOM");
-    turn(EN_K1, 1);
-    ok &= song.g[G_RTYPE] == 1 && str_eq(GP[G_RTYPE].names[song.g[G_RTYPE]], "SPRING");
-    turn(EN_K1, 5);
-    ok &= song.g[G_RTYPE] == 2;
-    turn(EN_K1, -1);
-    ok &= song.g[G_RTYPE] == 1;
-    song.playing = 0;
-    project_save(2);
-    turn(EN_K1, -1);
-    ok &= song.g[G_RTYPE] == 0;
-    project_load(2);
-    bad += check("REVERB page: TYPE HALL (power-on) / ROOM / SPRING on KNOB 1 (SIZE, DAMP beside it); a project keeps SPRING",
-                 ok && song.g[G_RTYPE] == 1);
-    go_title("CHORUS");
-    bad += check("  CHORUS page: CRT CDP", cur_page()->fam == FAM_FX && cur_page()->id[0] == G_CRATE &&
-                 cur_page()->id[1] == G_CDEPTH && cur_page()->id[2] == 0xFFu);
+    /* Global delay, chorus and reverb were removed. Their stored IDs are inert; no FX pages expose them. */
+    ok = TP[P_CHOR].max == 0 && TP[P_DLY].max == 0 && TP[P_REV].max == 0 && GP[G_DTIME].max == 0 && GP[G_RTYPE].max == 0;
+    for (i = 0; i < NPAGES; i++)
+        ok &= !str_eq(PAGES[i].title, "REVERB") && !str_eq(PAGES[i].title, "CHORUS") && !str_eq(PAGES[i].title, "DLY") && !str_eq(PAGES[i].title, "SLICER");
+    bad += check("global delay / chorus / reverb and SLICER pages are absent; legacy parameters are inert", ok);
     /* chording: a key held before FX stays a note, its note-off arrives */
     ui_power_on();
     mo = mo_w;
@@ -5925,7 +5906,7 @@ static int test_momentary(void)
     /* #195: MIXER's LEVEL PAN REV MUTE (the selected track's) are momentary too, as on HOME LEVELS and the FX page */
     go_page(GR_TRK); frame();
     {
-        int16_t lv = TSEL->p[P_LEVEL], pn = TSEL->p[P_PAN], rv = TSEL->p[P_REV], mu = TSEL->p[P_MUTE];
+        int16_t lv = TSEL->p[P_LEVEL], pn = TSEL->p[P_PAN], sp = TSEL->p[P_SPRD], mu = TSEL->p[P_MUTE];
         song.playing = 1; song.rec = 1u << song.sel;
         k = motion.count;
         btn_down(B_LFO); frame();
@@ -5933,16 +5914,16 @@ static int test_momentary(void)
         turn(EN_K2, 7);
         turn(EN_K3, 9);
         turn(EN_K4, 1);
-        ok = TSEL->p[P_LEVEL] != lv && TSEL->p[P_PAN] != pn && TSEL->p[P_REV] != rv && TSEL->p[P_MUTE] != mu &&
+        ok = TSEL->p[P_LEVEL] != lv && TSEL->p[P_PAN] != pn && TSEL->p[P_SPRD] != sp && TSEL->p[P_MUTE] != mu &&
              mom.n == 4u && motion.count == k;
         btn_up(B_LFO); frame();
         song.playing = 0; song.rec = 0;
-        ok &= TSEL->p[P_LEVEL] == lv && TSEL->p[P_PAN] == pn && TSEL->p[P_REV] == rv && TSEL->p[P_MUTE] == mu &&
+        ok &= TSEL->p[P_LEVEL] == lv && TSEL->p[P_PAN] == pn && TSEL->p[P_SPRD] == sp && TSEL->p[P_MUTE] == mu &&
               !mom.n && cur_page()->graph == GR_TRK && msg_is("BACK");
         turn(EN_K3, 4);                            /* (without LFO: a turn stays) */
-        ok &= TSEL->p[P_REV] != rv && !mom.n;
-        TSEL->p[P_REV] = rv;
-        bad += check("  #195 MIXER: LEVEL PAN REV MUTE momentary (not recorded), back on release; without LFO they stay", ok);
+        ok &= TSEL->p[P_SPRD] != sp && !mom.n;
+        TSEL->p[P_SPRD] = sp;
+        bad += check("  #195 MIXER: LEVEL PAN SPREAD MUTE momentary (not recorded), back on release; without LFO they stay", ok);
     }
     /* a layer: its knobs */
     go_home();
@@ -7746,7 +7727,7 @@ static int test_div_order(void)
 {
     int bad = 0, ok = 1;
     uint32_t id, c, k, found = 0;
-    static const param_desc_t *const LISTS[] = {&TP[P_SDIV], &TP[P_ARATE], &GP[G_DTIME], &TP[P_SLRATE]};
+    static const param_desc_t *const LISTS[] = {&TP[P_SDIV], &TP[P_ARATE]};
     ui_power_on();
     for (k = 0; k < NELEM(LISTS); k++) {           /* left end -> right end: each one shorter than the one before */
         const param_desc_t *d = LISTS[k];
@@ -7754,8 +7735,7 @@ static int test_div_order(void)
         uint32_t prev = 0xFFFFFFFFu, len;
         for (n = 0; n < 40; n++) v = param_turn(d, v, -1);
         for (n = 0; n <= d->max - d->min; n++) {
-            len = d->names == N_SLDIV ? 1000000u / SL_DEN[v] : v >= 10 ? (beat_samples() * 3u) >> DIV_DOT[v - 10] :
-                  div_samples((uint32_t)v);                     /* (TIME's dotted ones, 1.5.1: fx.c delay_samples) */
+            len = v >= 10 ? (beat_samples() * 3u) >> DIV_DOT[v - 10] : div_samples((uint32_t)v);
             if (!(len < prev && enum_rank(d, v) == d->min + n && !((seen >> v) & 1))) {
                 printf("  %s: %s (value %d, place %d, length %u) after %u\n", d->label, d->names[v], (int)v,
                        (int)enum_rank(d, v), len, prev);
@@ -7771,7 +7751,7 @@ static int test_div_order(void)
     ok &= param_turn(&TP[P_SDIV], 2, 1) == 5 && param_turn(&TP[P_SDIV], 2, -1) == 4 &&   /* 1/16: right 16T, left 8T */
           param_turn(&TP[P_SDIV], 3, 1) == 3 && param_turn(&TP[P_SDIV], 9, -1) == 9 &&   /* the ends hold */
           param_turn(&TP[P_SDIV], 2, -6) == 8 && param_turn(&TP[P_SDIV], 2, 40) == 3;    /* 6 left: 2BAR; far: clamped */
-    bad += check("#48 DIV / RATE / TIME / SLICER RATE step longest -> shortest, every value once, the ends hold", ok);
+    bad += check("#48 DIV / ARP RATE step longest -> shortest, every value once, the ends hold", ok);
     ok = 1;                                         /* the real knob on the pages that show them, the gauge follows */
     for (id = 0; id < NPAGES; id++)
         for (c = 0; c < 4u; c++) {
@@ -7782,11 +7762,11 @@ static int test_div_order(void)
             if (!page_visible(id) || !(d = page_desc(cur_page(), c, &vp)) || !vp || !enum_order(d))
                 continue;
             found++;
-            *vp = d->names != N_SLDIV ? 2 : 1;      /* 1/16 */
+            *vp = 2;                                 /* 1/16 */
             turn(EN_K1 + c, 1);
-            ok &= *vp == (d->names != N_SLDIV ? 5 : 4);  /* 16T */
+            ok &= *vp == 5;                         /* 16T */
             turn(EN_K1 + c, -2);
-            ok &= *vp == (d->names != N_SLDIV ? 4 : 3);  /* 8T */
+            ok &= *vp == 4;                         /* 8T */
         }
     ui_power_on();                                  /* SEQ's DIV: SEQ TOOLS' KNOB 2 (1.2: the PATTERN page is gone) */
     go_page(GR_ROLL); frame();
