@@ -13,7 +13,10 @@ Develop a Rings-inspired resonator with Modal, Sympathetic and Inharmonic models
 ### Granular processor
 Develop a Clouds-inspired processor with granular/texture modes, buffer position and size, density, overlap, pitch, stereo spread, freeze and controlled feedback. Verify RAM and CPU cost before deciding how many simultaneous instances are practical.
 
-### Modulation and performance
+### MIDI synchronisation
+MIDI clock and transport synchronisation with external hardware is a must-have. The instrument must follow external MIDI clock and transport, and must also be able to act as a clock master where the FM-1 interfaces support it. Sequencer, arpeggiator, tempo-synchronised modulation, rhythmic effects and generative clocked modules must share a stable phase/timebase. Support USB-MIDI and TRS MIDI paths where verified, with clear source selection, clock-loss handling and protection against duplicate clocks/feedback. See `docs/MIDI_SYNC_REQUIREMENTS.md`.
+
+## Modulation and performance
 Plan for Peaks-inspired envelopes and LFOs; a Marbles-inspired generative CV/trigger system; a Yarns-inspired arpeggiator; and a conventional step sequencer. These are distinct systems, not one generic random sequencer.
 
 ### Supporting synthesis and effects
