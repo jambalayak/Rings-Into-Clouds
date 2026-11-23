@@ -240,3 +240,26 @@ The first implementation should preserve Rings OUT and AUX as two distinct dry s
 The current app linker places `.bss` in a 72 KiB RAM region and large buffers in a separate 360 KiB POOL region. The linker script does not currently emit a map file in the normal build command; the build checker reports aggregate `.bss` and `.pool` use from linker symbols. Add a map/report artefact before the first imported DSP objects so the exact owner of each allocation is visible. A linker map is useful diagnostics, but it does not replace the existing 4 KiB RAM and 8 KiB POOL headroom checks.
 
 No compiler invocation has been run here, so availability of `clang++`, C++ runtime compatibility, object sizes and memory headroom remain unverified. Do not treat the source-level design as a successful build.
+
+
+## C++ smoke-probe scope clarified (2026-11-23)
+
+The repository's current `tools/check_cpp_toolchain.py` has been inspected. It is a useful first gate, but its exact coverage is narrower than a complete C++ firmware link:
+
+- It checks that `clang++`, `clang` and `ld` executables exist in the configured JieLi toolchain.
+- It compiles one C caller and one C++11 object with `-target pi32v2 -mcpu=r3 -mfprev1`, `-fno-exceptions`, `-fno-rtti`, `-fno-threadsafe-statics`, `-fno-use-cxa-atexit` and `-nostdinc++`.
+- It combines the two objects using `ld -r`. It does not perform a final firmware link, link a C++ runtime, resolve `new`/placement-new or pure-virtual support, exercise static initialization, or validate upstream DSP dependencies.
+- It uses `-O2`, while the current C unity build's normal C flags use `-Os`. This is acceptable for the minimal ABI probe, but not evidence of final DSP code size or CPU cost.
+- `BUILDING.md` documents how to run it, but the probe has not been executed in this work session. No PASS is claimed.
+
+The next build-system milestone is therefore not just “clang++ exists”: it is a staged proof. First run the existing object/ABI probe on the actual JieLi toolchain; then add a minimal freestanding C++ runtime only for symbols proven necessary; then perform a full final-link smoke image using the real linker script and existing `build.py` safety checks. Keep `.init_array`, exception/unwind support, RTTI, unexpected soft-float helpers and unbounded constructors out unless a deliberate, measured design proves they are needed.
+
+## Linker accounting: current evidence and missing artefacts
+
+The actual `firmware/app.ld` defines a 72 KiB ordinary RAM region and 360 KiB POOL region, with `.bss` and `.pool` linker symbols. `tools/build.py` currently reports aggregate RAM and POOL consumption from `_bss_end`, `_pool_start` and `_pool_end`, and enforces 4 KiB RAM / 8 KiB POOL spare. It does not currently emit a linker map file or a per-symbol allocation report. The `ld` invocation is direct, with no C++ object list or map-output option.
+
+Before importing DSP buffers, add an optional diagnostic linker map (and a parsed largest-symbol/allocation report) without changing memory regions. Verify the JieLi linker's supported map-file syntax before wiring it into the production build. Preserve the current hard headroom checks and include `.data`, `.bss`, `.pool`, stack reservations, CPU2 buffers, and any C++ runtime objects in the accounting.
+
+## Clouds memory placement: explicit region split
+
+The LOCUS reference places its 118,784-byte large Clouds buffer in POOL but its 65,408-byte small buffer in ordinary `.bss`. On this project's current 72 KiB RAM region, that single small buffer would leave only 8,320 bytes for every other `.data/.bss` allocation, before the required 4 KiB headroom. In POOL, adding the large buffer to the previously inventoried 236,220-byte known subtotal yields 355,004 bytes of 368,640, leaving 13,636 bytes before all Rings state, Clouds object state, conversion/FIFO buffers and the required 8 KiB headroom. Both regions are therefore independently blocked pending a measured layout redesign; do not treat the two Clouds buffers as one POOL allocation or claim that removing Rings reverb solves the Clouds placement problem.
