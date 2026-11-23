@@ -213,3 +213,16 @@ This removes the need to reserve 128 KiB for two Rings reverb histories. It does
 A direct inspection of the pinned upstream `rings/dsp/part.cc` and `rings/dsp/fx/fx_engine.h` shows that passing `NULL` to `Part::Init()` is **not safe in this revision**: initialization unconditionally clears the supplied reverb buffer. The FM-1 port must remove the `Reverb` member and its init/process calls in a documented source patch; it must not pass a null or dummy pointer. See `docs/CPP_DSP_PORT_PLAN.md` for the exact patch checklist.
 
 **Gate:** record the five-model scope in the module UI, source patch manifest and tests. Prove that both instances initialize without reverb storage, that all five retained model paths render, and that the excluded model cannot be selected.
+
+
+## Reverb scope clarification
+
+The approved removal applies specifically to the dedicated reverb embedded in the Rings
+`Part` implementation and its sixth `STRING_AND_REVERB` resonator model. It does **not**
+silently remove the native reverb control/effect that is part of the original Clouds
+`GranularProcessor` processing path. Clouds' own effect remains part of the Clouds
+fidelity baseline unless separately changed by an explicit product decision.
+
+A future independent modular reverb node is a third, separate concept: it is not the
+Rings reverb and is not the Clouds internal effect. It remains deferred until its own
+memory/CPU budget is measured.
