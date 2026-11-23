@@ -26,6 +26,21 @@ This is deliberately efficient for current engines, but it is not a persistent s
 
 `engine_block()` runs at block boundaries. It fades the old engine, clears track voices, changes the effective engine, claims its memory and then replays queued notes. This gives the Rings adapter a safe point for instance activation/configuration, but it is still part of the audio-side block lifecycle: expensive object construction, buffer clearing, sample-rate preparation or FFT work must not be added there.
 
+## Exact engine callback contract (pinned Felucca-Engines)
+
+The repository's `firmware/engines` submodule is pinned to Felucca-Engines commit `1fa016b9702a76e2767b2bd9f108333f7c46e592`. Its `src/felucca_engine.h` defines the callback contract:
+
+- `note_on(struct track *, voice_t *)` is called whenever a host voice starts or is retriggered.
+- `render(struct track *, voice_t *, int32_t *out, uint32_t n, const vmod_t *)` adds samples to the output; it must not overwrite existing mix content.
+- `block(struct track *)` is an optional once-per-block, per-track hook before voices.
+- `post(struct track *, int32_t *out, uint32_t n)` is an optional once-per-block, per-track processor after voices; it can continue rendering a tail with no active notes.
+- `engine_t.poly` caps the number of voices for that engine; zero means the full host voice count.
+- `engine_t.mem` is a byte count in the one active engine-memory overlay for that track, not a persistent multi-engine allocation.
+
+The header explicitly documents that voice-local `ph[]` and `s[]` are initialized/reset by the host and that selected state slots are restored after retrigger according to `engine_t.keep`. A Rings adapter must honour that contract or deliberately keep its own state outside the host voice slots.
+
+This means a direct mapping of Rings' C++ `Part` to the Felucca `render` callback is not yet proven. Rings is a resonator processor with its own excitation/strummer and internal state; Felucca invokes a render callback per allocated note voice. The adapter must decide how the per-track Rings processor receives note events and excitation, then how its mono/stereo/block output is mixed without duplicating the same resonator for every host voice. Do not implement a naïve one-C++-`Part`-per-Felucca-voice wrapper.
+
 ## Required ownership model
 
 1. Assign each part a stable Rings runtime slot, indexed by `track_t - trk`.
@@ -109,7 +124,7 @@ The current linker map reserves 72 KiB for ordinary RAM and 360 KiB for POOL, wi
 
 - [ ] Locate and inspect the exact engine interface header from the checked-out Felucca-Engines submodule.
 - [ ] Inspect every voice allocator/render callback path and confirm the exact global-budget behaviour with the existing tests.
-- [ ] Inspect pinned Rings `Part` and `Strummer` semantics and select the voice/event mapping.
+- [ ] Inspect pinned Rings `Part` and `Strummer` semantics and select the voice/event mapping; prove the per-track processor/per-voice callback bridge before implementation.
 - [ ] Confirm the target C++ compiler and ABI with a standalone smoke build.
 - [ ] Implement the isolated C ABI wrapper and host-side adapter tests.
 - [ ] Measure dedicated per-part Rings state before adding it to the live engine table.
