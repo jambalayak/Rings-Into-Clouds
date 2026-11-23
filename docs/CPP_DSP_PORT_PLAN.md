@@ -59,9 +59,9 @@ Clouds `Prepare` work (buffer initialization, time-stretcher search and spectral
 
 ## Memory decision gate
 
-The previous integration-gate arithmetic remains a lower bound: the 360 KiB pool has a known 236,220-byte subtotal before omitted allocations, while the LOCUS Clouds buffer pair alone totals 184,192 bytes. This leaves no credible space for full Clouds plus Rings, conversion histories, FIFOs, routing buffers and mandatory headroom without a deliberate resource-profile change.
+After the user's approved legacy-feature cuts, the known POOL subtotal is now 56,416 bytes before omitted allocations. The LOCUS Clouds buffer pair still totals 184,192 bytes across POOL and ordinary RAM, and two original Rings Parts have a source-declared 196,608-byte delay-line floor. The revised combined arithmetic is documented in `docs/MEMORY_PROFILE_OPTIONS.md`; it remains a tight, unmeasured fit gate.
 
-Before importing DSP state, obtain a real baseline linker map and inventory every `.pool`, `.bss` and stack allocation. Evaluate candidate trade-offs with linked measurements, including the existing 128 KiB master tempo delay and slicer recording memory. Preserve full Clouds buffers and algorithms unless a clearly labelled lower-quality profile is deliberately designed and tested. Account for the large buffer in POOL and the small buffer in ordinary RAM separately. A feature must not silently disappear to make the linker pass.
+Before importing DSP state, obtain a real baseline linker map and inventory every `.pool`, `.bss` and stack allocation. The global tempo delay, global chorus/reverb buses and performance-loop recorder have now been removed by user approval; do not reintroduce them as hidden memory consumers. Preserve full Clouds buffers and algorithms. Account for the large buffer in POOL and the small buffer in ordinary RAM separately. A future reverb must be an optional modular processor with an explicit budget.
 
 ## Next implementation sequence
 
@@ -154,7 +154,7 @@ A closer inspection of `firmware/apps/locus/locus_engine.cc` found an important 
 
 This makes the RAM region an equally serious gate. The base linker provides only 72 KiB (73,728 bytes) for `.data/.bss`. A 65,408-byte Clouds array would leave just 8,320 bytes for all existing static RAM data and the required 4 KiB headroom. This is before any other ordinary-RAM buffers or runtime state.
 
-For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte known subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers, omitted current allocations and the required 8 KiB headroom. That is also not a viable complete integration without a deliberate memory-layout/resource redesign.
+With the approved cuts, adding the 118,784-byte Clouds large buffer to the 56,416-byte remaining known POOL subtotal gives 175,200 bytes, leaving 193,440 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers and the required 8 KiB headroom. Two Rings Parts' 196,608-byte inline delay-line floor alone exceeds that remaining space by 3,168 bytes. Replacing the two selected track engine overlays could reduce the base subtotal by 25,776 bytes, but this still leaves only 22,608 bytes in POOL after those two Rings delay arrays and Clouds large buffer, before all other DSP state.
 
 The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
 
@@ -219,7 +219,7 @@ Do not substitute a null buffer, a dummy buffer, or a shared reverb buffer. The 
 The Felucca engine ABI and mixer were inspected directly in `firmware/engines/src/felucca_engine.h`, `firmware/src/voice.c`, and `firmware/src/fx.c`. This reveals a second integration blocker beyond C++ compilation:
 
 - `track_render()` clears one mono `out[n]` buffer, invokes the engine's per-voice `render` callback, then invokes optional `post(track, out, n)`. The post callback runs once per track block, including the no-active-voice tail path, but receives only that mono buffer.
-- `mix_part()` subsequently applies mono DIST/INSERT/SLICER processing and folds that mono signal into the stereo dry mix using the track PAN law. Chorus, delay and reverb sends are also derived from that mono signal.
+- `mix_part()` subsequently applies mono DIST/INSERT processing and folds that mono signal into the stereo dry mix using the track PAN law. The legacy global chorus, tempo-delay and reverb sends have been removed; future modules must use explicit graph connections.
 - The Rings `Part` API produces distinct `out` and `aux` signals. Mapping those to the single Felucca `post` buffer would discard the independent output; summing them immediately would also prevent real modular routing of the two outputs.
 
 ### Required adapter shape
@@ -262,7 +262,7 @@ Before importing DSP buffers, add an optional diagnostic linker map (and a parse
 
 ## Clouds memory placement: explicit region split
 
-The LOCUS reference places its 118,784-byte large Clouds buffer in POOL but its 65,408-byte small buffer in ordinary `.bss`. On this project's current 72 KiB RAM region, that single small buffer would leave only 8,320 bytes for every other `.data/.bss` allocation, before the required 4 KiB headroom. In POOL, adding the large buffer to the previously inventoried 236,220-byte known subtotal yields 355,004 bytes of 368,640, leaving 13,636 bytes before all Rings state, Clouds object state, conversion/FIFO buffers and the required 8 KiB headroom. Both regions are therefore independently blocked pending a measured layout redesign; do not treat the two Clouds buffers as one POOL allocation or claim that removing Rings reverb solves the Clouds placement problem.
+The LOCUS reference places its 118,784-byte large Clouds buffer in POOL but its 65,408-byte small buffer in ordinary `.bss`. On this project's current 72 KiB RAM region, that single small buffer would leave only 8,320 bytes for every other `.data/.bss` allocation, before the required 4 KiB headroom. In POOL, the approved-cut baseline plus the large Clouds buffer is 175,200 bytes, leaving 193,440 bytes before Rings and other DSP state. The two Rings delay-line arrays alone need 196,608 bytes, so the placement remains blocked without a deliberate layout redesign. Do not treat the two Clouds buffers as one POOL allocation.
 
 ## Project-owned Rings source patch manifest
 
@@ -274,3 +274,9 @@ The exact no-reverb five-model source changes are now recorded in [RINGS_UPSTREA
 The pinned source headers reveal a hard mutable-state floor that must be included before the first C++ object is linked. Each `rings::Part` contains eight `String` objects (`kMaxPolyphony = 4`, `kNumStrings = 8`). Each `String` embeds a 2,048-float delay line and a 1,024-float stiffness delay line; the pinned stmlib `DelayLine` template stores its array inline. At 32-bit float storage this is 12,288 bytes per String, 98,304 bytes per Part, and **196,608 bytes (192 KiB) for two independent Parts**. This excludes all other Part members and wrapper/runtime buffers.
 
 This is a source-derived array-storage lower bound, not a measured `sizeof(Part)` or linker placement. The five-model no-reverb decision removes the two dedicated 64 KiB reverb histories, but does not remove these String arrays: they are members of every Part regardless of selected model. Do not shrink or share them as a resource shortcut. The target compiler's actual class sizes and section placement remain a mandatory gate.
+
+## Approved legacy-feature removal (2026-11-23)
+
+The user approved a focused base firmware rather than carrying Felucca's general-purpose effects and live-loop recorder. The development branch now removes the 131,072-byte global tempo-delay line, 4,096-byte global chorus line, 11,868 bytes of global ROOM/SPRING/HALL reverb comb/allpass buffers, and the 32,768-byte performance-loop recorder store. The global FX DSP and their pages/sends are removed. The compact performance layer retains LPF, HPF, CRUSH, FLANGER, PHASER and track mutes; recording-based loop effects and throw-to-global-bus controls are removed. Per-track CHORUS insert is retired too, with its stored ID preserved as an OFF alias. Legacy project parameter IDs remain reserved and are ignored by the mixer.
+
+A dedicated reverb remains a future product goal, but must be an optional modular graph node with measured instance memory, CPU, tail/bypass behaviour and preset persistence. It must not return as a permanent global bus. The revised source-declared memory arithmetic is in `docs/MEMORY_PROFILE_OPTIONS.md`.
