@@ -6788,9 +6788,9 @@ static void tl_melody(void)
     tl_note(&TSEL->step[5], 67);
     tl_note(&TSEL->step[20], 72);
     TSEL->p[P_SLEN] = 8;
-    motion_set_lock(TSEL, 3, P_REV, 50);
+    motion_set_lock(TSEL, 3, P_SPRD, 50);
 }
-static int tl_lock_at(uint32_t step) { int16_t v; return motion_lock_get(TSEL, step, P_REV, &v) && v == 50; }
+static int tl_lock_at(uint32_t step) { int16_t v; return motion_lock_get(TSEL, step, P_SPRD, &v) && v == 50; }
 static void tl_key(uint32_t w) { key_down(white(w)); frame(); key_up(white(w)); frame(); }
 static uint32_t tl_count(const track_t *t, uint32_t l)
 {
@@ -8748,7 +8748,7 @@ static int test_song_lanes(void)
                  h == SONG_PROBE_GOLDEN && n == SONG_PROBE_BLOCKS);
     seq_stop();
     ui_power_on();
-    for (k = 0; k < NTRK; k++) rev[k] = (uint32_t)trk[k].p[P_REV];
+    for (k = 0; k < NTRK; k++) rev[k] = (uint32_t)trk[k].p[P_SPRD];
     /* A: notes 60 + k, LEN 4 of 1/16, QUANTIZE ON; T3 automated (REV 100 on its step 1). B: notes 72 + k, T1 LEN 8,
      * T2 LEN 6, T3 LEN 4 of 1/8 QUANTIZE OFF, T4 LEN 2 */
     for (st = 0; st < 2u; st++) {
@@ -8799,7 +8799,7 @@ static int test_song_lanes(void)
     bad += check("  section 1 lasts T1's loop (A: 4 x 1/16)", chain.row == 1u && lanes_near(n, 4u * div_samples(2)));
     ok = chain.clk == 1u && !trk[0].seq_n && !trk[3].seq_n && trk[2].seq_notes[0] == 62 && trk[1].seq_notes[0] == 73;
     for (k = 0; k < NTRK; k++) ok &= trk[k].seq_idx == 0u;
-    ok &= trk[2].p[P_REV] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
+    ok &= trk[2].p[P_SPRD] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
     bad += check("SONG lanes: T1 \"-\" releases its note; all four from step 1 together; T3 plays A with its automation", ok);
     ok = 1;
     n = 0;
@@ -9021,7 +9021,7 @@ static int test_head_slot(void)
         trk[0].p[P_SLEN] = (int16_t)(len == 7 ? 8 : 7); ok &= head_is("A*");
         trk[0].p[P_SLEN] = len; ok &= head_is("A");
     }
-    motion_set_enabled(&trk[0], 1); motion_set_event(&trk[0], 3, P_REV, 90); ok &= head_is("A*");
+    motion_set_enabled(&trk[0], 1); motion_set_event(&trk[0], 3, P_SPRD, 90); ok &= head_is("A*");
     motion_clear(&trk[0]); motion_set_enabled(&trk[0], 0);
     bad += check("header: a load of B \"B\", a save to A \"A\"; LEN and automation edits mark it, undone clear it",
                  ok && head_is("A"));
@@ -9204,7 +9204,7 @@ static int test_fm6_ops(void)
     bad += check("FM6 ops: 6 operators x 14 bytes, each knob writes its byte only (+-1, 0..its highest), SLOT OWN", ok && n == 84u);
 
     /* the sound: the init voice (ALG 1: OP 1 the carrier at 99, OP 2 its modulator at 0), the track's other sends off */
-    TSEL->p[P_CHOR] = TSEL->p[P_DLY] = TSEL->p[P_REV] = TSEL->p[P_DIST] = 0;
+    TSEL->p[P_DIST] = 0;
     TSEL->p[P_LD_PIT] = TSEL->p[P_LD_FLT] = TSEL->p[P_LD_SHP] = TSEL->p[P_LD_AMP] = 0;
     TSEL->p[P_M1SRC] = TSEL->p[P_M2SRC] = TSEL->p[P_M3SRC] = TSEL->p[P_M4SRC] = 0;
     for (f = 0; f < 7u; f++) TSEL->p[P_E0 + f] = 0;
