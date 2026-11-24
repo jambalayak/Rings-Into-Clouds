@@ -55,7 +55,7 @@ jobs:
             echo "AC79 SDK fetch failed (attempt ${attempt}/3); retrying in 15 seconds"
             sleep 15
           done
-          test -f "${SDK_DIR}/README.md" || test -d "${SDK_DIR}/cpu
+          test -d "${SDK_DIR}/.git"
           echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
           echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
 
