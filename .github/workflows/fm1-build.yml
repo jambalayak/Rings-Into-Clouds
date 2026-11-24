@@ -35,11 +35,29 @@ jobs:
 
       - name: Install pinned AC79 SDK
         run: |
-          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
-            https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git \
-            "${HOME}/fw-AC79_AIoT_SDK"
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          # Gitee occasionally terminates large shallow fetches. Retry from a
+          # clean directory so a partial .git never gets mistaken for an SDK.
+          git config --global http.version HTTP/1.1
+          for attempt in 1 2 3; do
+            rm -rf "${SDK_DIR}"
+            if git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 clone \
+              --depth 1 --single-branch --branch "${SDK_TAG}" \
+              "${SDK_URL}" "${SDK_DIR}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Unable to fetch pinned AC79 SDK after 3 attempts" >&2
+              exit 1
+            fi
+            echo "AC79 SDK fetch failed (attempt ${attempt}/3); retrying in 15 seconds"
+            sleep 15
+          done
+          test -f "${SDK_DIR}/README.md" || test -d "${SDK_DIR}/cpu
           echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
-          echo "AC79_SDK=${HOME}/fw-AC79_AIoT_SDK" >> "${GITHUB_ENV}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
 
       - name: Verify target C/C++ ABI smoke probe
         run: python3 tools/check_cpp_toolchain.py
