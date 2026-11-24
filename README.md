@@ -8,9 +8,9 @@ This repository is an independent project. It is not affiliated with or endorsed
 
 ## Project direction
 
-- **Rings-inspired resonator:** modal, sympathetic-string and inharmonic resonances, with expressive excitation and performance controls.
+- **One original Rings resonator:** five approved models (Modal, Sympathetic Strings, String, FM Voice and Quantized Sympathetic Strings), with expressive excitation and performance controls.
 - **Clouds-inspired granular processor:** live granular processing, texture, freeze, stretch and buffer manipulation.
-- **Flexible signal routing:** the resonator and granular processor should be independently routable rather than permanently locked to one serial chain.
+- **Signal routing:** the single Rings output feeds the shared Clouds processor by default; additional routing is considered only where it does not duplicate DSP state or undermine the measured resource budget.
 - **Generative performance:** a Marbles-inspired random CV/trigger system, a separate arpeggiator, and a conventional step sequencer.
 - **Additional sound sources:** Plaits-inspired oscillator models and a distinct six-operator FM engine.
 - **Effects and modulation:** filtering, envelopes, LFOs and modulation. Legacy global delay, chorus and reverb have been removed to prioritise Rings and Clouds; a dedicated optional modular reverb is planned for a later stage.
