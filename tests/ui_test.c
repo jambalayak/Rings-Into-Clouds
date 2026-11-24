@@ -518,7 +518,7 @@ static int test_sound_loads(void)
     t->preset = 4;                             /* a project written before the factory removal */
     my_steps(t);
     t->p[P_LEVEL] = 71;
-    t->p[P_REV] = 33;
+    t->p[P_DIST] = 33;
     before = *t;
     project_save(0);
     apply_preset_to(t, 0);
@@ -582,7 +582,7 @@ static int test_sound_loads(void)
     project_load(1);
     bad += check("old GM projects (the drum part) load as DRUM's kit, their mix and steps kept",
                  trk[3].eng_req == ENGI_DRUM && trk[3].preset == 0u && perc_kit(&trk[3]) &&
-                 trk[3].p[P_LEVEL] == 71 && trk[3].p[P_REV] == 43 && trk[3].p[P_SDIV] == 3 &&
+                 trk[3].p[P_LEVEL] == 71 && trk[3].p[P_REV] == 0 && trk[3].p[P_SDIV] == 3 &&
                  !memcmp(trk[3].step, before.step, sizeof trk[3].step));
     bad += check("  their GM hits play as drums", gm_hits_play(&trk[3]));
     bad += check("  its old drum channel (10, in id 24) loads as REVERB TYPE ROOM", song.g[G_RTYPE] == 0);
@@ -8771,7 +8771,7 @@ static int test_song_lanes(void)
         }
         if (!st) {
             motion_set_enabled(&trk[2], 1);
-            motion_set_event(&trk[2], 0, P_REV, 100);
+            motion_set_event(&trk[2], 0, P_DIST, 100);
         }
         project_save(st);
     }
@@ -8810,7 +8810,7 @@ static int test_song_lanes(void)
     }
     bad += check("SONG lanes: T1 silent: the section counts T2's loop (B: 6 x 1/16) x 2, the silent lanes stay silent",
                  ok && chain.row == 2u && lanes_near(n, 12u * div_samples(2)));
-    ok = chain.clk == 0u && trk[2].p[P_REV] == (int16_t)rev[2];
+    ok = chain.clk == 0u && trk[2].p[P_DIST] == (int16_t)rev[2];
     n = 0;
     while (n < 8000u && chain.running && chain.row == 2u) {
         events_block(32);
@@ -8826,7 +8826,7 @@ static int test_song_lanes(void)
     ok = !chain.running && !song.playing && lanes_near(n + 1u, 8u * div_samples(2));
     for (k = 0; k < NTRK; k++)
         ok &= trk[k].p[P_SLEN] == 3 && trk[k].p[P_SDIV] == 2 && trk[k].p[P_SQNT] == 1 && trk[k].step[0].note[0] == 48u + k &&
-              trk[k].p[P_REV] == (int16_t)rev[k] && !trk[k].seq_n;
+              trk[k].p[P_DIST] == (int16_t)rev[k] && !trk[k].seq_n;
     bad += check("SONG lanes: the end (T1 B's 8 steps) stops; the working patterns, LEN DIV and QUANTIZE back", ok);
     chain_config.count = 1;
     chain_config.row[0] = (chain_row_t){{CHAIN_SILENT, 2, CHAIN_SILENT, CHAIN_SILENT}, 1};
