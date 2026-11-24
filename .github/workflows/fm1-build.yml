@@ -41,11 +41,14 @@ jobs:
           echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
           echo "AC79_SDK=${HOME}/fw-AC79_AIoT_SDK" >> "${GITHUB_ENV}"
 
-      - name: Build FM-1 firmware
-        run: FELUCCA_SLICE=0 ./build.sh
+      - name: Build FM-1 firmware for regression tests
+        run: ./build.sh
 
       - name: Run host regression suite
         run: tests/run_tests.sh
+
+      - name: Build lean FM-1 firmware (Slicer excluded)
+        run: FELUCCA_SLICE=0 ./build.sh
 
       - name: Upload tested development build
         if: success()
