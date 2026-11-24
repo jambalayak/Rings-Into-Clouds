@@ -42,8 +42,9 @@ jobs:
           echo "AC79_SDK=${HOME}/fw-AC79_AIoT_SDK" >> "${GITHUB_ENV}"
 
       - name: Verify target C/C++ ABI smoke probe
-        continue-on-error: true
         run: python3 tools/check_cpp_toolchain.py
+      - name: Compile pinned Rings and Clouds DSP for FM-1 (compile-only)
+        run: python3 tools/check_upstream_dsp_compile.py
 
       - name: Build FM-1 firmware for regression tests
         run: ./build.sh
