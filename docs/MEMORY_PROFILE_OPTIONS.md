@@ -59,7 +59,7 @@ The pinned FM1_Locus reference allocates 184,192 bytes for full-quality stereo C
 
 These totals include one measured Rings Part, one Strummer and one Clouds processor, the measured base image, replacement of one engine overlay and Clouds' external buffers. They still exclude resampler/FIFO/routing buffers, stack growth and any additional alignment.
 
-The region split matters as much as the combined total. Keeping the FM1_Locus split for full Clouds adds 65,408 bytes to ordinary RAM, taking it from 56,036 to 121,444 bytes (47,716 bytes over). Moving both full-length Clouds buffers into POOL avoids that RAM overflow but raises POOL use to about 436,468 bytes with compact Rings and measured object state (67,828 bytes over). For the 0.5-second candidate, placing both Clouds buffers in POOL and placing 13,596 bytes of DSP object state in ordinary RAM yields approximately 357,592 bytes POOL and 69,632 bytes RAM. That leaves 11,048 bytes POOL and exactly 4 KiB RAM, only 2,856 bytes beyond the required reserves for resampling/routing. The candidate is still too tight until those remaining buffers are measured.
+The region split matters as much as the combined total. Keeping the FM1_Locus split for full Clouds adds 65,408 bytes to ordinary RAM, taking it from 56,036 to 121,444 bytes (47,716 bytes over). The previous dual-Rings POOL/RAM placement arithmetic is obsolete. With one Rings instance, the exact location of the Rings state, Clouds buffers, resampler and routing storage must be recalculated from a fresh target linker map; no region-fit claim is made here.
 
 A roughly 0.5-second full-quality stereo profile reserves 32,768 recording bytes per channel plus the unchanged 53,376-byte workspace (118,912 bytes total). The 32 kHz processing rate and 16-bit sample format remain unchanged; only maximum capture duration is shortened. This is a candidate to test, not a selected product setting. The exact recording duration, allocator alignment, routing/resampler state and 8 KiB POOL / 4 KiB RAM reserves must be verified by the target linker.
 
@@ -68,8 +68,7 @@ A roughly 0.5-second full-quality stereo profile reserves 32,768 recording bytes
 
 The pinned upstream `rings::Part` includes a separate `Reverb` object whose
 `FxEngine<32768, FORMAT_16_BIT>` requires a caller-owned 32,768-sample
-`uint16_t` buffer. That is 65,536 bytes per Part, or 131,072 bytes for the two
-independent Rings instances. The approved five-model port removes the member,
+`uint16_t` buffer. That is 65,536 bytes for the single Rings instance. The approved five-model port removes the member,
 its initialisation and its processing path, so these buffers are not part of
 the RINGS INTO CLOUDS target allocation.
 
@@ -171,7 +170,7 @@ FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null
 | One original float Rings Part + full 32 kHz / 16-bit Clouds | 492,720 B | 50,352 B over |
 | One compact 16-bit Rings delay store + full Clouds | 443,568 B | 1,200 B over |
 | One compact Rings + 25% shorter full-quality Clouds recording storage | 427,216 B | 15,152 B free |
-| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,160 B | 64,208 B free |
+| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,288 B | 64,080 B free |
 
 The combined figures are not proof of a region fit. In particular, putting the 65,408-byte Clouds small buffer in ordinary RAM exceeds the current RAM region; putting both full-length buffers in POOL exceeds POOL once Rings is included. The approximately 0.5-second profile is the most promising conservative experiment, but the target linker must include the actual DSP object sizes, routing, resampler/FIFO state and required headroom before it is accepted.
 
