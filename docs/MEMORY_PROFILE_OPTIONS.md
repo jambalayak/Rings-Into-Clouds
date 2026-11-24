@@ -54,8 +54,8 @@ The pinned FM1_Locus reference allocates 184,192 bytes for full-quality stereo C
 |---|---:|---:|
 | One original float Rings Part + full 32 kHz / 16-bit Clouds | 492,720 B | 50,352 B over |
 | One compact 16-bit Rings delay store + full Clouds | 443,568 B | 1,200 B over |
-| One compact Rings + Clouds recording storage shortened 25% | 427,216 B | 15,152 B free |
-| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,160 B | 64,208 B free |
+| One compact Rings + Clouds recording storage shortened 25% | 410,864 B | 31,504 B free |
+| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,288 B | 64,080 B free |
 
 These totals include one measured Rings Part, one Strummer and one Clouds processor, the measured base image, replacement of one engine overlay and Clouds' external buffers. They still exclude resampler/FIFO/routing buffers, stack growth and any additional alignment.
 
@@ -193,7 +193,7 @@ One Part, one Strummer and one Clouds processor occupy 119,660 bytes of object s
 
 If the single Rings delay store were converted to 16-bit, its inline delay arrays would shrink by 49,152 bytes. The full-Clouds estimate would be 443,568 bytes, still 1,200 bytes over before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
 
-A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With one compact Rings instance, the measured-object combined estimate becomes 378,160 bytes, leaving 64,208 bytes before resampling/routing. This is a candidate profile, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.
+A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With one compact Rings instance, the measured-object combined estimate becomes 378,288 bytes, leaving 64,080 bytes before resampling/routing. This is a candidate profile, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.
 
 
 ## Target DSP object-size measurement (Run 68, 2026-11-24)
