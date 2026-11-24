@@ -48,16 +48,16 @@ The old 131,072-byte global tempo delay line, 4,096-byte chorus line, 11,868-byt
 
 ## Rings + Clouds memory floor
 
-The pinned FM1_Locus reference allocates 184,192 bytes for full-quality stereo Clouds: 118,784 bytes in POOL and 65,408 bytes in ordinary RAM. Two original Rings Parts contain at least 196,608 bytes of float delay-line arrays. If two 12,888-byte engine overlays are replaced by Rings state, the measured combined baseline projects as follows:
+The pinned FM1_Locus reference allocates 184,192 bytes for full-quality stereo Clouds: 118,784 bytes in POOL and 65,408 bytes in ordinary RAM. One original Rings Part contains 98,304 bytes of float delay-line arrays. If one 12,888-byte engine overlay is replaced by Rings state, the measured combined baseline projects as follows:
 
 | Profile | Projected combined use | Headroom against 442,368 B |
 |---|---:|---:|
-| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 590,808 B | 148,440 B over |
-| Two compact 16-bit Rings delay stores + full Clouds | 492,504 B | 50,136 B over |
-| Compact Rings + Clouds recording storage shortened 25% | 459,800 B | 17,432 B over |
-| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 427,224 B | 15,144 B free |
+| One original float Rings Part + full 32 kHz / 16-bit Clouds | 492,720 B | 50,352 B over |
+| One compact 16-bit Rings delay store + full Clouds | 443,568 B | 1,200 B over |
+| One compact Rings + Clouds recording storage shortened 25% | 427,216 B | 15,152 B free |
+| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,160 B | 64,208 B free |
 
-These totals include the measured target sizes of two Rings Parts, two Strummers and one Clouds processor, the measured base image, replacement of two engine overlays and Clouds' external buffers. They still exclude resampler/FIFO/routing buffers, stack growth and any additional alignment.
+These totals include one measured Rings Part, one Strummer and one Clouds processor, the measured base image, replacement of one engine overlay and Clouds' external buffers. They still exclude resampler/FIFO/routing buffers, stack growth and any additional alignment.
 
 The region split matters as much as the combined total. Keeping the FM1_Locus split for full Clouds adds 65,408 bytes to ordinary RAM, taking it from 56,036 to 121,444 bytes (47,716 bytes over). Moving both full-length Clouds buffers into POOL avoids that RAM overflow but raises POOL use to about 436,468 bytes with compact Rings and measured object state (67,828 bytes over). For the 0.5-second candidate, placing both Clouds buffers in POOL and placing 13,596 bytes of DSP object state in ordinary RAM yields approximately 357,592 bytes POOL and 69,632 bytes RAM. That leaves 11,048 bytes POOL and exactly 4 KiB RAM, only 2,856 bytes beyond the required reserves for resampling/routing. The candidate is still too tight until those remaining buffers are measured.
 
@@ -73,7 +73,7 @@ independent Rings instances. The approved five-model port removes the member,
 its initialisation and its processing path, so these buffers are not part of
 the RINGS INTO CLOUDS target allocation.
 
-The current 590,808-byte full-quality Rings + Clouds projection above already excludes these two
+The current full-quality Rings + Clouds projection above already excludes the
 reverb buffers; it is not an additional saving to subtract from that total.
 This 128 KiB is a source-derived avoided allocation, not a measured linker
 delta. The separate Clouds-native reverb remains part of the Clouds processor
@@ -146,13 +146,13 @@ The pinned upstream `rings/dsp/part.h` allocates `String string_[kNumStrings]` i
 - `StringDelayLine`: 2,048 `float` samples;
 - `StiffnessDelayLine`: 1,024 `float` samples.
 
-At 4 bytes per float, each String occupies 12,288 bytes of delay-line storage; eight Strings occupy 98,304 bytes per Rings Part. Two fully independent Parts therefore reserve 196,608 bytes for these two delay-line arrays alone. This is the source of the minimum in the projection above; it excludes the other Rings state, object alignment, Clouds object, resampler, FIFOs, routing and stacks.
+At 4 bytes per float, each String occupies 12,288 bytes of delay-line storage; eight Strings occupy 98,304 bytes per Rings Part. The single Part therefore reserves 98,304 bytes for these delay-line arrays alone. This is the source of the minimum in the projection above; it excludes the other Rings state, object alignment, Clouds object, resampler, FIFOs, routing and stacks.
 
 This storage is embedded in the Part object even when its current model is Modal or FM Voice, because the same Part can switch models. Omitting the arrays would break the supported String and Sympathetic Strings models. The original String-and-Reverb model has been excluded as requested, but that does not remove the String delay lines used by the remaining models.
 
 ### Candidates to prototype, not decisions
 
-1. **Compact delay-line storage.** A custom 16-bit representation could theoretically halve the two delay arrays to 98,304 bytes for both Parts, but upstream `DelayLine<float>` performs fractional and Hermite reads in floating point. A fixed-point adapter must define signal scaling/headroom, interpolation precision, saturation and round-trip error, and pass host reference renders for all five models before it can be accepted.
+1. **Compact delay-line storage.** A custom 16-bit representation could theoretically halve the two delay arrays to 49,152 bytes for the single Part, but upstream `DelayLine<float>` performs fractional and Hermite reads in floating point. A fixed-point adapter must define signal scaling/headroom, interpolation precision, saturation and round-trip error, and pass host reference renders for all five models before it can be accepted.
 2. **Shorter maximum delay.** Halving both line lengths would also halve their memory, but the 2,048-sample line supports periods down to roughly 21.5 Hz at 44.1 kHz; a 1,024-sample line raises that floor to roughly 43 Hz and would compromise low bass notes. It is not a transparent optimisation.
 3. **Reduce polyphony.** Reducing `kMaxPolyphony` changes `kNumStrings` and can reduce memory, but it also changes the voice capability of each independent Rings instance. Do not apply without an explicit product decision.
 
@@ -168,10 +168,10 @@ FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null
 
 | Profile | Projected combined use | Headroom against 442,368 B |
 |---|---:|---:|
-| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 590,808 B | 148,440 B over |
-| Compact 16-bit Rings delay stores + full Clouds | 492,504 B | 50,136 B over |
-| Compact Rings + 25% shorter full-quality Clouds recording storage | 459,800 B | 17,432 B over |
-| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 427,224 B | 15,144 B free |
+| One original float Rings Part + full 32 kHz / 16-bit Clouds | 492,720 B | 50,352 B over |
+| One compact 16-bit Rings delay store + full Clouds | 443,568 B | 1,200 B over |
+| One compact Rings + 25% shorter full-quality Clouds recording storage | 427,216 B | 15,152 B free |
+| One compact Rings + approximately 0.5 s full-quality stereo Clouds | 378,160 B | 64,208 B free |
 
 The combined figures are not proof of a region fit. In particular, putting the 65,408-byte Clouds small buffer in ordinary RAM exceeds the current RAM region; putting both full-length buffers in POOL exceeds POOL once Rings is included. The approximately 0.5-second profile is the most promising conservative experiment, but the target linker must include the actual DSP object sizes, routing, resampler/FIFO state and required headroom before it is accepted.
 
@@ -191,9 +191,9 @@ The upstream `Part` size includes its eight inline String delay stores (98,304 b
 
 One Part, one Strummer and one Clouds processor occupy 119,660 bytes of object state before external buffers, resamplers, FIFOs or routing. With full Clouds external buffers (184,192 bytes), the total DSP state is 303,852 bytes. Adding that to the measured base image after replacing one 12,888-byte engine overlay (201,756 - 12,888 = 188,868 bytes) gives **492,720 bytes**, 50,352 bytes over the 442,368-byte combined SRAM budget.
 
-If both Rings delay stores were converted to 16-bit, the two Parts' inline delay arrays would shrink by 98,304 bytes in total. The full-Clouds estimate would still be 492,504 bytes, 50,136 bytes over, before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
+If the single Rings delay store were converted to 16-bit, its inline delay arrays would shrink by 49,152 bytes. The full-Clouds estimate would be 443,568 bytes, still 1,200 bytes over before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
 
-A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With compact Rings storage, the measured-object combined estimate becomes 427,224 bytes, leaving 15,144 bytes before resampling/routing. After the required 4 KiB RAM and 8 KiB POOL reserves, only 2,856 bytes remain for those missing systems. It is therefore a tight candidate, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.
+A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With one compact Rings instance, the measured-object combined estimate becomes 378,160 bytes, leaving 64,208 bytes before resampling/routing. This is a candidate profile, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.
 
 
 ## Target DSP object-size measurement (Run 68, 2026-11-24)
@@ -207,9 +207,9 @@ The compile-only target size probe emitted symbol extents from the `pi32v2` comp
 | `rings::Strummer` | 524 B |
 | `clouds::GranularProcessor` | 8,684 B |
 
-The `Part` size includes its eight String objects and their two float delay lines each. The two delay arrays alone account for 98,304 B per Part; the measured object therefore adds 12,148 B of other Rings state per Part. Two Parts occupy 220,904 B, and two Strummers add 1,048 B. The Clouds processor object adds 8,684 B, separate from its external buffers.
+The `Part` size includes its eight String objects and their two float delay lines each. The two delay arrays alone account for 98,304 B per Part; the measured object therefore adds 12,148 B of other Rings state. One Part occupies 110,452 B, one Strummer adds 524 B. The Clouds processor object adds 8,684 B, separate from its external buffers.
 
-The revised table above now includes those measured object sizes, the measured base image, replacement of two 12,888-byte engine overlays, and the Clouds external-buffer estimates. It still excludes resampler histories, FIFOs, stereo routing/batch buffers, stack growth and any additional alignment. The 16-bit Rings row assumes the delay arrays halve in size while all other Part state remains unchanged; this is a prototype assumption, not an implementation result.
+The revised table above now includes those measured object sizes, the measured base image, replacement of one 12,888-byte engine overlay, and the Clouds external-buffer estimates. It still excludes resampler histories, FIFOs, stereo routing/batch buffers, stack growth and any additional alignment. The 16-bit Rings row assumes the delay arrays halve in size while all other Part state remains unchanged; this is a prototype assumption, not an implementation result.
 
 ### Clouds external-buffer breakdown
 
