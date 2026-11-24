@@ -1987,7 +1987,12 @@ function makeMockDevice(opt = {}) {
             const saved = st.engine;                /* values clamped to the ranges of that engine */
             const pc = fromPerc({ engine, p }, ENG.map((x) => x.name), P_E0);   /* SAMPLE PERC: DRUM (upreset.c up_migrate) */
             st.engine = pc ? pc.engine : engine;
-            st.bank[slot] = { engine: st.engine, name, p: (pc ? pc.p : p).map((x, i) => { const d = desc(0, i); return clamp(x, d.min, d.max); }), pattern, grid };
+            st.bank[slot] = { engine: st.engine, name, p: (pc ? pc.p : p).map((x, i) => {
+              /* DIGITAL is retired: its empty descriptor must not erase the eight stored operator values.
+                 Match up_values() in firmware/src/upreset.c until UP_LOAD converts the record to FM6. */
+              if (!pc && engine === 1 && i >= P_E0) return clamp(x, 0, 127);
+              const d = desc(0, i); return clamp(x, d.min, d.max);
+            }), pattern, grid };
             st.engine = saved;
           }
         } catch (e) { rc = 1; }
