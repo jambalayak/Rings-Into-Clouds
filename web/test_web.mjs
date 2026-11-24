@@ -279,16 +279,11 @@ async function editorMock() {
       "editor: MIDI IN routing (ROUT CH1-4 / SEL / CH5-8 / CH9-12 / CH13-16 / 1.5.5 TRACK, global id 14)");
   }
   {
-    /* FX > REVERB TYPE (G_RTYPE 24, the old drum channel's id): ROOM (0) / SPRING (1) / HALL (2, 1.2: the default);
-     * G_COUNT unchanged; 10 clamps to the last */
-    const rd = E.parse[E.CMD.DESC](await rq(E.req.desc(1, 24)));
-    const r1 = E.parse[E.CMD.SET](await rq(E.req.set(1, 24, 10)));
-    const r0 = E.parse[E.CMD.SET](await rq(E.req.set(1, 24, 0)));
-    const inert = [25, 26].map(async (id) => E.parse[E.CMD.DESC](await rq(E.req.desc(1, id))));
-    const [d25, d26] = await Promise.all(inert);
-    ok(rd.label === "TYPE" && rd.def === 2 && eq(rd.names, ["ROOM", "SPRING", "HALL"]) && r1.value === 2 && r0.value === 0 &&
-       d25.label === "-" && d26.label === "-" && d25.max === 0 && info.gcount === 27,
-      "editor: REVERB TYPE (ROOM / SPRING / HALL, global id 24; 25, 26 still inert)");
+    /* G_RTYPE 24..26 are reserved legacy effect IDs; the retired global reverb is not exposed as active. */
+    const ds = [];
+    for (let id = 24; id <= 26; id++) ds.push(E.parse[E.CMD.DESC](await rq(E.req.desc(1, id))));
+    ok(ds.every((d) => d.label === "-" && d.min === 0 && d.max === 0 && d.def === 0) && info.gcount === 27,
+      "editor: retired global reverb IDs 24..26 remain inert");
   }
   const st = E.parse[E.CMD.STEP_SET](await rq(E.req.stepSet(5, { n: 2, notes: [60, 64], time: 0, flags: 1, vel: 100 })));
   ok(st.n === 2 && st.notes[1] === 64 && st.vel === 100, "editor: STEP_SET");
