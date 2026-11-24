@@ -81,14 +81,20 @@ The reference's “full wet” setting means the starter preset should favour th
 
 ## Current implementation boundary
 
-The repository's current engine table contains Felucca's PHYS physical-model engine and GRAIN sample-granular engine, but this does not make them faithful Mutable Instruments Rings or Clouds implementations. The Marbles-inspired generative system is also a planned milestone, not a completed Marbles implementation.
+A first partial firmware adaptation is now present on `rings-into-clouds-development`:
 
-Therefore:
-- Do not label a current PHYS/GRAIN preset as an exact Rings/Clouds/Marbles port.
-- First use this document as the target behaviour for the first playable patch.
-- Translate the patch into firmware-native parameters only after the corresponding Rings, Clouds and Marbles controls exist.
+- PHYS `MINIMALIST` uses the existing Rings-derived sympathetic-string model, selects the minor sympathetic chord, and uses a long release so the resonator can ring naturally.
+- The `MIST` factory phrase is a sparse C-minor sequence intended to be loaded with that sound.
+- This is a playable resonator-and-sequence starting point, not the complete Patchstorage patch.
+
+The current GRAIN engine is a sample-based granular voice, not a live-input Clouds processor. The Marbles-inspired generator is also not implemented yet. The current preset therefore does not claim Clouds processing, Marbles T1/X2 behaviour, full-wet feedback, or the VCV patch's complete routing.
+
+Next implementation steps:
+- Implement and profile a bounded live-audio granular buffer processor before calling it CLOUDS.
+- Add a clock-coherent Marbles-style trigger and minor-scale pitch generator, with repetition/deja-vu control.
+- Connect the generated trigger and pitch to the sympathetic resonator, then route its stereo output through the granular processor.
 - Keep the preset lean: no extra oscillator or LFO is required for the core reference patch.
-- Defer optional reverb implementation until the Rings → Clouds signal path is stable and profiled. The reference's reverb setting is a desired sound-design target, not permission to reintroduce the removed global reverb bus.
+- Defer optional reverb until the Rings → Clouds signal path is stable and profiled. The reference's reverb setting is a desired sound-design target, not permission to reintroduce the removed global reverb bus.
 
 ## Verification checklist
 
