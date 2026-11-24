@@ -249,3 +249,12 @@ This run is **not** a Rings/Clouds integration build. The target DSP check is co
 The current `firmware/src/audio.c` renders each 128-frame I2S half in 32-sample `CTL` blocks through `mix_block()`. The current engine table and mixer do not yet route a dedicated `rings_main` processor into a Clouds processor. The C++ ABI smoke test and compile-only DSP checks establish toolchain/source compatibility only; they do not establish runtime initialization, audio-rate correctness, real-time deadline compliance, memory fit, or audible fidelity.
 
 The next safe implementation sequence remains: resolve the host regression failures; link the pinned DSP objects behind a narrow C ABI; measure their actual ordinary-RAM and POOL placement; implement and test the 272/375 sample-rate conversion and bounded FIFO; then connect one Rings output to one Clouds processor outside any unbounded work in the audio ISR.
+
+
+## Follow-up workflow — Run 105 (2026-11-24)
+
+Run 105 (`45357989706`, commit `0ffdb52b903ed80a2d5e27e4db9b0ab4181e2ee6`) passed the target ABI smoke, pinned DSP compile-only checks, compact Rings delay-line host comparison, normal firmware build and lean diagnostic build. The host regression step was cancelled before completion, so this run has no regression conclusion and no development firmware artifact. Its linker-diagnostics artifact was uploaded (`rings-into-clouds-linker-diagnostics-0ffdb52b903ed80a2d5e27e4db9b0ab4181e2ee6`). It confirms only the lean baseline: `.data` 0x160 bytes, `.bss` 0xd984 bytes, `.pool` 0x23938 bytes (145,720 bytes); it contains no linked Rings or Clouds processor state. Do not interpret the cancelled run as a passing test or as a DSP memory-fit result.
+
+## Regression triage detail
+
+Run 104's six browser failures are not all the same bug. The enum comparison specifically shows the browser helper collapsing repeated `"-"` placeholders in the modulation-destination list, while firmware retains those reserved positions; the retired duplicate `OFF` entry in INSERT is a real alias and should remain hidden. Fix alias handling by treating `"-"` as a reserved value, not a duplicate alias, and add a focused test. The delay-division assertions also reveal a separate editor descriptor/order gap for the 1.5.1 dotted delay TIME list; do not assume the placeholder fix resolves it. The two user-preset round-trip/load failures and the DIGITAL-to-FM6 load conversion failure are separate protocol/mock-vs-firmware issues and need isolated reproductions before edits.
