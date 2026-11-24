@@ -8,7 +8,7 @@ This is an implementation plan, not a claim that the patch graph or new module D
 
 ## 1. Current firmware reality
 
-The inherited firmware is organised around four synth parts. Each part selects one engine at a time, owns its parameter and voice state, and is rendered by the track/voice path. Each part also has its own engine-memory region for the selected engine's large mutable state. The four parts share a global sounding-voice budget of eight. This existing model supports selecting the same engine on two parts; a dual-Rings port should use two separate parts and two separate Rings state objects, not a special duplicated engine selector.
+The inherited firmware is organised around four synth parts. Each part selects one engine at a time, owns its parameter and voice state, and is rendered by the track/voice path. Each part also has its own engine-memory region for the selected engine's large mutable state. The four parts share a global sounding-voice budget of eight. This existing model supports selecting one Rings engine on a single selected part; the Rings port should own one dedicated state object, not duplicated per-part instances.
 
 The audio interrupt renders short blocks: 128 frames per I2S half, internally processed in 32-sample control blocks. The current mixer combines the four part outputs, applies per-track processing and sends, then processes shared chorus, delay and reverb buses before stereo output.
 
