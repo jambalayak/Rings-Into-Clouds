@@ -53,3 +53,26 @@ Next:
 3. Confirm the codec clock from BSP source and hardware.
 4. Inspect the exact upstream Clouds buffer declarations and determine whether a safe pool placement or explicit quality profile is possible.
 5. Keep 32 kHz as the reference until a controlled lower-rate comparison is available.
+
+
+## Lean profile measurement and linker artifact
+
+A later diagnostic-only build excluded Slicer and linked successfully in GitHub Actions run [45335987649](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45335987649), commit `5945595e727664e3b44a6f9b7b22c71c365be72f`.
+
+| Metric | Full profile (Run 62) | Lean profile (Run 64) |
+|---|---:|---:|
+| App image | 508,180 B | 474,708 B |
+| RAM (.data + .bss) | 61,012 B | 56,036 B |
+| RAM free | 12,716 B | 17,692 B |
+| POOL | 145,720 B | 145,720 B |
+| POOL free | 222,920 B | 222,920 B |
+
+The Run 64 host regression step was cancelled when a newer documentation commit entered the branch. However, the workflow's `if: always()` diagnostic build ran and passed, and its map and section table were uploaded as artifact [14894735101](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45335987649/artifacts/14894735101). This is not a tested firmware release.
+
+The map confirms that the 72 KiB ordinary-RAM region contains 352 bytes of `.data`, 55,684 bytes of `.bss`, and a 3,072-byte CPU1 stack allocation. The combined RAM figure is 56,036 bytes. The POOL input section is one large allocation from the unity-built firmware object, so the map alone does not attribute its bytes to individual C objects.
+
+The build now writes `build/felucca.symbols.txt` from the target ELF symbol table. The workflow will include it in future diagnostic artifacts so static data symbols can be attributed to their linked addresses and sizes where the toolchain reports them.
+
+## Exact Clouds buffer partition
+
+See [CLOUDS_BUFFER_AUDIT.md](CLOUDS_BUFFER_AUDIT.md) for the pinned upstream source audit. In stereo mode, the 184,192-byte FM1_Locus pair comprises 130,816 bytes of recording storage (65,408 bytes per channel) plus 53,376 bytes of workspace carved from the large POOL array. The processor's stock low-fidelity mode is 16 kHz / 8-bit, not 24 kHz, and changing that flag does not shrink the caller-reserved arrays. The initial 32 kHz / 16-bit stereo reference remains the fidelity target.
