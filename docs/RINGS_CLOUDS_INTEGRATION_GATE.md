@@ -54,13 +54,7 @@ Expensive Clouds preparation must run in the main loop, outside the audio interr
 
 ### Memory budget
 
-The current linker map defines a 360 KiB `.pool` region and the build script requires at least 8 KiB of it to remain free. The existing firmware already places substantial persistent buffers in that pool:
-
-- Four per-part engine-memory regions: 4 × 12,888 bytes in the normal build.
-- Master tempo delay: 65,536 int16 samples (131,072 bytes).
-- Chorus, reverb, HALL work state and per-track insert state.
-- Four slicer recordings: 4 × 4,096 int16 samples (32,768 bytes).
-- Scope snapshot and the 3,840-byte storage payload buffer.
+The current linker map defines a 360 KiB `.pool` region and the build script requires at least 8 KiB of it to remain free. Use the measured current linker baseline and the separate POOL/RAM inventory below; do not reuse obsolete source-only estimates or count removed legacy buffers as future savings.
 
 FM1_Locus allocates 118,784 bytes of Clouds buffers in POOL and another 65,408 bytes in ordinary .bss RAM, in addition to Rings state, resampler histories, FIFOs, batch buffers and other working state. Both memory regions are constrained; see the allocation correction below.
 
@@ -174,7 +168,7 @@ The reference full-quality stereo Clouds buffers total 184,192 bytes (118,784 PO
 
 A hypothetical 16-bit Rings delay store saves 49,152 bytes in the single Part, reducing the full-Clouds estimate to 443,568 bytes, still 1,200 bytes over before resampler/FIFO/routing and required headroom. With a single compact Rings delay store, a 0.5-second full-quality stereo Clouds profile reduces external recording storage by approximately 65,408 bytes compared with the full-length profile. The resulting combined estimate is approximately 378,160 bytes before resampling/routing, but this is planning arithmetic only; separate RAM/POOL placement and linker headroom must be measured.
 
-These are planning calculations, not build-fit claims. The next measurement step is to record target `sizeof(rings::Part)`, `sizeof(rings::Strummer)` and `sizeof(clouds::GranularProcessor)`, then link the actual C++ objects and buffers with explicit region placement. Preserve at least 4 KiB ordinary-RAM and 8 KiB POOL headroom.
+These are planning calculations, not build-fit claims. The target `sizeof` probe has now recorded `rings::Part`, `rings::Strummer` and `clouds::GranularProcessor`; these are compile-only sizes. The next measurement step is to link the actual C++ objects and buffers with explicit region placement. Preserve at least 4 KiB ordinary-RAM and 8 KiB POOL headroom.
 
 ### C++ port reference
 
@@ -208,7 +202,7 @@ This removes the need to reserve 128 KiB for one Rings reverb history. It does n
 
 A direct inspection of the pinned upstream `rings/dsp/part.cc` and `rings/dsp/fx/fx_engine.h` shows that passing `NULL` to `Part::Init()` is **not safe in this revision**: initialization unconditionally clears the supplied reverb buffer. The FM-1 port must remove the `Reverb` member and its init/process calls in a documented source patch; it must not pass a null or dummy pointer. See `docs/CPP_DSP_PORT_PLAN.md` for the exact patch checklist.
 
-**Gate:** record the five-model scope in the module UI, source patch manifest and tests. Prove that both instances initialize without reverb storage, that all five retained model paths render, and that the excluded model cannot be selected.
+**Gate:** record the five-model scope in the module UI, source patch manifest and tests. Prove that the single `rings_main` instance initializes without reverb storage, that all five retained model paths render, and that the excluded model cannot be selected.
 
 
 ## Reverb scope clarification
@@ -231,3 +225,27 @@ A compile-only target probe using the pinned upstream headers reports: `sizeof(r
 One Part, one Strummer, the Clouds processor and the full Clouds buffers total 303,852 bytes. Added to the measured baseline after replacing one engine overlay, the combined estimate is 492,720 bytes, 50,352 bytes over the SRAM span. A hypothetical 16-bit Rings delay store saves 49,152 bytes, leaving the full-Clouds profile at 443,568 bytes, still 1,200 bytes over before resampler/routing and required headroom. A 0.5-second full-quality stereo Clouds profile with one compact Rings instance estimates approximately 378,288 bytes combined, leaving approximately 64,080 bytes before resampler/routing. This is a planning estimate, not proof of fit; exact RAM/POOL placement and required reserves still need a target linker map.
 
 The size probe is compile-only; it does not instantiate, link into the firmware, or run these objects.
+
+
+## Build and regression checkpoint — Run 104 (2026-11-24)
+
+Run 104 (`45351797643`, commit `93d360d17d369893d3b6df2ea06f3fef7f6cacd0`) completed with **failure**. The following evidence is positive but limited:
+
+- JieLi target toolchain and pinned AC79 SDK setup passed.
+- Target C/C++ ABI smoke probe passed.
+- Pinned Rings and Clouds DSP compile-only checks passed.
+- Compact Rings delay-line host comparison passed.
+- Normal FM-1 firmware build passed.
+- Lean FM-1 diagnostic build passed.
+- Linker diagnostics uploaded; measured lean baseline is 56,036 bytes ordinary RAM and 145,720 bytes POOL.
+- Tested development firmware artifact upload was skipped because regression failed.
+
+The host regression suite did not pass. Its log includes 720/720 engine-switch render sequences differing from the Felucca 1.4 reference hashes; multiple UI/key/LED/song checks failing; and six web-editor checks failing (enum display ordering, DIV/RATE/TIME ordering, dotted delay-time values, user-preset round-trip, sound-only user-preset loading, and retired DIGITAL-to-FM6 user-preset loading). Do not update golden hashes or weaken assertions to make this run green. Diagnose the engine-switch differences against the intended current firmware baseline and fix the editor/device mismatches at their source.
+
+This run is **not** a Rings/Clouds integration build. The target DSP check is compile-only; no Rings or Clouds processor is linked into the production audio path, and no `.fwsc` test build was released. The lean baseline linker map is not evidence that the combined Rings + Clouds memory profile fits.
+
+## Current implementation boundary
+
+The current `firmware/src/audio.c` renders each 128-frame I2S half in 32-sample `CTL` blocks through `mix_block()`. The current engine table and mixer do not yet route a dedicated `rings_main` processor into a Clouds processor. The C++ ABI smoke test and compile-only DSP checks establish toolchain/source compatibility only; they do not establish runtime initialization, audio-rate correctness, real-time deadline compliance, memory fit, or audible fidelity.
+
+The next safe implementation sequence remains: resolve the host regression failures; link the pinned DSP objects behind a narrow C ABI; measure their actual ordinary-RAM and POOL placement; implement and test the 272/375 sample-rate conversion and bounded FIFO; then connect one Rings output to one Clouds processor outside any unbounded work in the audio ISR.
