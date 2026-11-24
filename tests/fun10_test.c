@@ -486,7 +486,7 @@ static int formats(void)
     step_set_ratchet(&t->step[3], 4);
     step_set_chance(&t->step[3], 33);
     for (i = 0; i < MOTION_MAX; i++)
-        motion_set_event(&trk[i % 4u], (i / 4u) % NSTEP, i / 4u < NSTEP ? P_REV : P_PAN, (int16_t)(i / 4u < NSTEP ? i / 4u : -(int32_t)(i % 60u)));
+        motion_set_event(&trk[i % 4u], (i / 4u) % NSTEP, P_PAN, (int16_t)(i / 4u < NSTEP ? i / 4u : -(int32_t)(i % 60u)));
     motion_set_lock(&trk[2], 9, P_E0 + 3, 7);
     project_capture(&a);
     ok = motion.count == MOTION_MAX && proj_pack(&st, &a) && ((uint32_t *)st.raw)[0] == 0x46554E41u &&
