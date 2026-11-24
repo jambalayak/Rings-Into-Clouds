@@ -36,7 +36,6 @@ dv_bell_run 52
 dv_cym_run 67
 dv_out 35
 dv_metal_mix 16
-slice_render 436
 slc_rev 120
 fm1_alnk0_irq 4196
 fm1_timer5_irq 14959
