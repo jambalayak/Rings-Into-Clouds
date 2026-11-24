@@ -280,8 +280,14 @@ static void up_values(const up_rec_t *r, int16_t *v)   /* mapped and clamped for
     up_params(r, v, def);
     if (r->ver == 1u && ENGINES[r->engine] == &ENG_PHYS)   /* (before 1.0: MODEL 2 was DUST) */
         phys_legacy(&v[P_E0]);
-    for (i = 0; i < P_COUNT; i++)
-        v[i] = (int16_t)param_fit(param_desc_of(r->engine, i), v[i]);   /* (a retired KIT: the kit it plays) */
+    for (i = 0; i < P_COUNT; i++) {
+        /* DIGITAL's engine-1 descriptor is deliberately empty when its DSP is retired. Its eight stored EDIT
+         * values must survive until fm4_apply converts them to an FM6 patch; the normal descriptor would zero them. */
+        if (r->engine == ENGI_DIGITAL && i >= P_E0)
+            v[i] = (int16_t)clamp(v[i], 0, 127);
+        else
+            v[i] = (int16_t)param_fit(param_desc_of(r->engine, i), v[i]);   /* (a retired KIT: the kit it plays) */
+    }
 }
 
 #include "up_fm6.c"                            /* the FM6 user presets' patches: the same kind of store */
