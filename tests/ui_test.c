@@ -585,7 +585,7 @@ static int test_sound_loads(void)
                  trk[3].p[P_LEVEL] == 71 && trk[3].p[P_REV] == 0 && trk[3].p[P_SDIV] == 3 &&
                  !memcmp(trk[3].step, before.step, sizeof trk[3].step));
     bad += check("  their GM hits play as drums", gm_hits_play(&trk[3]));
-    bad += check("  its old drum channel (10, in id 24) loads as REVERB TYPE ROOM", song.g[G_RTYPE] == 0);
+    bad += check("  its old drum-channel id (24) loads as the reserved global default", song.g[G_RTYPE] == 0);
     printf("ui: undo copy %u bytes\n", (unsigned)sizeof undo);
     return bad;
 }
