@@ -7,8 +7,8 @@ RINGS INTO CLOUDS is a dedicated FM-1 instrument, not a reskin of SLOOP, HORATIO
 Default patch: `Exciter / Oscillator → Resonator → Granular Processor → Stereo Output`. This is not a fixed chain. Planned routing includes resonator before or after granular processing, granular feedback/freeze workflows, external or USB audio into granular processing where supported, and parallel dry/processed paths. A dedicated reverb may be added later as an optional modular processor. The inherited global tempo delay, chorus and reverb buses have been removed to keep the base instrument focused and free memory for Rings and Clouds. The inherited performance-loop recorder and its recording buffer, repeat/reverse, tape-stop, freeze, octave-shifter and global delay/reverb throws are also removed. Only the lightweight performance filters, flanger/phaser and track mutes remain.
 
 ## Sound systems
-### Dual independent Rings engines
-Provide two simultaneous, independent instances of the same Rings DSP engine, exposed as RINGS A and RINGS B on separate FM-1 parts. Each has its own model, exciter/strummer state, parameters, modulation, preset and audio route. Both must be editable separately and audible together, subject to a measured shared CPU/voice/memory budget. This is a core requirement; see docs/DUAL_RINGS_REQUIREMENTS.md.
+### Single Rings resonator
+Use exactly one original Mutable Instruments Rings DSP instance, identified internally as `rings_main`, feeding the shared Clouds processor. Keep one `rings::Part`, one `rings::Strummer` and one set of model/parameter state. The five supported models are Modal, Sympathetic Strings, String, FM Voice and Quantized Sympathetic Strings. Exclude the String-and-Reverb model; Clouds retains its own native reverb. Do not expose or allocate a second Rings instance. See `docs/DUAL_RINGS_REQUIREMENTS.md` (now the single-instance decision record).
 
 ### Resonator
 Develop a Rings-inspired resonator with Modal, Sympathetic and Inharmonic models, plus pluck, strike, bow and noise excitation. Keep a Rings-derived FM voice distinct from a separate six-operator DX-style FM synthesizer. Investigate the Disastrous Peace Easter-egg engine separately, subject to source and implementation verification.
@@ -62,13 +62,13 @@ Verify display dimensions, font rasterisation and UI drawing limits before produ
 - Record build/test results and CPU budgets.
 
 ### Milestone 1 — First playable RINGS → CLOUDS instrument
-- Implement one reliable resonator voice path and a granular processor, while designing instance APIs and state ownership for two independent Rings engines from the outset.
+- Implement one reliable Rings resonator voice path and one granular processor with single-instance state ownership.
 - Connect keyboard and physical controls.
 - Add a small starter preset bank and original module-inspired performance screen.
 - Validate audio, stability, CPU and memory on emulator and physical FM-1.
 
 ### Milestone 2 — Resonator and granular depth
-- Add resonator models and excitation choices; bring up RINGS A and RINGS B as separate instances and validate simultaneous operation.
+- Add and validate the five supported Rings models and excitation choices on the single instance.
 - Add granular texture, freeze and buffer controls.
 - Add safe routing options and preset persistence.
 
