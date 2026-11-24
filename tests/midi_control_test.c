@@ -847,7 +847,7 @@ static int pc_test(void)
     ok = !memcmp(got.p, t->p, sizeof got.p) && !memcmp(got.step, was.step, sizeof got.step);
     ok &= got.p[P_LEVEL] == 90 && got.p[P_AMODE] == 2 && got.p[P_DIST] == 55;
     ok &= got.p[P_ITYPE] == TP[P_ITYPE].def && got.p[P_FTYPE] == TP[P_FTYPE].def && got.p[P_ESYNC] == TP[P_ESYNC].def;
-    printf("MIDI PC PRESET DETAIL got/current preset=%u/%u kept=%d itype=%d/%d ftype=%d/%d esync=%d/%d\\n", got.preset, t->preset, memcmp(got.p,t->p,sizeof got.p)==0, got.p[P_ITYPE], TP[P_ITYPE].def, got.p[P_FTYPE], TP[P_FTYPE].def, got.p[P_ESYNC], TP[P_ESYNC].def);
+    printf("MIDI PC PRESET DETAIL got/current preset=%u/%u kept=%d level=%d/90 amode=%d/2 dist=%d/55 itype=%d/%d ftype=%d/%d esync=%d/%d steps=%d\\n", got.preset, t->preset, memcmp(got.p,t->p,sizeof got.p)==0, got.p[P_LEVEL], got.p[P_AMODE], got.p[P_DIST], got.p[P_ITYPE], TP[P_ITYPE].def, got.p[P_FTYPE], TP[P_FTYPE].def, got.p[P_ESYNC], TP[P_ESYNC].def, memcmp(got.step,was.step,sizeof got.step)==0);
     for (uint32_t z=0; z<P_COUNT; z++) if (got.p[z]!=t->p[z]) printf("  p[%u] got=%d direct=%d\\n", z, got.p[z], t->p[z]);
     bad += check("  as PRESETS loads it: steps, LEVEL, ARP, DIST kept; INSERT, TYPE, ESYNC the preset's", ok);
 
