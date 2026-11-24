@@ -8,8 +8,8 @@
 static_assert(rings::RESONATOR_MODEL_LAST == 6, "pinned upstream size probe runs before the local five-model patch");
 
 extern "C" {
-__attribute__((used)) unsigned char ric_size_rings_part[sizeof(rings::Part)];
-__attribute__((used)) unsigned char ric_size_rings_string[sizeof(rings::String)];
-__attribute__((used)) unsigned char ric_size_rings_strummer[sizeof(rings::Strummer)];
-__attribute__((used)) unsigned char ric_size_clouds_processor[sizeof(clouds::GranularProcessor)];
+__attribute__((used)) unsigned char ric_upstream_size_rings_part[sizeof(rings::Part)];
+__attribute__((used)) unsigned char ric_upstream_size_rings_string[sizeof(rings::String)];
+__attribute__((used)) unsigned char ric_upstream_size_rings_strummer[sizeof(rings::Strummer)];
+__attribute__((used)) unsigned char ric_upstream_size_clouds_processor[sizeof(clouds::GranularProcessor)];
 }
