@@ -438,10 +438,14 @@ function mockTables() {
   ok(fw.PCT && fw.PCT.length && !pd.length, `editor: percent values == firmware (${fw.PCT ? fw.PCT.length : 0} values)`);
   /* #48: every list's order in the editor == the order the device's knobs step it (descdump SHOWN: param_turn);
      the note divisions longest first, with the triplets by their length */
-  const shown = (d) => E.enumShown(d).filter((v) => E.enumAliasOf(d.names, v - d.min) === v - d.min).map((v) => d.names[v - d.min]);
+  /* Parameter enums are value-indexed: duplicate labels and reserved placeholders still occupy distinct knob positions.
+     enumAliasOf is for preset-name aliases, not for hiding parameter values. */
+  const shown = (d) => E.enumShown(d).map((v) => d.names[v - d.min]);
   const sd = (fw.SHOWN || []).filter(([sc, i, names]) => JSON.stringify(shown((sc ? T.GP : T.TP)[i])) !== JSON.stringify(names));
   if (sd.length) console.log("SHOWN DETAIL", sd.map(([sc,i,n]) => ({scope:sc,id:i,expected:n,actual:shown((sc?T.GP:T.TP)[i])})));
-  console.log("DIV DETAIL", shown(T.TP.find(d => d.label === "DIV")), "RATE DETAIL", T.TP.filter(d => d.label === "RATE" && d.fmt === E.F.ENUM).map(shown),
+  const divDebug = T.TP.find(d => d.label === "DIV");
+  console.log("DIV DETAIL", {fmt:divDebug.fmt,min:divDebug.min,max:divDebug.max,names:divDebug.names,shown:shown(divDebug)},
+    "RATE DETAIL", T.TP.filter(d => d.label === "RATE" && d.fmt === E.F.ENUM).map(d => ({fmt:d.fmt,min:d.min,max:d.max,names:d.names,shown:shown(d)})),
     "GP TIME DETAIL", T.GP.filter(d => d.label === "TIME").map(d => ({names:d.names,min:d.min,max:d.max})));
   sd.slice(0, 5).forEach((x) => console.log("  SHOWN " + JSON.stringify(x) + " editor " + JSON.stringify(shown((x[0] ? T.GP : T.TP)[x[1]]))));
   ok(fw.SHOWN && fw.SHOWN.length > 20 && !sd.length, `editor: enum lists in the device's knob order (${fw.SHOWN ? fw.SHOWN.length : 0} lists)`);
@@ -449,11 +453,10 @@ function mockTables() {
   ok(shown(div).join() === "4BAR,2BAR,1/1,1/2,1/4,1/8,8T,1/16,16T,1/32" &&
      slr.some((d) => shown(d).join() === "1/8,8T,1/16,16T,1/32,32T") && div.names[2] === "1/16",
      "editor: #48 DIV / RATE / TIME longest first (values unchanged: 2 is still 1/16)");
+  /* The former global delay TIME control is retired with the global-bus effects (G_DTIME = 4). */
   const tim = T.GP.filter((d) => d.label === "TIME");
-  ok(tim.length === 1 && shown(tim[0]).join() === "4BAR,2BAR,1/1,1/2,1/4D,1/4,1/8D,1/8,1/16D,8T,1/16,16T,1/32" &&
-     tim[0].names.slice(0, 10).join() === "1/4,1/8,1/16,1/32,8T,16T,1/2,1/1,2BAR,4BAR" && tim[0].names[10] === "1/8D" &&
-     shown(div).length === 10,
-     "editor: 1.5.1 delay TIME: 1/8D 1/16D 1/4D appended (10..12), shown by length; DIV keeps its ten");
+  ok(tim.length === 0 && T.GP[4].label === "-" && T.GP[4].min === 0 && T.GP[4].max === 0 && shown(div).length === 10,
+     "editor: retired global delay TIME remains inert; DIV keeps its ten values");
   const swg = [T.TP, T.GP].flatMap((tb) => tb.filter((d) => d.label === "SWG"));
   ok(swg.length === 3 && swg.every((d) => E.fmtValue(d, 100)[0] === "100" && E.fmtValue(d, 50)[0] === "50") &&
      E.fmtValue({ fmt: swg[0].fmt, min: 0, max: 127 }, 127)[0] === "100" && E.fmtValue({ fmt: swg[0].fmt, min: 0, max: 127 }, 64)[0] === "50",
@@ -591,14 +594,14 @@ async function editorFm4() {
   }
   /* put to the device: its DIGITAL values as engine 1 (the device converts them on load); read back as FM6 */
   let rc = await E.bank.put(rq, 9, { ...r91, engine: 1, p: r91.fm4 });
-  const u = await E.bank.get(rq, info, 9);
+  const u = await E.bank.get(rq, info, 9), digitalStored = r91.fm4.map((v, i) => i >= 34 && i <= 36 ? 0 : v);
   await rq(E.req.upLoad(9));
   d = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const fm6AfterDigitalLoad = await fm6Of();
-  if (!(rc === 0 && u.engine === 1 && eq(u.p, pad) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6)))
-    console.log("DIGITAL UP_LOAD DETAIL", {rc,engine:u.engine,pDiff:u.p.map((v,i)=>v===pad[i]?null:[i,pad[i],v]).filter(Boolean).slice(0,30),
+  if (!(rc === 0 && u.engine === 1 && eq(u.p, digitalStored) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6)))
+    console.log("DIGITAL UP_LOAD DETAIL", {rc,engine:u.engine,pDiff:u.p.map((v,i)=>v===digitalStored[i]?null:[i,digitalStored[i],v]).filter(Boolean).slice(0,30),
       dumpEngine:d.engine,fm6Diff:fm6AfterDigitalLoad.map((v,i)=>v===r91.fm6[i]?null:[i,r91.fm6[i],v]).filter(Boolean).slice(0,30)});
-  ok(rc === 0 && u.engine === 1 && eq(u.p, pad) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6),
+  ok(rc === 0 && u.engine === 1 && eq(u.p, digitalStored) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6),
     "device slot of a DIGITAL sound (engine 1, its values kept): UP_LOAD plays the converted FM6 patch");
   done();
 }
@@ -627,6 +630,8 @@ async function editorLibrarian() {
   const pdesc = [];
   for (let i = 0; i < info.pcount; i++) pdesc.push(E.parse[C.DESC](await rq(E.req.desc(0, i))));
   const keys = E.paramKeys(pdesc, info.pe0, info.pcount);
+  /* The three retired global-bus sends (P_CHOR, P_DLY, P_REV: IDs 34..36) are deliberately clamped to zero by up_values. */
+  const storedValues = (p) => p.map((v, i) => i >= 34 && i <= 36 ? 0 : v);
   ok(keys[6] === "PIT" && keys[13] === "PIT#2" && keys[info.pe0] === "E0" && new Set(keys).size === keys.length, "librarian: parameter keys unique (label#n, E0..E7)");
 
   const b = await E.bank.list(rq);
@@ -637,12 +642,12 @@ async function editorLibrarian() {
   ok(cap.engine === 0 && cap.p.length === info.pcount && cap.pattern && cap.pattern[0][0] === 45 && cap.pattern[0][1] === 1,
     "librarian: capture = DUMP + first 16 steps");
   let rc = await E.bank.put(rq, 10, cap);
-  const g = await E.bank.get(rq, info, 10);
-  if (!(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, cap.p) && js(g.pattern) === js(cap.pattern))) {
-    console.log("UP_PUT DETAIL", {rc,used:g.used,name:g.name,engine:g.engine,pDiff:g.p.map((v,i)=>v===cap.p[i]?null:[i,cap.p[i],v]).filter(Boolean).slice(0,30),
+  const g = await E.bank.get(rq, info, 10), storedCap = storedValues(cap.p);
+  if (!(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, storedCap) && js(g.pattern) === js(cap.pattern))) {
+    console.log("UP_PUT DETAIL", {rc,used:g.used,name:g.name,engine:g.engine,pDiff:g.p.map((v,i)=>v===storedCap[i]?null:[i,storedCap[i],v]).filter(Boolean).slice(0,30),
       patternExpected:cap.pattern,patternActual:g.pattern});
   }
-  ok(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, cap.p) && js(g.pattern) === js(cap.pattern),
+  ok(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, storedCap) && js(g.pattern) === js(cap.pattern),
     "librarian: UP_PUT -> UP_GET round trip");
   const bad = E.parse[C.UP_PUT](await rq(E.req.upPut(60, cap), { timeout: 2500, retries: 0 }));
   ok(bad.rc === 1, "librarian: UP_PUT to a slot past the bank -> rc 1");
@@ -662,12 +667,12 @@ async function editorLibrarian() {
   const d2 = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const st = [];
   for (let i = 0; i < 16; i++) st.push(E.parse[C.STEP_GET](await rq(E.req.stepGet(i))));
-  if (!(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), cap.p.filter((_, i) => i !== 17)) && d2.p[17] === 3
+  if (!(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), storedCap.filter((_, i) => i !== 17)) && d2.p[17] === 3
     && st.every((x) => !x.n) && cap.pattern)) {
-    console.log("UP_LOAD DETAIL", {rc,engine:d2.engine,arp:d2.p[17],pDiff:d2.p.map((v,i)=>v===cap.p[i]||i===17?null:[i,cap.p[i],v]).filter(Boolean).slice(0,30),
+    console.log("UP_LOAD DETAIL", {rc,engine:d2.engine,arp:d2.p[17],pDiff:d2.p.map((v,i)=>v===storedCap[i]||i===17?null:[i,storedCap[i],v]).filter(Boolean).slice(0,30),
       nonemptySteps:st.map((x,i)=>x.n?[i,x.n]:null).filter(Boolean)});
   }
-  ok(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), cap.p.filter((_, i) => i !== 17)) && d2.p[17] === 3
+  ok(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), storedCap.filter((_, i) => i !== 17)) && d2.p[17] === 3
     && st.every((x) => !x.n) && cap.pattern, "librarian: UP_LOAD applies the sound only (steps and the track's ARP stay)");
   await rq(E.req.set(0, 17, 0));
   for (let i = 0; i < 16; i++) await rq(E.req.stepSet(i, E.stepsFromPattern(cap.pattern)[i]));   /* (for the captures below) */
