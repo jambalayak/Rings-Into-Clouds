@@ -47,8 +47,22 @@ jobs:
       - name: Run host regression suite
         run: tests/run_tests.sh
 
-      - name: Build lean FM-1 firmware (Slicer excluded)
+      # Always collect the lean profile's linker map, even when unrelated legacy
+      # host regressions fail. This is diagnostic only; it is never labelled as tested.
+      - name: Build lean FM-1 firmware for memory diagnostics (Slicer excluded)
+        if: always()
         run: FELUCCA_SLICE=0 ./build.sh
+
+      - name: Upload linker diagnostics (not a firmware release)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-into-clouds-linker-diagnostics-${{ github.sha }}
+          path: |
+            build/felucca.map
+            build/felucca.sections.txt
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload tested development build
         if: success()
