@@ -118,17 +118,17 @@ static int motion_locks(void)
     uint8_t a[8];
     reset();
     motion_clear(&trk[1]);
-    a[0] = 1; a[1] = 3; a[2] = 2; a[3] = P_REV; a[4] = (uint8_t)((60 + 8192) & 127); a[5] = (uint8_t)((60 + 8192) >> 7);
+    a[0] = 1; a[1] = 3; a[2] = 2; a[3] = P_DIST; a[4] = (uint8_t)((60 + 8192) & 127); a[5] = (uint8_t)((60 + 8192) >> 7);
     request(ED_MOTION, a, 6);                                           /* an automation event, step 2 */
     a[1] = 5; a[2] = 5; a[4] = (uint8_t)((100 + 8192) & 127); a[5] = (uint8_t)((100 + 8192) >> 7);
     n = request(ED_MOTION, a, 6);                                       /* a lock, step 5 */
     bad += check("MOTION op 5 sets a lock: rc 0, two records, then their kinds 0 1",
-        host_wire[6] == 0 && host_wire[8] == 2 && host_wire[10] == 2 && host_wire[11] == P_REV &&
-        host_wire[14] == 5 && host_wire[15] == P_REV && n == 5u + 5u + 2u * 4u + 2u + 1u &&
+        host_wire[6] == 0 && host_wire[8] == 2 && host_wire[10] == 2 && host_wire[11] == P_DIST &&
+        host_wire[14] == 5 && host_wire[15] == P_DIST && n == 5u + 5u + 2u * 4u + 2u + 1u &&
         host_wire[18] == 0 && host_wire[19] == 1 && motion_lock_count(&trk[1]) == 1u);
     n = request(ED_MOTION, a, 1);
     bad += check("MOTION query as before 1.1: no kinds, the lock's id without bit 7", n == 5u + 5u + 2u * 4u + 1u &&
-        host_wire[15] == P_REV);
+        host_wire[15] == P_DIST);
     a[1] = 7; n = request(ED_MOTION, a, 2);
     bad += check("MOTION op 7: the query with the kinds", n == 5u + 5u + 2u * 4u + 2u + 1u && host_wire[19] == 1);
     a[1] = 5; a[2] = 64; n = request(ED_MOTION, a, 6);
@@ -143,13 +143,13 @@ static int motion_locks(void)
     {
         uint32_t i, ok = 1;
         for (i = 0; i < MOTION_MAX - 1u; i++)            /* 127 on track 2: two ids a step */
-            ok &= !motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_REV : P_DLY, (int16_t)(i % 100u));
+            ok &= !motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_DIST : P_PAN, (int16_t)(i % 100u));
         a[1] = 5; a[2] = 63; a[3] = P_PAN; a[4] = (uint8_t)((-3 + 8192) & 127); a[5] = (uint8_t)((-3 + 8192) >> 7);
         n = request(ED_MOTION, a, 6);                   /* the 128th: a lock of PAN -3 */
         ok &= host_wire[6] == 0 && motion.count == MOTION_MAX && host_wire[8] == 64 && host_wire[9] == 64 &&
               n == 5u + 5u + 64u * 4u + 64u + 1u;
         bad += check("MOTION 1.2: 128 records on one track; op 5's reply as before: max 64, its first 64 listed", ok);
-        a[1] = 3; a[2] = 0; a[3] = P_CHOR; a[4] = 0; a[5] = 64;
+        a[1] = 3; a[2] = 0; a[3] = P_LEVEL; a[4] = 0; a[5] = 64;
         n = request(ED_MOTION, a, 6);
         bad += check("  the 129th: rc 2 (full)", host_wire[6] == 2 && motion.count == MOTION_MAX);
         a[1] = 8; n = request(ED_MOTION, a, 2);
