@@ -89,8 +89,8 @@ The final build must retain the build system's minimum 8 KiB pool headroom and 4
 ### Phase 2 — standalone Rings test harness
 
 - Allocate Rings state separately from the legacy per-track engine union.
-- Design the wrapper and state ownership for two simultaneous Rings instances from the beginning; the product acceptance target is two independent instances, not one.
-- Measure one and two rings::Part / rings::Strummer allocations separately, including all per-instance buffers and state.
+- Design the wrapper and state ownership for exactly one Rings instance (`rings_main`).
+- Measure one `rings::Part` and one `rings::Strummer`, including all auxiliary buffers and state; do not reserve a second instance.
 - Use the measured current codec rate.
 - Test all supported resonator models, excitation, tune, structure, brightness, damping and position.
 - Keep the original Rings model/polyphony semantics for the five supported models. The String-and-Reverb model is explicitly omitted by user decision; do not expose it in the UI.
@@ -170,9 +170,9 @@ The target smoke and compile-only source checks are now passing, but this remain
 
 The earlier source-only subtotal counted a 131,072-byte global tempo delay line and other legacy buses that were removed before the current lean build. Do not count those bytes as a future saving. The current target linker baseline is 56,036 bytes ordinary RAM and 145,720 bytes POOL (201,756 bytes combined).
 
-The reference full-quality stereo Clouds buffers total 184,192 bytes (118,784 POOL + 65,408 ordinary RAM). The target size probe measured each `rings::Part` at 110,452 bytes, each `rings::Strummer` at 524 bytes and the `clouds::GranularProcessor` at 8,684 bytes. Two Parts, two Strummers, the Clouds processor and full Clouds buffers total 414,828 bytes. Replacing two 12,888-byte engine overlays gives a projected combined total of 590,808 bytes, 148,440 bytes over the 442,368-byte SRAM span, before resampler/FIFO/routing.
+The reference full-quality stereo Clouds buffers total 184,192 bytes (118,784 POOL + 65,408 ordinary RAM). The target size probe measured each `rings::Part` at 110,452 bytes, each `rings::Strummer` at 524 bytes and the `clouds::GranularProcessor` at 8,684 bytes. One Part, one Strummer, the Clouds processor and full Clouds buffers total 303,852 bytes. Replacing one 12,888-byte engine overlay gives a projected combined total of 492,720 bytes, 50,352 bytes over the 442,368-byte SRAM span, before resampler/FIFO/routing.
 
-A hypothetical 16-bit Rings delay store saves 98,304 bytes across the two Parts, reducing the full-Clouds estimate to 492,504 bytes, still 50,136 bytes over. A 25% shorter recording store projects to 459,800 bytes, still 17,432 bytes over. A 0.5-second full-quality stereo Clouds profile with compact Rings projects to 427,224 bytes combined, leaving 15,144 bytes before resampling/routing. With both Clouds buffers in POOL and 13,596 bytes of object state placed in RAM, the current region estimate is 357,592 bytes POOL and 69,632 bytes RAM; only 2,856 bytes remain beyond the required reserves for resampling/routing.
+A hypothetical 16-bit Rings delay store saves 49,152 bytes in the single Part, reducing the full-Clouds estimate to 443,568 bytes, still 1,200 bytes over before resampler/FIFO/routing and required headroom. With a single compact Rings delay store, a 0.5-second full-quality stereo Clouds profile reduces external recording storage by approximately 65,408 bytes compared with the full-length profile. The resulting combined estimate is approximately 378,160 bytes before resampling/routing, but this is planning arithmetic only; separate RAM/POOL placement and linker headroom must be measured.
 
 These are planning calculations, not build-fit claims. The next measurement step is to record target `sizeof(rings::Part)`, `sizeof(rings::Strummer)` and `sizeof(clouds::GranularProcessor)`, then link the actual C++ objects and buffers with explicit region placement. Preserve at least 4 KiB ordinary-RAM and 8 KiB POOL headroom.
 
@@ -204,7 +204,7 @@ The pinned upstream Rings source defines a sixth `RESONATOR_MODEL_STRING_AND_REV
 
 **User-approved product decision:** omit the String-and-Reverb model and its dedicated per-instance reverb buffers. The FM-1 implementation will expose the other five original Rings models: Modal, Sympathetic Strings, String, FM Voice and Quantized Sympathetic Strings. Do not expose the omitted mode in the UI or describe the port as all-six-model/full Rings.
 
-This removes the need to reserve 128 KiB for two Rings reverb histories. It does not remove the need to measure both independent `rings::Part` objects, both Strummers, excitation/scratch state, Clouds buffers, resampling, routing and existing firmware allocations. Keep the other five models faithful; this decision is not permission to reduce their algorithms or buffers.
+This removes the need to reserve 128 KiB for one Rings reverb history. It does not remove the need to measure the single `rings::Part` object and Strummer, excitation/scratch state, Clouds buffers, resampling, routing and existing firmware allocations. Keep the other five models faithful; this decision is not permission to reduce their algorithms or buffers.
 
 A direct inspection of the pinned upstream `rings/dsp/part.cc` and `rings/dsp/fx/fx_engine.h` shows that passing `NULL` to `Part::Init()` is **not safe in this revision**: initialization unconditionally clears the supplied reverb buffer. The FM-1 port must remove the `Reverb` member and its init/process calls in a documented source patch; it must not pass a null or dummy pointer. See `docs/CPP_DSP_PORT_PLAN.md` for the exact patch checklist.
 
