@@ -1,12 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Probe-only C string header bridge; not a production standard-library replacement.
 #ifndef RIC_CPP_SMOKE_CSTRING
 #define RIC_CPP_SMOKE_CSTRING
 #include <string.h>
-namespace std {
-using ::memcpy;
-using ::memmove;
-using ::memset;
-using ::memcmp;
-}
 #endif

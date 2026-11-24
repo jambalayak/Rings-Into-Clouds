@@ -60,7 +60,7 @@ def main():
         ROOT, docker)
     run("clang++", [*common, "-std=gnu++11", "-fno-exceptions", "-fno-rtti",
                     "-fno-threadsafe-statics", "-fno-use-cxa-atexit", "-nostdinc++",
-                    "-Itools/cpp_smoke/include", "-c", "tools/cpp_smoke/dsp_probe.cc",
+                    "-Itools/cpp_smoke/include", "-isystem", (docker ? "/opt/jieli/pi32v2/include" : str(TOOLCHAIN / "pi32v2" / "include")), "-c", "tools/cpp_smoke/dsp_probe.cc",
                     "-o", str(cpp_obj.relative_to(ROOT))], ROOT, docker)
     run("ld", ["-r", str(c_obj.relative_to(ROOT)), str(cpp_obj.relative_to(ROOT)),
                "-o", str(combined.relative_to(ROOT))], ROOT, docker)

@@ -300,3 +300,10 @@ The pinned Rings sources use `fabs` and `powf`; the current JieLi C++ toolchain 
 ### Rings reverb exclusion patch
 
 The pinned upstream `Part::Init()` unconditionally calls `reverb_.Init(reverb_buffer)`; the upstream `FxEngine::Init()` immediately clears the caller's 32,768-sample `uint16_t` buffer. Therefore `Part::Init(NULL)` is unsafe in unmodified upstream code. FM1_Locus adds an explicit null guard because it does not offer `RESONATOR_MODEL_STRING_AND_REVERB`. Our patch must do the same or remove the unused reverb member and model path. The external 65,536-byte reverb buffer is not part of the proposed memory profile. The small embedded Reverb object remains part of `sizeof(Part)` unless removed locally.
+
+
+## Verified FM-1 C++ integration precedent
+
+The sibling FM-1 project `stevexfer/FM1_Locus` already builds the same pinned Rings and Clouds C++ DSP for the JieLi AC79 target. Its `tools/build.py` compiles every `.cc` under the app and the `third_party.txt` directories with `clang++`, `-mcpu=r3`, `-mfprev1`, `-std=gnu++11`, `-nostdinc++`, no exceptions/RTTI/static constructors, and the AC79 `pi32v2/include` C header sysroot; it links `libm.a` and `libcompiler_rt.a`. It supplies a small freestanding C++ header set under `firmware/cxx/` (`algorithm`, `cmath`, `cstring`, `cstdlib`, `new`) and a minimal runtime. This is direct evidence that a full C++ port is feasible on this hardware/toolchain, not merely the small ABI probe.
+
+Our smoke probe is being aligned with that proven header arrangement: use the target toolchain's actual C header sysroot and the same thin `cmath`/`cstring` wrappers, rather than pretending compiler builtins are a substitute for the target math headers. Next build milestone should be a compile-only pass over the pinned upstream Rings/Clouds translation units with the minimal required header/runtime files, followed by a real link and measured object size. Do not yet import the whole Locus engine or its two-core scheduler.
