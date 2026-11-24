@@ -36,7 +36,6 @@ dv_bell_run 52
 dv_cym_run 67
 dv_out 35
 dv_metal_mix 16
-slicer_track 556
 slice_render 436
 slc_rev 120
 fm1_alnk0_irq 4196
@@ -47,16 +46,10 @@ mod_voice 30
 mod_end 6
 perf_begin 28
 perf_mute 18
-perf_pre 26
 perf_block 854
 perf_master 30
 perf_flanger 369
 perf_phaser 440
-perf_throw 50
-rev_room 218
-rev_spring 126
-rev_hall 1994
-rev_side_mix 8
 track_insert 0
 ins_drive 166
 ins_swept 228
