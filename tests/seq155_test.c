@@ -696,7 +696,7 @@ static int test_double_half(void)
         bad += check("DOUBLE from LEN 40: 64 (steps 1..24 copied); at 64: NO ROOM, nothing done", ok);
         t->p[P_SLEN] = 8;
         for (i = 0; motion.count < MOTION_MAX - 4u; i++)
-            motion_set_event(&trk[1 + i % 3u], i / 3u % NSTEP, P_DIST + i / 192u, (int16_t)(i % 100u));
+            motion_set_event(&trk[1 + i % 3u], i / 3u % NSTEP, P_LEVEL + i / 192u, (int16_t)(i % 100u));
         for (i = 0; i < 4u; i++)
             motion_set_lock(t, i, P_DIST, 40);           /* (the 128 used: no room for 4 copies) */
         memcpy(ref, t->step, sizeof ref);
