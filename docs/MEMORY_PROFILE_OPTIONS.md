@@ -174,3 +174,23 @@ FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null
 | Compact Rings + approximately 0.5 s full-quality stereo Clouds | 413,196 B | 29,172 B free |
 
 The combined figures are not proof of a region fit. In particular, putting the 65,408-byte Clouds small buffer in ordinary RAM exceeds the current RAM region; putting both full-length buffers in POOL exceeds POOL once Rings is included. The approximately 0.5-second profile is the most promising conservative experiment, but the target linker must include the actual DSP object sizes, routing, resampler/FIFO state and required headroom before it is accepted.
+
+
+## Target C++ object sizes (pi32v2, 2026-11-24)
+
+The compile-only target size probe measured these upstream class sizes:
+
+| Object | Target size |
+|---|---:|
+| `rings::Part` | 110,452 B |
+| `rings::String` | 12,428 B |
+| `rings::Strummer` | 524 B |
+| `clouds::GranularProcessor` | 8,684 B |
+
+The upstream `Part` size includes its eight inline String delay stores (98,304 bytes per Part) and the small embedded Rings Reverb state member. The external 65,536-byte-per-Part Rings reverb buffer is not part of `sizeof(Part)` and is not allocated by this compile-only probe. The later five-model source patch will remove the unused embedded Reverb member and model branch; its exact size reduction must be measured again.
+
+Two Parts, two Strummers and one Clouds processor occupy 230,636 bytes of object state before external buffers, resamplers, FIFOs or routing. With full Clouds external buffers (184,192 bytes), the total DSP state is 414,828 bytes. Adding that to the measured base image after replacing two 12,888-byte engine overlays (201,756 - 25,776 = 175,980 bytes) gives **590,808 bytes**, 148,440 bytes over the 442,368-byte combined SRAM budget.
+
+If both Rings delay stores were converted to 16-bit, the two Parts' inline delay arrays would shrink by 98,304 bytes in total. The full-Clouds estimate would still be 492,504 bytes, 50,136 bytes over, before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
+
+A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With compact Rings storage, the measured-object combined estimate becomes 427,224 bytes, leaving 15,144 bytes before resampling/routing. After the required 4 KiB RAM and 8 KiB POOL reserves, only 2,856 bytes remain for those missing systems. It is therefore a tight candidate, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.

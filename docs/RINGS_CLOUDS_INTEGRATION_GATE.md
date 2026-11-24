@@ -222,3 +222,12 @@ fidelity baseline unless separately changed by an explicit product decision.
 A future independent modular reverb node is a third, separate concept: it is not the
 Rings reverb and is not the Clouds internal effect. It remains deferred until its own
 memory/CPU budget is measured.
+
+
+## Target object-size measurement (2026-11-24)
+
+A compile-only target probe using the pinned upstream headers reports: `sizeof(rings::Part) = 110,452` bytes, `sizeof(rings::String) = 12,428` bytes, `sizeof(rings::Strummer) = 524` bytes, and `sizeof(clouds::GranularProcessor) = 8,684` bytes. These are target compiler sizes, not linker allocations. The Part size includes the eight inline float String delay stores and the small embedded Rings Reverb member; it excludes the external 65,536-byte Rings reverb buffer.
+
+Two Parts, two Strummers, the Clouds processor and the full Clouds buffers total 414,828 bytes. Added to the measured baseline after replacing two engine overlays, the combined estimate is 590,808 bytes, 148,440 bytes over the SRAM span. A hypothetical 16-bit Rings delay store saves 98,304 bytes but still leaves the full Clouds profile 50,136 bytes over. The 0.5-second full-quality Clouds profile with compact Rings estimates 427,224 bytes combined, leaving 15,144 bytes before resampler/routing. It has only 2,856 bytes beyond the required combined 4 KiB RAM and 8 KiB POOL reserves, so more resource/placement work is required before it can be accepted.
+
+The size probe is compile-only; it does not instantiate, link into the firmware, or run these objects.
