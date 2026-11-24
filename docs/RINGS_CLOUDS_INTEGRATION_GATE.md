@@ -132,7 +132,7 @@ Do not begin Phase 1 until the following are recorded:
 
 The Rings + Clouds milestone is not complete until:
 
-- Two independent Rings instances can run simultaneously with separate parameters, triggers, presets and audio outputs.
+- One Rings instance initializes and renders all five retained models, with its output connected to Clouds.
 
 - Original upstream DSP and modes are present, with all local changes documented.
 - Pitch and timing are correct at the actual FM-1 codec rate.
