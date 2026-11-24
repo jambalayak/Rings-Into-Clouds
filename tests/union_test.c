@@ -72,6 +72,8 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
     if (!(pid = fork())) {
         uint32_t k;
         host_tracks_init();
+        if (mode == 3u) trk[2].p[P_LEVEL] = 0; /* companion still renders/uses voices, but is silent in the mix */
+        if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
         for (k = 0; k < n; k++) {
             if (mode != 2u)
@@ -101,11 +103,12 @@ static void ufeed(uint64_t *h, uint64_t x)
     }
 }
 
-/* Diagnostic only: aggregate independent primary-only, companion-only and combined hashes.
+/* Diagnostic only: aggregate isolated, combined, and muted-companion hashes.
+ * Modes 3/4 keep both parts rendering and consuming the shared voice budget, but mute one at the mix.
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp;
     uint32_t a, b, pi, w, n = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -116,16 +119,21 @@ static int union_diag(void)
                     ufeed(&hp, useq(s2, 2, pi, wait, 1u));
                     ufeed(&hc, useq(s2, 2, pi, wait, 2u));
                     ufeed(&hb, useq(s2, 2, pi, wait, 0u));
+                    ufeed(&hpm, useq(s2, 2, pi, wait, 3u));
+                    ufeed(&hcm, useq(s2, 2, pi, wait, 4u));
                     n++;
                     if (a != b) {
                         ufeed(&hp, useq(s3, 3, pi, wait, 1u));
                         ufeed(&hc, useq(s3, 3, pi, wait, 2u));
                         ufeed(&hb, useq(s3, 3, pi, wait, 0u));
+                        ufeed(&hpm, useq(s3, 3, pi, wait, 3u));
+                        ufeed(&hcm, useq(s3, 3, pi, wait, 4u));
                         n++;
                     }
                 }
-    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx\\n",
-           n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb);
+    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx; primary+muted-companion %016llx; companion+muted-primary %016llx\n",
+           n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb,
+           (unsigned long long)hpm, (unsigned long long)hcm);
     return 0;
 }
 
