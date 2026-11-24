@@ -76,6 +76,15 @@ jobs:
       - name: Run host regression suite
         run: tests/run_tests.sh
 
+      - name: Diagnose engine-switch track contributions (host only)
+        if: always()
+        run: |
+          if [ -x build/host/union_test ]; then
+            UNION_DIAG=1 build/host/union_test
+          else
+            echo "union_test was not built; diagnostic skipped"
+          fi
+
       # Always collect the lean profile's linker map, even when unrelated legacy
       # host regressions fail. This is diagnostic only; it is never labelled as tested.
       - name: Build lean FM-1 firmware for memory diagnostics (Slicer excluded)
