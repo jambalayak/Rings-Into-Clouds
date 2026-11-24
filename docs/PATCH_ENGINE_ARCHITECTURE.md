@@ -19,7 +19,7 @@ Consequences:
 - A track-to-track cable cannot be implemented by drawing a cable in the UI; the mixer and DSP ownership must change.
 - A conventional effect insert is not automatically equivalent to a modular processor node.
 - A full graph must not allocate memory, lock, search dynamically or compile its topology inside the audio interrupt.
-- Multiple large module instances need an explicit memory and CPU budget. The first Rings acceptance target is two simultaneous instances on separate parts, while respecting the shared eight-voice ceiling.
+- Multiple large module instances need an explicit memory and CPU budget. The product target is one Rings instance feeding Clouds; no second Rings allocation is required.
 - Existing voice allocation, engine switching, MIDI, sequencer and preset compatibility should be preserved while the graph is introduced incrementally.
 
 ## 2. Separate the module roles
