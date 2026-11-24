@@ -74,7 +74,7 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
     if (!(pid = fork())) {
         uint32_t k;
         host_tracks_init();
-        if (mode == 3u) trk[2].p[P_LEVEL] = 0; /* companion still renders/uses voices, but is silent in the mix */
+        if (mode == 3u || mode == 5u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders/uses voices */
         if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
         for (k = 0; k < n; k++) {
