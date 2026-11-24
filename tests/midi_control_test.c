@@ -131,11 +131,11 @@ static int clock_test(uint32_t source)
     clock_packet(source, 0xFA, 700); clock_to(source, 700, 7);
     bad += check("Start after timeout restarts cleanly at the master's phase", song.playing && trk[0].seq_idx == 1u);
     /* Original base values remain after MIDI Stop even while motion sounds. */
-    trk[0].p[P_REV] = 23; motion_clear(&trk[0]); motion_set_event(&trk[0], 0, P_REV, 100);
+    trk[0].p[P_DIST] = 23; motion_clear(&trk[0]); motion_set_event(&trk[0], 0, P_DIST, 100);
     clock_packet(source, 0xFA, 1000); clock_packet(source, 0xF8, 1000);
-    bad += check("external-clock playback applies recorded motion", trk[0].p[P_REV] == 100);
+    bad += check("external-clock playback applies recorded motion", trk[0].p[P_DIST] == 100);
     clock_packet(source, 0xFC, 1010);
-    bad += check("external Stop restores the musical parameter base", trk[0].p[P_REV] == 23);
+    bad += check("external Stop restores the musical parameter base", trk[0].p[P_DIST] == 23);
     return bad;
 }
 static int clock_arp_and_boundaries(void)
@@ -585,7 +585,7 @@ static int follow_test(void)
 static int cc_map_test(void)
 {
     static const struct { uint8_t cc; uint8_t id; } COMMON[] = {
-        {5, P_GLIDE}, {7, P_LEVEL}, {72, P_REL}, {73, P_ATK}, {75, P_DEC}, {91, P_REV}, {93, P_CHOR}, {94, P_DLY},
+        {5, P_GLIDE}, {7, P_LEVEL}, {72, P_REL}, {73, P_ATK}, {75, P_DEC},
     };
     int bad = 0, ok = 1; uint32_t i, e; int16_t before[P_COUNT];
     midi_test_reset();
@@ -599,7 +599,7 @@ static int cc_map_test(void)
         queued(0xB0, COMMON[i].cc, 37, 1);
         ok &= trk[0].p[COMMON[i].id] == 37;
     }
-    bad += check("CC5 7 72 73 75 91 93 94: GLIDE LEVEL REL ATK DEC REV CHO DLY, 0..127 over their range", ok);
+    bad += check("CC5 7 72 73 75: GLIDE LEVEL REL ATK DEC, 0..127 over their range", ok);\n    memcpy(before, trk[0].p, sizeof before);\n    queued(0xB0, 91, 127, 1); queued(0xB0, 93, 127, 1); queued(0xB0, 94, 127, 1);\n    bad += check("retired FX CCs 91 / 93 / 94 are ignored", !memcmp(before, trk[0].p, sizeof before));
     queued(0xB0, 10, 0, 1); ok = trk[0].p[P_PAN] == -64;
     queued(0xB0, 10, 127, 1); ok &= trk[0].p[P_PAN] == 63;
     queued(0xB0, 10, 64, 1); ok &= trk[0].p[P_PAN] == 0;
@@ -829,7 +829,7 @@ static int pc_test(void)
     track_t *t = &trk[0], was, got;
     midi_test_reset();
     set_engine_of(t, 0);                                 /* ANALOG */
-    t->p[P_LEVEL] = 90; t->p[P_AMODE] = 2; t->p[P_SLCR] = SLC_GATE;
+    t->p[P_LEVEL] = 90; t->p[P_AMODE] = 2; t->p[P_DIST] = 55;
     t->p[P_ITYPE] = 1; t->p[P_FTYPE] = 1; t->p[P_ESYNC] = 1; t->p[P_E4] = 11;
     my_steps(t);
     was = *t;
@@ -842,9 +842,9 @@ static int pc_test(void)
     *t = was;
     apply_preset_to(t, 3);
     ok = !memcmp(got.p, t->p, sizeof got.p) && !memcmp(got.step, was.step, sizeof got.step);
-    ok &= got.p[P_LEVEL] == 90 && got.p[P_AMODE] == 2 && got.p[P_SLCR] == SLC_GATE;
+    ok &= got.p[P_LEVEL] == 90 && got.p[P_AMODE] == 2 && got.p[P_DIST] == 55;
     ok &= got.p[P_ITYPE] == TP[P_ITYPE].def && got.p[P_FTYPE] == TP[P_FTYPE].def && got.p[P_ESYNC] == TP[P_ESYNC].def;
-    bad += check("  as PRESETS loads it: steps, LEVEL, ARP, SLICER kept; INSERT, TYPE, ESYNC the preset's", ok);
+    bad += check("  as PRESETS loads it: steps, LEVEL, ARP, DIST kept; INSERT, TYPE, ESYNC the preset's", ok);
 
     /* a run of them: the last wins, one undo */
     midi_test_reset();
