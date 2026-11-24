@@ -64,9 +64,10 @@ def main():
     clouds_patched = patch_root / "clouds/dsp/granular_processor.cc"
     clouds_patched.parent.mkdir(parents=True, exist_ok=True)
     clouds_text = clouds_original.read_text()
-    if '#include "clouds/drivers/debug_pin.h"\n' not in clouds_text:
+    debug_include = '#include "clouds/drivers/debug_pin.h"'
+    if debug_include not in clouds_text:
         raise SystemExit("expected upstream Clouds debug-pin include was not found")
-    clouds_patched.write_text(clouds_text.replace('#include "clouds/drivers/debug_pin.h"\n', ""))
+    clouds_patched.write_text("\n".join(line for line in clouds_text.splitlines() if line.strip() != debug_include) + "\n")
 
     # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
     # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
@@ -76,30 +77,48 @@ def main():
     part_cc_patched = patch_root / "rings/dsp/part.cc"
     part_h_patched.parent.mkdir(parents=True, exist_ok=True)
     part_h = part_h_original.read_text()
-    for old, new in (
-        ('#include "rings/dsp/fx/reverb.h"\\n', ""),
-        ("  RESONATOR_MODEL_STRING_AND_REVERB,\\n", ""),
-        ("  void Init(uint16_t* reverb_buffer);", "  void Init();"),
-        ("  Reverb reverb_;\\n", ""),
+    for line in (
+        '#include "rings/dsp/fx/reverb.h"',
+        "  RESONATOR_MODEL_STRING_AND_REVERB,",
+        "  Reverb reverb_;",
     ):
-        if old not in part_h:
-            raise SystemExit("expected upstream Rings Part header text not found: " + old.strip())
-        part_h = part_h.replace(old, new)
-    part_h_patched.write_text(part_h)
+        if line not in part_h.splitlines():
+            raise SystemExit("expected upstream Rings Part header line not found: " + line)
+    part_h = "\n".join(line for line in part_h.splitlines()
+                       if line not in (
+                           '#include "rings/dsp/fx/reverb.h"',
+                           "  RESONATOR_MODEL_STRING_AND_REVERB,",
+                           "  Reverb reverb_;",
+                       )) + "\n"
+    signature = "  void Init(uint16_t* reverb_buffer);"
+    if signature not in part_h:
+        raise SystemExit("expected upstream Rings Init declaration not found")
+    part_h_patched.write_text(part_h.replace(signature, "  void Init();"))
 
     part_cc = part_cc_original.read_text()
-    for old, new in (
-        ("void Part::Init(uint16_t* reverb_buffer) {", "void Part::Init() {"),
-        ("  reverb_.Init(reverb_buffer);\\n", ""),
-        ("    case RESONATOR_MODEL_STRING_AND_REVERB:\\n", ""),
-        ("bool has_dispersion = model_ == RESONATOR_MODEL_STRING || \\\\n              model_ == RESONATOR_MODEL_STRING_AND_REVERB;",
-         "bool has_dispersion = model_ == RESONATOR_MODEL_STRING;"),
-        ("    if (model_ == RESONATOR_MODEL_STRING_AND_REVERB) {\\n      damping *= (2.0f - damping);\\n    }\\n", ""),
-        ("    1.4f,  // RESONATOR_MODEL_STRING_AND_REVERB\\n", ""),
-    ):
-        if old not in part_cc:
-            raise SystemExit("expected upstream Rings Part source text not found: " + old.strip())
-        part_cc = part_cc.replace(old, new)
+    part_cc = part_cc.replace("void Part::Init(uint16_t* reverb_buffer) {", "void Part::Init() {")
+    lines = part_cc.splitlines()
+    lines = [line for line in lines if line.strip() not in (
+        "reverb_.Init(reverb_buffer);",
+        "case RESONATOR_MODEL_STRING_AND_REVERB:",
+        "1.4f,  // RESONATOR_MODEL_STRING_AND_REVERB",
+    )]
+    part_cc = "\n".join(lines) + "\n"
+    has_dispersion_old = (
+        "bool has_dispersion = model_ == RESONATOR_MODEL_STRING || " + chr(92) +
+        "\n              model_ == RESONATOR_MODEL_STRING_AND_REVERB;"
+    )
+    if has_dispersion_old not in part_cc:
+        raise SystemExit("expected Rings String dispersion selector not found")
+    part_cc = part_cc.replace(has_dispersion_old, "bool has_dispersion = model_ == RESONATOR_MODEL_STRING;")
+    damping_block = (
+        "    if (model_ == RESONATOR_MODEL_STRING_AND_REVERB) {\n"
+        "      damping *= (2.0f - damping);\n"
+        "    }\n"
+    )
+    if damping_block not in part_cc:
+        raise SystemExit("expected Rings String-and-Reverb damping block not found")
+    part_cc = part_cc.replace(damping_block, "")
     reverb_block = """  if (model_ == RESONATOR_MODEL_STRING_AND_REVERB) {
     for (size_t i = 0; i < size; ++i) {
       float l = out[i];
@@ -120,11 +139,13 @@ def main():
 """
     if reverb_block not in part_cc:
         raise SystemExit("expected Rings String-and-Reverb processing block not found")
-    part_cc_patched.write_text(part_cc.replace(reverb_block, ""))
+    part_cc = part_cc.replace(reverb_block, "")
+    if "RESONATOR_MODEL_STRING_AND_REVERB" in part_cc or "reverb_" in part_cc:
+        raise SystemExit("Rings Reverb references remain in five-model source overlay")
+    part_cc_patched.write_text(part_cc)
 
     sources = [clouds_patched if p == clouds_original else
                part_cc_patched if p == part_cc_original else p for p in sources]
-
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
         "-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os", "-std=gnu++11", "-DTEST",
