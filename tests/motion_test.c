@@ -574,14 +574,19 @@ static int lock_project(void)
         static const uint32_t np[2] = {89u, 91u};
         for (uint32_t n = 0; n < 2u; n++) {
             motion_store_t m = before.motion;
-            for (i = 0; i < m.count; i++)
+            /* P_SPRD was added after these 89/91-parameter formats and cannot appear in their motion IDs.
+             * Use P_LEVEL as the legacy common parameter; only E4 is remapped with the old engine block. */
+            for (i = 0; i < m.count; i++) {
+                if ((m.event[i].param & 0x7Fu) == P_SPRD)
+                    m.event[i].param = (uint8_t)((m.event[i].param & MOTION_LOCK) | P_LEVEL);
                 if ((m.event[i].param & 0x7Fu) == P_E4)
                     m.event[i].param = (uint8_t)((P_E4 - (P_COUNT - np[n])) | MOTION_LOCK);
+            }
             ok = proj_motion_ids(&m, np[n]);
             bad += check(n ? "  FUN8 of 91: a lock's id moves up with P_E0 (87 -> P_E4), still a lock"
                            : "  FUN7 of 89: a lock's id moves up with P_E0 (85 -> P_E4), still a lock",
-                ok && m.event[2].param == (P_E4 | MOTION_LOCK) && m.event[1].param == (P_SPRD | MOTION_LOCK) &&
-                m.event[0].param == P_SPRD);
+                ok && m.event[2].param == (P_E4 | MOTION_LOCK) && m.event[1].param == (P_LEVEL | MOTION_LOCK) &&
+                m.event[0].param == P_LEVEL);
             m = before.motion;
             m.event[2].param = (uint8_t)(np[n] | MOTION_LOCK);
             bad += check("    an id that store could not name (np): refused", !proj_motion_ids(&m, np[n]));
