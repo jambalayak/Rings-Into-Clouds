@@ -583,6 +583,9 @@ static int lock_project(void)
                     m.event[i].param = (uint8_t)((P_E4 - (P_COUNT - np[n])) | MOTION_LOCK);
             }
             ok = proj_motion_ids(&m, np[n]);
+            printf("MOTION REMAP DETAIL np=%u rc=%d count=%u P_COUNT=%u P_E4=%u events=", np[n], ok, m.count, P_COUNT, P_E4);
+            for (i = 0; i < m.count; i++) printf(" [%u:%u/%d]", m.event[i].place, m.event[i].param, m.event[i].value);
+            printf("\\n");
             bad += check(n ? "  FUN8 of 91: a lock's id moves up with P_E0 (87 -> P_E4), still a lock"
                            : "  FUN7 of 89: a lock's id moves up with P_E0 (85 -> P_E4), still a lock",
                 ok && m.event[2].param == (P_E4 | MOTION_LOCK) && m.event[1].param == (P_LEVEL | MOTION_LOCK) &&
