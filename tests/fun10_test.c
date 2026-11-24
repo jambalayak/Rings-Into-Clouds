@@ -457,12 +457,12 @@ static int motion128(void)
     uint32_t i;
     track_t *t = seq1(1);
     for (i = 0; i < MOTION_MAX - 1u; i++)            /* 127 on tracks 2..4 */
-        ok &= !motion_set_event(&trk[1 + i % 3u], (i / 3u) % NSTEP, i / 3u < NSTEP ? P_REV : P_DLY, 5);
-    ok &= !motion_set_event(t, 3, P_REV, 90) && motion.count == MOTION_MAX && motion_set_event(t, 4, P_REV, 1) == 2;
+        ok &= !motion_set_event(&trk[1 + i % 3u], (i / 3u) % NSTEP, P_PAN, 5);
+    ok &= !motion_set_event(t, 3, P_PAN, 63) && motion.count == MOTION_MAX && motion_set_event(t, 4, P_PAN, 1) == 2;
     seq_start();
     for (i = 0; i < 4u * P16 / CTL + 2u; i++)
         seq_tick(t, CTL);
-    ok &= t->seq_idx == 4u && t->p[P_REV] == 90;
+    ok &= t->seq_idx == 4u && t->p[P_PAN] == 63;
     seq_stop();
     bad += check("MOTION: 128 records shared, the 128th (stored last) plays at its step; the 129th refused", ok);
     return bad;
