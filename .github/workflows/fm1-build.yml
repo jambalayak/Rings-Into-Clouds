@@ -46,6 +46,12 @@ jobs:
       - name: Compile pinned Rings and Clouds DSP for FM-1 (compile-only)
         run: python3 tools/check_upstream_dsp_compile.py
 
+      - name: Evaluate compact Rings delay-line prototype (host)
+        run: |
+          mkdir -p build/host
+          c++ -O2 -std=c++11 -Ithird_party -I. -o build/host/rings_compact_delay_test tests/rings_compact_delay_test.cpp
+          build/host/rings_compact_delay_test
+
       - name: Build FM-1 firmware for regression tests
         run: ./build.sh
 
