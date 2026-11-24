@@ -75,6 +75,9 @@ async function editorMock() {
       && md[0].names.join() === "OFF,LFO,ENV,VEL,KEY,RAND,MODW,AT,EXPR,S&H,SLEW" && md[1].names.length === 23
       && md[1].names[11] === "VIB" && md[1].names[19] === "E8" && md[1].names[20] === "DEPTH" && md[1].names[21] === "VEL" && md[1].names[22] === "TIME" && md[2].min === -64 && md[2].max === 63 && md.every((d) => d.def === 0),
       "editor: matrix parameters 49..60 over DESC (23 DST names: DEPTH, 1.5.6 VEL TIME appended; S&H SLEW)");
+    ok([7, 8, 9].every((i) => E.enumAliasOf(md[1].names, i) === i)
+      && E.enumAliasOf(["OFF", "SOFT", "HARD", "FOLD", "FUZZ", "CRUSH", "PHASR", "FLANG", "OFF"], 8) === 0,
+      "editor: reserved matrix '-' values stay distinct; retired duplicate OFF remains an alias");
     await rq(E.req.set(0, 52, 1));
     await rq(E.req.set(0, 53, 12));
     await rq(E.req.set(0, 54, -30));
