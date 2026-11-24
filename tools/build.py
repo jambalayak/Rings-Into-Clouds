@@ -245,6 +245,7 @@ def build_app():
                                ("common/bin/objdump", "-d", "-j", ".ram_text", elf),
                                ("common/bin/objdump", "-h", elf))
     (OUT / "felucca.dis").write_text(dis)
+    (OUT / "felucca.symbols.txt").write_text(syms)
     (OUT / "felucca.sections.txt").write_text(sections)
 
     def symv(name):
