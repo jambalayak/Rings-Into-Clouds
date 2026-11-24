@@ -599,7 +599,10 @@ static int cc_map_test(void)
         queued(0xB0, COMMON[i].cc, 37, 1);
         ok &= trk[0].p[COMMON[i].id] == 37;
     }
-    bad += check("CC5 7 72 73 75: GLIDE LEVEL REL ATK DEC, 0..127 over their range", ok);\n    memcpy(before, trk[0].p, sizeof before);\n    queued(0xB0, 91, 127, 1); queued(0xB0, 93, 127, 1); queued(0xB0, 94, 127, 1);\n    bad += check("retired FX CCs 91 / 93 / 94 are ignored", !memcmp(before, trk[0].p, sizeof before));
+    bad += check("CC5 7 72 73 75: GLIDE LEVEL REL ATK DEC, 0..127 over their range", ok);
+    memcpy(before, trk[0].p, sizeof before);
+    queued(0xB0, 91, 127, 1); queued(0xB0, 93, 127, 1); queued(0xB0, 94, 127, 1);
+    bad += check("retired FX CCs 91 / 93 / 94 are ignored", !memcmp(before, trk[0].p, sizeof before));
     queued(0xB0, 10, 0, 1); ok = trk[0].p[P_PAN] == -64;
     queued(0xB0, 10, 127, 1); ok &= trk[0].p[P_PAN] == 63;
     queued(0xB0, 10, 64, 1); ok &= trk[0].p[P_PAN] == 0;
