@@ -133,3 +133,10 @@ This inventory explains the earlier 89,304-byte POOL discrepancy: `cv_px` is 59,
 - The full-height UI canvas is not a quick 59 KiB win; a tiled renderer is a separate UI project.
 - The remaining 34.6 KiB of POOL outside `eng_mem` and `cv_px` supports user presets, project I/O, storage, editor, undo, scope and small state. Only reclaim it after an explicit feature/lifetime audit.
 - A custom Rings delay-line representation and a shorter Clouds recording buffer remain the DSP-side options to prototype and measure. No such reduction has been implemented or sound-validated yet.
+
+
+## Additional RAMTEXT headroom (not yet allocated)
+
+The linker map shows a separate 24 KiB `RAMTEXT` region at `0x01C00000`. The lean build uses 3,124 bytes (`.ram_text` including the second-core waiting loop), leaving 21,452 bytes in that region. It is currently reserved for code that must execute while flash is busy; the ordinary RAM/POOL build checks do not count this unused space.
+
+A future, explicit `.ram_pool` NOLOAD section placed after `_rt_end` could potentially use some of this free region for small mutable DSP state or resampler tables. It must not overlap the copied `.ram_text`, must be accounted for in new linker/build headroom checks, and must be tested during flash operations. It is not a contiguous 65,408-byte substitute for the Clouds small buffer, and it does not close the roughly 114 KiB Rings + Clouds deficit. The 8 KiB gap before ordinary RAM is reserved for RAM-run debug and is not counted as free. The 32 KiB user/supervisor stack region must not be reclaimed without stack-watermark evidence.

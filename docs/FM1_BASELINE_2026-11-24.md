@@ -87,3 +87,8 @@ Run [45337236367](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/4
 - Lean Slicer-excluded firmware build: passed.
 - Diagnostic artifact: [14895241257](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45337236367/artifacts/14895241257), containing `felucca.map`, `felucca.sections.txt` and `felucca.symbols.txt`.
 - Tested firmware artifact: skipped because the host regression suite failed. This is not a Harbor-ready package.
+
+
+## Other reserved memory
+
+The lean linker map's `.ram_text` section is 3,124 bytes in a 24 KiB region, leaving 21,452 bytes of potential slack. This is not part of the ordinary RAM + POOL figures above and is currently reserved for flash-safe code. A separate, guarded `.ram_pool` section may be considered for small DSP state or resampler tables, but it cannot replace the contiguous Clouds recording buffers and does not resolve the overall Rings + Clouds fit. The 8 KiB RAM-run debug gap and 32 KiB user/supervisor stack region remain reserved.

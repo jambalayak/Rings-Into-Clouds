@@ -54,7 +54,7 @@ def main():
     cpp_obj = work / "dsp_probe.o"
     combined = work / "combined.o"
     # Match the firmware's size optimisation level, target and FPU selection.
-    common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os",
+    common = ["-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os", "-fno-builtin",
               "-ffunction-sections", "-fdata-sections"]
     run("clang", [*common, "-c", "tools/cpp_smoke/caller.c", "-o", str(c_obj.relative_to(ROOT))],
         ROOT, docker)

@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Probe-only C math header bridge; not a production standard-library replacement.
+// Probe-only freestanding math bridge. This deliberately avoids a missing target math.h.
+// It covers the Rings source's fabs use; powf is declared but still needs a reviewed target implementation.
 #ifndef RIC_CPP_SMOKE_CMATH
 #define RIC_CPP_SMOKE_CMATH
-#include <math.h>
+
+static inline float fabsf(float x) { return __builtin_fabsf(x); }
+static inline float fabs(float x) { return __builtin_fabsf(x); }
+static inline double fabs(double x) { return __builtin_fabs(x); }
+extern "C" float powf(float base, float exponent);
+
+namespace std {
+using ::fabs;
+using ::fabsf;
+using ::powf;
+}
 #endif

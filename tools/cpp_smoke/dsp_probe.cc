@@ -15,7 +15,7 @@ extern "C" int rings_clouds_cpp_probe(int value) {
     alignas(Probe) char storage[sizeof(Probe)];
     Probe* p = new (storage) Probe{value};
 
-    int values[4] = {0, 0, 0, 0};
+    if (std::fabs(-2.5f) != 2.5f) return -1;\n\n    int values[4] = {0, 0, 0, 0};
     std::fill(values, values + 4, p->value * 3 + 7);
     int copied = 0;
     std::memcpy(&copied, std::max_element(values, values + 4), sizeof(copied));

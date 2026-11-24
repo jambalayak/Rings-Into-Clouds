@@ -290,3 +290,8 @@ A dedicated reverb remains a future product goal, but must be an optional modula
 ## Measured-memory correction (2026-11-24)
 
 The measured Slicer-excluded baseline is 56,036 bytes ordinary RAM plus 145,720 bytes POOL (201,756 bytes combined). Replacing two engine overlays with the two Rings Parts' 196,608-byte inline string-delay-line floor and adding the full 184,192-byte Clouds buffer pair projects to 556,780 bytes before the remaining Rings/Clouds runtime state. This exceeds the 442,368-byte RAM + POOL budget by 114,412 bytes. The earlier 411,440-byte source-only estimate omitted 145,340 bytes of measured ordinary-RAM and other POOL allocation; it is not a fit claim. See `MEMORY_PROFILE_OPTIONS.md` for the full arithmetic and diagnostic links. Phase 1 source import is therefore still blocked on a concrete, measured memory architecture.
+
+
+## Math compatibility gate
+
+The pinned Rings sources use `fabs` and `powf`; the current JieLi C++ toolchain does not find a system `math.h` in its default include path. The smoke probe now uses a freestanding `fabs` bridge and declares `powf`, but it does not prove the final link can resolve `powf`. Prefer the source-local RT60 coefficient approximation documented in `CPP_FREESTANDING_RUNTIME_AUDIT.md`, then compare host renders before adopting it. Keep the smoke probe advisory until the actual upstream C++ files compile and the final firmware link resolves every undefined symbol.
