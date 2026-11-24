@@ -462,7 +462,7 @@ static int cond_store(void)
 }
 
 /* ------------------------------------------------------------ EUCLID --- */
-static int tl_lock_at5(void) { int16_t v; return motion_lock_get(TSEL, 5, P_REV, &v) && v == 50; }
+static int tl_lock_at5(void) { int16_t v; return motion_lock_get(TSEL, 5, P_DIST, &v) && v == 50; }
 static void tkey(uint32_t w) { key_down(white(w)); frame(); key_up(white(w)); frame(); }
 static void oct_fwd(void) { btn_down(B_OCTUP); frame(); btn_up(B_OCTUP); frame(); }
 static int ref_hit(uint32_t i, uint32_t k, uint32_t n, uint32_t r) { return ((((i % n) + n - r % n) % n) * k) % n < k; }
@@ -484,7 +484,7 @@ static int test_euclid(void)
     t->step[1] = (step_t){{0}, 0, ST_TIE, 0, 0};
     t->step[0].flags = SF_ACCENT;
     t->step[30] = (step_t){{90}, 1, ST_NOTE, 0, 0};     /* (past LEN: untouched) */
-    motion_set_lock(t, 5, P_REV, 50);
+    motion_set_lock(t, 5, P_DIST, 50);
     memcpy(ref, t->step, sizeof ref);
     go_page(GR_ROLL); frame();
     eu.steps = 0;                                      /* (the first EUCLID since the power came: 4 / 16) */
@@ -622,9 +622,9 @@ static int test_double_half(void)
     t->step[2].vel = 80;
     step_set_chance(&t->step[7], 40);
     t->step[9] = (step_t){{90}, 1, ST_NOTE, 0, 0};     /* stored past LEN, where the copy goes */
-    motion_set_lock(t, 2, P_REV, 50);
-    motion_set_event(t, 7, P_CHOR, 20);
-    motion_set_lock(t, 10, P_DIST, 30);                /* (past LEN: replaced by the copy's) */
+    motion_set_lock(t, 2, P_DIST, 50);
+    motion_set_event(t, 7, P_LEVEL, 20);
+    motion_set_lock(t, 10, P_PAN, 30);                /* (past LEN: replaced by the copy's) */
     motion_set_enabled(t, 1);
     memcpy(ref, t->step, sizeof ref);
     mc = motion_count(t);
@@ -633,8 +633,8 @@ static int test_double_half(void)
     tkey(12);                                          /* D5: DOUBLE */
     ok = t->p[P_SLEN] == 16 && msg_is("DOUBLED: 16 STEPS") && !memcmp(t->step, ref, 8u * sizeof ref[0]) &&
          !memcmp(t->step + 8, ref, 8u * sizeof ref[0]) && !memcmp(t->step + 16, ref + 16, 48u * sizeof ref[0]);
-    ok &= motion_lock_get(t, 10, P_REV, &v) && v == 50 && !motion_lock_get(t, 10, P_DIST, &v) &&
-          motion_find(t, 15, P_CHOR) >= 0 && motion_find(t, 7, P_CHOR) >= 0 && motion_count(t) == 4u;
+    ok &= motion_lock_get(t, 10, P_DIST, &v) && v == 50 && !motion_lock_get(t, 10, P_PAN, &v) &&
+          motion_find(t, 15, P_LEVEL) >= 0 && motion_find(t, 7, P_LEVEL) >= 0 && motion_count(t) == 4u;
     ok &= step_cond(&t->step[10]) == 1u && step_ratchet(&t->step[10]) == 2u && step_nudge(&t->step[10]) == 3 &&
           t->step[10].vel == 80u && step_chance(&t->step[15]) == 40u && t->step[8].time == ST_TIE;
     bad += check("DOUBLE (D5): LEN 8 -> 16, steps 9..16 a copy (ties, condition, RATCH, NUDGE, VEL, CHANCE), the locks and "
@@ -642,7 +642,7 @@ static int test_double_half(void)
     btn_up(B_SEQ); frame();
     hold(B_SAVE);
     ok = t->p[P_SLEN] == 8 && !memcmp(t->step, ref, sizeof ref) && motion_count(t) == mc &&
-         motion_lock_get(t, 10, P_DIST, &v) && v == 30;
+         motion_lock_get(t, 10, P_PAN, &v) && v == 30;
     bad += check("  SAVE held: one undo (LEN, the steps, the automation back)", ok);
     {   /* played: the doubled pattern sounds as two passes of the original (no chance, no condition) */
         uint8_t a[64], b[64];
@@ -662,14 +662,14 @@ static int test_double_half(void)
     t->step[3] = (step_t){{0}, 0, ST_TIE, 0, 0};
     t->step[4] = (step_t){{0}, 0, ST_TIE, 0, 0};       /* E4 held over 4 and 5 */
     t->step[9] = (step_t){{90}, 1, ST_NOTE, 0, 0};
-    motion_set_lock(t, 2, P_REV, 50);
-    motion_set_lock(t, 7, P_REV, 60);
+    motion_set_lock(t, 2, P_DIST, 50);
+    motion_set_lock(t, 7, P_DIST, 60);
     memcpy(ref, t->step, sizeof ref);
     btn_down(B_SEQ); frame();
     tkey(13);                                          /* E5: HALF */
     ok = t->p[P_SLEN] == 4 && msg_is("HALVED: 4 STEPS") && !memcmp(t->step, ref, 4u * sizeof ref[0]) &&
          t->step[4].time == ST_REST && t->step[7].time == ST_REST && t->step[9].note[0] == 90 &&
-         motion_lock_get(t, 2, P_REV, &v) && !motion_lock_get(t, 7, P_REV, &v);
+         motion_lock_get(t, 2, P_DIST, &v) && !motion_lock_get(t, 7, P_DIST, &v);
     bad += check("HALF (E5): LEN 8 -> 4, the first half kept, the second cleared with its locks (E4's tie ends at LEN), "
                  "past the old LEN untouched", ok);
     tkey(13); tkey(13);
@@ -696,9 +696,9 @@ static int test_double_half(void)
         bad += check("DOUBLE from LEN 40: 64 (steps 1..24 copied); at 64: NO ROOM, nothing done", ok);
         t->p[P_SLEN] = 8;
         for (i = 0; motion.count < MOTION_MAX - 4u; i++)
-            motion_set_event(&trk[1 + i % 3u], i / 3u % NSTEP, P_REV + i / 192u, (int16_t)(i % 100u));
+            motion_set_event(&trk[1 + i % 3u], i / 3u % NSTEP, P_DIST + i / 192u, (int16_t)(i % 100u));
         for (i = 0; i < 4u; i++)
-            motion_set_lock(t, i, P_REV, 40);           /* (the 128 used: no room for 4 copies) */
+            motion_set_lock(t, i, P_DIST, 40);           /* (the 128 used: no room for 4 copies) */
         memcpy(ref, t->step, sizeof ref);
         tkey(12);
         ok = t->p[P_SLEN] == 8 && msg_is("AUTOMATION FULL") && !memcmp(t->step, ref, sizeof ref) && motion_count(t) == 4u;
