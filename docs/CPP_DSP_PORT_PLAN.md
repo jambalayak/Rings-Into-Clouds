@@ -312,3 +312,8 @@ Our smoke probe is being aligned with that proven header arrangement: use the ta
 ## Target size-probe result (2026-11-24)
 
 The target compile-only check measured `rings::Part` at 110,452 B, `rings::String` at 12,428 B, `rings::Strummer` at 524 B and `clouds::GranularProcessor` at 8,684 B. See `docs/MEMORY_PROFILE_OPTIONS.md` for the combined budget calculation. These sizes are for the pinned upstream class layout before the approved five-model patch removes the embedded Rings Reverb member; they do not include the external Rings reverb buffer or Clouds external buffers. The compile-only check does not link or instantiate DSP objects.
+
+
+## Compile-only five-model source overlay
+
+The target compile check now applies a local source overlay (without modifying the pinned upstream submodule) that removes `RESONATOR_MODEL_STRING_AND_REVERB`, the embedded Rings `Reverb` member, its initialisation and its processing path. The Part initialiser becomes parameterless; it no longer accepts a null or dummy reverb-buffer pointer. The five retained model implementations are otherwise left unchanged. This overlay is a compile/memory-validation patch only; it is not yet part of the linked firmware audio path.

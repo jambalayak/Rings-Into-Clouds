@@ -56,15 +56,74 @@ def main():
     if not sources:
         raise SystemExit("No pinned DSP translation units found.")
 
-    # Upstream includes an unused STM32 debug-pin header in this translation unit.
-    # Mirror the minimal FM-1 port patch without modifying the pinned submodule.
-    original = eur / "clouds/dsp/granular_processor.cc"
-    patched = BUILD / "source-patches/clouds/dsp/granular_processor.cc"
-    patched.parent.mkdir(parents=True, exist_ok=True)
-    text = original.read_text()
-    text = text.replace('#include "clouds/drivers/debug_pin.h"\n', "")
-    patched.write_text(text)
-    sources = [patched if p == original else p for p in sources]
+    # Apply reviewed FM-1 source overlays without modifying either pinned submodule.
+    patch_root = BUILD / "source-patches"
+
+    # The STM32 debug-pin include is unused by the DSP and has no FM-1 equivalent.
+    clouds_original = eur / "clouds/dsp/granular_processor.cc"
+    clouds_patched = patch_root / "clouds/dsp/granular_processor.cc"
+    clouds_patched.parent.mkdir(parents=True, exist_ok=True)
+    clouds_text = clouds_original.read_text()
+    if '#include "clouds/drivers/debug_pin.h"\n' not in clouds_text:
+        raise SystemExit("expected upstream Clouds debug-pin include was not found")
+    clouds_patched.write_text(clouds_text.replace('#include "clouds/drivers/debug_pin.h"\n', ""))
+
+    # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
+    # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
+    part_h_original = eur / "rings/dsp/part.h"
+    part_cc_original = eur / "rings/dsp/part.cc"
+    part_h_patched = patch_root / "rings/dsp/part.h"
+    part_cc_patched = patch_root / "rings/dsp/part.cc"
+    part_h_patched.parent.mkdir(parents=True, exist_ok=True)
+    part_h = part_h_original.read_text()
+    for old, new in (
+        ('#include "rings/dsp/fx/reverb.h"\\n', ""),
+        ("  RESONATOR_MODEL_STRING_AND_REVERB,\\n", ""),
+        ("  void Init(uint16_t* reverb_buffer);", "  void Init();"),
+        ("  Reverb reverb_;\\n", ""),
+    ):
+        if old not in part_h:
+            raise SystemExit("expected upstream Rings Part header text not found: " + old.strip())
+        part_h = part_h.replace(old, new)
+    part_h_patched.write_text(part_h)
+
+    part_cc = part_cc_original.read_text()
+    for old, new in (
+        ("void Part::Init(uint16_t* reverb_buffer) {", "void Part::Init() {"),
+        ("  reverb_.Init(reverb_buffer);\\n", ""),
+        ("    case RESONATOR_MODEL_STRING_AND_REVERB:\\n", ""),
+        ("bool has_dispersion = model_ == RESONATOR_MODEL_STRING || \\\\n              model_ == RESONATOR_MODEL_STRING_AND_REVERB;",
+         "bool has_dispersion = model_ == RESONATOR_MODEL_STRING;"),
+        ("    if (model_ == RESONATOR_MODEL_STRING_AND_REVERB) {\\n      damping *= (2.0f - damping);\\n    }\\n", ""),
+        ("    1.4f,  // RESONATOR_MODEL_STRING_AND_REVERB\\n", ""),
+    ):
+        if old not in part_cc:
+            raise SystemExit("expected upstream Rings Part source text not found: " + old.strip())
+        part_cc = part_cc.replace(old, new)
+    reverb_block = """  if (model_ == RESONATOR_MODEL_STRING_AND_REVERB) {
+    for (size_t i = 0; i < size; ++i) {
+      float l = out[i];
+      float r = aux[i];
+      out[i] = l * patch.position + (1.0f - patch.position) * r;
+      aux[i] = r * patch.position + (1.0f - patch.position) * l;
+    }
+    reverb_.set_amount(0.1f + patch.damping * 0.5f);
+    reverb_.set_diffusion(0.625f);
+    reverb_.set_time(0.35f + 0.63f * patch.damping);
+    reverb_.set_input_gain(0.2f);
+    reverb_.set_lp(0.3f + patch.brightness * 0.6f);
+    reverb_.Process(out, aux, size);
+    for (size_t i = 0; i < size; ++i) {
+      aux[i] = -aux[i];
+    }
+  }
+"""
+    if reverb_block not in part_cc:
+        raise SystemExit("expected Rings String-and-Reverb processing block not found")
+    part_cc_patched.write_text(part_cc.replace(reverb_block, ""))
+
+    sources = [clouds_patched if p == clouds_original else
+               part_cc_patched if p == part_cc_original else p for p in sources]
 
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
@@ -72,7 +131,7 @@ def main():
         "-fno-math-errno", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics",
         "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", "-fdata-sections",
         "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
-        "-Wframe-larger-than=1024", "-Ifirmware/cxx", "-Ifirmware/sys",
+        "-Wframe-larger-than=1024", "-Ibuild/upstream-dsp-compile/source-patches", "-Ifirmware/cxx", "-Ifirmware/sys",
         "-Ithird_party", "-Ithird_party/eurorack",
         "-isystem", "/opt/jieli/pi32v2/include" if os.environ.get("JIELI_DOCKER", "0") == "1" else str(TOOLCHAIN / "pi32v2/include"),
     ]
