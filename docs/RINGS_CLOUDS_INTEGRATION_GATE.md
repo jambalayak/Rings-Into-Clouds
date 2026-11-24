@@ -166,29 +166,15 @@ Rings and Clouds are C++ code. Their integration therefore needs a deliberate bu
 
 This is a prerequisite, not a minor flag change. The integration should not start by pasting C++ headers into the existing `felucca.c` C translation unit.
 
-### Preliminary pool arithmetic
+### Measured memory gate (supersedes the preliminary source subtotal)
 
-The linker reserves 360 KiB (368,640 bytes) for `.pool`. The following existing allocations are directly visible in the current source:
+The earlier source-only subtotal counted a 131,072-byte global tempo delay line and other legacy buses that were removed before the current lean build. Do not count those bytes as a future saving. The current target linker baseline is 56,036 bytes ordinary RAM and 145,720 bytes POOL (201,756 bytes combined).
 
-| Existing allocation | Bytes |
-|---|---:|
-| Four engine-memory regions | 51,552 |
-| Master tempo delay line | 131,072 |
-| Chorus line | 4,096 |
-| Reverb comb storage | 9,874 |
-| Reverb allpass/spring union | 1,994 |
-| Four slicer recordings | 32,768 |
-| Scope snapshot | 1,024 |
-| Flash storage payload buffer | 3,840 |
-| **Known subtotal** | **236,220** |
+The reference full-quality stereo Clouds buffers total 184,192 bytes (118,784 POOL + 65,408 ordinary RAM). The two Rings Parts contain at least 196,608 bytes of float delay arrays. Replacing two 12,888-byte engine overlays gives a projected combined total of 556,780 bytes, 114,412 bytes over the 442,368-byte SRAM span, before additional DSP state.
 
-This subtotal excludes the HALL state, per-track insert state and any other pool allocations discovered by the linker. It is therefore a lower bound on current pool use, not a complete map.
+A custom 16-bit Rings delay store would reduce that projection to 458,476 bytes, still 16,108 bytes over. Shortening Clouds' recording capacity by 25% brings the combined estimate to 425,772 bytes, but the region split still fails if the two Clouds buffers are placed as in FM1_Locus. A roughly 0.5-second full-quality stereo buffer profile projects to 413,196 bytes combined and is a more promising experiment if both external buffers are placed in POOL; the preliminary POOL estimate is 337,160 bytes, leaving 31,480 bytes before DSP object/routing state and the required 8 KiB reserve.
 
-FM1_Locus allocates 118,784 bytes of Clouds buffers in POOL and 65,408 bytes in ordinary .bss RAM. Adding only the POOL buffer to the 236,220-byte known POOL subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before omitted allocations, Rings state, resampler histories, FIFOs, batch buffers and the required 8 KiB headroom. The 65,408-byte ordinary-RAM buffer would leave only 8,320 bytes of the 72 KiB RAM region before existing .bss and the required 4 KiB headroom. Both regions fail the preliminary budget.
-
-A likely resource-profile experiment is to disable or substantially shorten the existing 131,072-byte master delay line, since a full Clouds processor brings its own delay/granular capabilities. This is only a candidate: quantify the exact linked pool and decide which Felucca effects remain available before changing defaults. Do not remove or reduce any feature without recording the user-visible consequence.
-
-
+These are planning calculations, not build-fit claims. The next measurement step is to record target `sizeof(rings::Part)`, `sizeof(rings::Strummer)` and `sizeof(clouds::GranularProcessor)`, then link the actual C++ objects and buffers with explicit region placement. Preserve at least 4 KiB ordinary-RAM and 8 KiB POOL headroom.
 
 ### C++ port reference
 

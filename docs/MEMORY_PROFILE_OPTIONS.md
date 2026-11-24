@@ -30,44 +30,41 @@ The global reverb's HALL work/state block and small runtime state are also remov
 
 A future reverb is still part of the product vision, but it will be designed as an optional modular processor with an explicit, measured memory/CPU budget. It will not be reintroduced as a permanent global bus, and it must not consume Rings/Clouds state by surprise.
 
-## Remaining known POOL subtotal
+## Measured current baseline
 
-The earlier known POOL subtotal was 236,220 bytes. Subtracting the approved allocations above leaves **56,416 bytes** of known existing allocations:
+The earlier source-only POOL subtotal of 56,416 bytes omitted the UI canvas and other static allocations. It is not the current firmware's actual POOL use and must not be used for fit calculations.
 
-| Remaining known allocation | Bytes |
-|---|---:|
-| Four Felucca per-track engine-memory overlays (4 × 12,888) | 51,552 |
-| Scope snapshot | 1,024 |
-| Flash storage payload buffer | 3,840 |
-| **Known remaining subtotal** | **56,416** |
+The lean target linker measurement is the baseline:
 
-This is still a lower bound. Other code/data, CPU2 state, insert state, stacks and ordinary `.bss/.data` allocations must be measured.
+| Region | Used | Capacity | Free |
+|---|---:|---:|---:|
+| Ordinary RAM (.data + .bss) | 56,036 B | 73,728 B | 17,692 B |
+| POOL | 145,720 B | 368,640 B | 222,920 B |
+| **Combined** | **201,756 B** | **442,368 B** | **240,612 B** |
+
+The 145,720-byte POOL use includes the 59,520-byte RGB565 UI canvas, 51,552-byte four-part engine-memory array, 6,160-byte user preset bank, project/storage/editor buffers and smaller state. See the symbol-level inventory below for the exact breakdown.
+
+The old 131,072-byte global tempo delay line, 4,096-byte chorus line, 11,868-byte global ROOM/SPRING/HALL buffers and 32,768-byte performance-loop recorder were removed before this measured lean baseline. They are not present as free allocations to remove a second time. The current `firmware/src/fx.c` retains only the small per-track insert path.
 
 ## Rings + Clouds memory floor
 
-The reference FM1_Locus Clouds allocation uses:
+The pinned FM1_Locus reference allocates 184,192 bytes for full-quality stereo Clouds: 118,784 bytes in POOL and 65,408 bytes in ordinary RAM. Two original Rings Parts contain at least 196,608 bytes of float delay-line arrays. If two 12,888-byte engine overlays are replaced by Rings state, the measured combined baseline projects as follows:
 
-- `clouds_large[118784]` in POOL;
-- `clouds_small[65408]` in ordinary RAM.
+| Profile | Projected combined use | Headroom against 442,368 B |
+|---|---:|---:|
+| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 556,780 B | 114,412 B over |
+| Two compact 16-bit Rings delay stores + full Clouds | 458,476 B | 16,108 B over |
+| Compact Rings + Clouds recording storage shortened 25% | 425,772 B | 16,596 B free |
+| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 413,196 B | 29,172 B free |
 
-The Clouds buffer pair is 184,192 bytes total.
+These are planning totals only. They include the measured base image, replacement of two engine overlays, Rings' large delay arrays and Clouds' external buffers; they do not yet include all Rings/Clouds object state, Strummers, resampler/FIFO/routing buffers or stack growth.
 
-The pinned original Rings source declares eight `String` objects per `rings::Part`. Each String embeds a 2,048-float delay line and a 1,024-float stiffness delay line. At 32-bit float storage this is at least 98,304 bytes per Part, or **196,608 bytes for two independent Rings Parts**, before the rest of either Part, Strummers, excitation state, audio scratch, stereo routing, resampling or stacks.
+The region split matters as much as the combined total. Keeping the FM1_Locus split for full Clouds would add 65,408 bytes to ordinary RAM, taking it from 56,036 to 121,444 bytes against a 73,728-byte limit. Moving both Clouds external buffers into POOL avoids that RAM overflow but raises POOL use; with compact Rings and full Clouds the simple estimate is 402,440 bytes, 33,800 bytes above the 360 KiB POOL region before headroom. A shortened buffer must therefore be sized and placed against both region limits, not only the combined SRAM total.
 
-If RINGS A and B replace two Felucca engine overlays, the optimistic lower-bound arithmetic is:
-
-| Allocation | Bytes |
-|---|---:|
-| Remaining known base allocations after subtracting two replaced 12,888-byte overlays | 30,640 |
-| Clouds buffer pair | 184,192 |
-| Two Rings Parts' inline delay-line arrays | 196,608 |
-| **Combined lower bound** | **411,440** |
-
-That leaves only 30,928 bytes inside the full 432 KiB SRAM span for all other Rings/Clouds state, Strummers, FIFO/resampler/stereo buffers, other firmware data and required headroom. This is a warning, not a fit claim.
-
-The region split is also a separate constraint. With the current 72 KiB RAM region, Clouds' 65,408-byte small buffer leaves only 8,320 bytes for every other `.bss/.data` allocation before the required 4 KiB reserve. A 128 KiB RAM / 304 KiB POOL split is one possible experiment, but the Rings delay-line arrays would then need deliberate placement across both regions to avoid overfilling POOL. The current inline Rings object layout does not provide that split automatically.
+A roughly 0.5-second full-quality stereo profile would reserve about 32,768 recording bytes per channel plus the unchanged 53,376-byte workspace (118,912 bytes total). If both external buffers are placed in POOL, the estimate is 337,160 bytes POOL and 56,036 bytes ordinary RAM before DSP objects and routing state. This is a candidate to test, not a selected product setting. The exact recording duration, allocator alignment, and 8 KiB POOL / 4 KiB RAM reserves must be verified by the target linker.
 
 ### Dedicated Rings reverb allocation removed from the target budget
+
 
 The pinned upstream `rings::Part` includes a separate `Reverb` object whose
 `FxEngine<32768, FORMAT_16_BIT>` requires a caller-owned 32,768-sample
@@ -171,11 +168,9 @@ FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null
 
 | Profile | Projected combined use | Headroom against 442,368 B |
 |---|---:|---:|
-| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 556,780 B | 114,412 B over budget |
-| Two compact 16-bit Rings delay stores + full Clouds | 458,476 B | 16,108 B over budget |
-| Compact Rings + Clouds recording storage shortened 25% | 425,772 B | 16,596 B free |
-| Compact Rings + 16 kHz / 8-bit Clouds with about 1 s stereo recording | 359,660 B | 82,708 B free |
+| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 556,780 B | 114,412 B over |
+| Compact 16-bit Rings delay stores + full Clouds | 458,476 B | 16,108 B over |
+| Compact Rings + 25% shorter full-quality Clouds recording storage | 425,772 B | 16,596 B free |
+| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 413,196 B | 29,172 B free |
 
-The last row assumes 16,000 bytes per channel for 8-bit recording, plus the unchanged 53,376-byte stereo workspace, and the compact Rings delay stores. It is a potentially comfortable memory profile, but it changes Clouds to its original low-fidelity mode and still needs an explicit custom short-buffer allocation, target linker measurement and listening tests. Full float Rings with this one-second low-fidelity Clouds buffer would still project to 457,964 bytes, above the combined memory budget.
-
-The 25%-shortened full-quality Clouds row fits the combined total on paper but does not fit the present linker-region split if both stereo recording buffers are simply moved into POOL; more detailed placement and additional DSP object sizes still need to be measured. None of these rows includes the complete Rings/Clouds object, resampler/FIFO/routing state or worst-case stack growth. These are not build-fit claims or selected product settings.
+The combined figures are not proof of a region fit. In particular, putting the 65,408-byte Clouds small buffer in ordinary RAM exceeds the current RAM region; putting both full-length buffers in POOL exceeds POOL once Rings is included. The approximately 0.5-second profile is the most promising conservative experiment, but the target linker must include the actual DSP object sizes, routing, resampler/FIFO state and required headroom before it is accepted.
