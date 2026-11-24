@@ -195,6 +195,9 @@ static const struct {
      * now that the arpeggiator is the track's and a preset no longer switches it on */
     {"ARP", {48, 51, 55, 60, 63, 67, 72, 75, 48, 51, 55, 60, 63, 67, 72, 75},       /* 13 */
      {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0}},
+    /* MIST: sparse C-minor phrase for the MINIMALIST sympathetic-string preset. */
+    {"MIST", {48, 0, 55, 0, 51, 0, 58, 0, 60, 0, 55, 0, 51, 0, 48, 0},
+     {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}},
 };
 #undef T_
 #define NPATTERNS (sizeof PATTERNS / sizeof PATTERNS[0])
