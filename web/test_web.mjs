@@ -440,6 +440,9 @@ function mockTables() {
      the note divisions longest first, with the triplets by their length */
   const shown = (d) => E.enumShown(d).filter((v) => E.enumAliasOf(d.names, v - d.min) === v - d.min).map((v) => d.names[v - d.min]);
   const sd = (fw.SHOWN || []).filter(([sc, i, names]) => JSON.stringify(shown((sc ? T.GP : T.TP)[i])) !== JSON.stringify(names));
+  if (sd.length) console.log("SHOWN DETAIL", sd.map(([sc,i,n]) => ({scope:sc,id:i,expected:n,actual:shown((sc?T.GP:T.TP)[i])})));
+  console.log("DIV DETAIL", shown(T.TP.find(d => d.label === "DIV")), "RATE DETAIL", T.TP.filter(d => d.label === "RATE" && d.fmt === E.F.ENUM).map(shown),
+    "GP TIME DETAIL", T.GP.filter(d => d.label === "TIME").map(d => ({names:d.names,min:d.min,max:d.max})));
   sd.slice(0, 5).forEach((x) => console.log("  SHOWN " + JSON.stringify(x) + " editor " + JSON.stringify(shown((x[0] ? T.GP : T.TP)[x[1]]))));
   ok(fw.SHOWN && fw.SHOWN.length > 20 && !sd.length, `editor: enum lists in the device's knob order (${fw.SHOWN ? fw.SHOWN.length : 0} lists)`);
   const div = T.TP.find((d) => d.label === "DIV"), slr = T.TP.filter((d) => d.label === "RATE" && d.fmt === E.F.ENUM);
@@ -591,7 +594,11 @@ async function editorFm4() {
   const u = await E.bank.get(rq, info, 9);
   await rq(E.req.upLoad(9));
   d = E.parse[C.DUMP](await rq(E.req.dump()), info);
-  ok(rc === 0 && u.engine === 1 && eq(u.p, pad) && d.engine === 12 && eq(await fm6Of(), r91.fm6),
+  const fm6AfterDigitalLoad = await fm6Of();
+  if (!(rc === 0 && u.engine === 1 && eq(u.p, pad) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6)))
+    console.log("DIGITAL UP_LOAD DETAIL", {rc,engine:u.engine,pDiff:u.p.map((v,i)=>v===pad[i]?null:[i,pad[i],v]).filter(Boolean).slice(0,30),
+      dumpEngine:d.engine,fm6Diff:fm6AfterDigitalLoad.map((v,i)=>v===r91.fm6[i]?null:[i,r91.fm6[i],v]).filter(Boolean).slice(0,30)});
+  ok(rc === 0 && u.engine === 1 && eq(u.p, pad) && d.engine === 12 && eq(fm6AfterDigitalLoad, r91.fm6),
     "device slot of a DIGITAL sound (engine 1, its values kept): UP_LOAD plays the converted FM6 patch");
   done();
 }
@@ -631,6 +638,10 @@ async function editorLibrarian() {
     "librarian: capture = DUMP + first 16 steps");
   let rc = await E.bank.put(rq, 10, cap);
   const g = await E.bank.get(rq, info, 10);
+  if (!(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, cap.p) && js(g.pattern) === js(cap.pattern))) {
+    console.log("UP_PUT DETAIL", {rc,used:g.used,name:g.name,engine:g.engine,pDiff:g.p.map((v,i)=>v===cap.p[i]?null:[i,cap.p[i],v]).filter(Boolean).slice(0,30),
+      patternExpected:cap.pattern,patternActual:g.pattern});
+  }
   ok(rc === 0 && g.used && g.name === "acid test" && g.engine === 0 && eq(g.p, cap.p) && js(g.pattern) === js(cap.pattern),
     "librarian: UP_PUT -> UP_GET round trip");
   const bad = E.parse[C.UP_PUT](await rq(E.req.upPut(60, cap), { timeout: 2500, retries: 0 }));
@@ -651,6 +662,11 @@ async function editorLibrarian() {
   const d2 = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const st = [];
   for (let i = 0; i < 16; i++) st.push(E.parse[C.STEP_GET](await rq(E.req.stepGet(i))));
+  if (!(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), cap.p.filter((_, i) => i !== 17)) && d2.p[17] === 3
+    && st.every((x) => !x.n) && cap.pattern)) {
+    console.log("UP_LOAD DETAIL", {rc,engine:d2.engine,arp:d2.p[17],pDiff:d2.p.map((v,i)=>v===cap.p[i]||i===17?null:[i,cap.p[i],v]).filter(Boolean).slice(0,30),
+      nonemptySteps:st.map((x,i)=>x.n?[i,x.n]:null).filter(Boolean)});
+  }
   ok(rc === 0 && d2.engine === 0 && eq(d2.p.filter((_, i) => i !== 17), cap.p.filter((_, i) => i !== 17)) && d2.p[17] === 3
     && st.every((x) => !x.n) && cap.pattern, "librarian: UP_LOAD applies the sound only (steps and the track's ARP stay)");
   await rq(E.req.set(0, 17, 0));
