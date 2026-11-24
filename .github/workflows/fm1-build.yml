@@ -61,6 +61,7 @@ jobs:
           path: |
             build/felucca.map
             build/felucca.sections.txt
+            build/felucca.symbols.txt
           if-no-files-found: warn
           retention-days: 7
 
