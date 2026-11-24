@@ -1809,7 +1809,12 @@ function makeMockDevice(opt = {}) {
     D("ATAMT", F.BIPCT, -64, 63, 0));
   const P_COUNT = 114, G_COUNT = 27, NSTEP = 64, P_E0 = 106, G_ENGSEL = 20, P_SLCR = 45;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const enumOrig = (d, v) => d.fmt === F.ENUM && d.names ? aliasOf(d.names, v - d.min) + d.min : v;   /* params.c enum_orig */
+  /* Reserved "-" matrix destinations are distinct protocol values, not aliases. Other duplicate enum labels
+   retain the firmware's explicit first/last-name alias convention (params.c enum_orig). */
+function enumAliasOf(names, i) {
+  return names && names[i] === "-" ? i : aliasOf(names, i);
+}
+const enumOrig = (d, v) => d.fmt === F.ENUM && d.names ? enumAliasOf(d.names, v - d.min) + d.min : v;   /* params.c enum_orig */
   /* four tracks (firmware v3), four synth parts (1.0); engine / preset / p / step below are the selected track's */
   const NTRK = 4;
   const newTrack = () => ({ engine: 0, preset: 0, fm6: FM6.INIT_PK.slice(),
