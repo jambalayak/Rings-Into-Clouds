@@ -2,7 +2,7 @@
 
 ## Current evidence
 
-Run 121's main regression reports 90 of 91 audio golden renders and all 720 engine-switch sequences differ from the 1.4 references. The independent Felucca-Engines suite passes all 122 renders, and the second-core comparison passes all 28 scenes. Those passing suites do not prove the integrated track/voice/mixer path is unchanged.
+Run 124 reproduces the same failure: 90 of 91 audio golden renders and all 720 engine-switch sequences differ from the 1.4 references. The 91-render summary reports zero health failures, zero voice/routing failures, zero CPU-budget overruns and zero crashes. The independent Felucca-Engines suite passes all 122 renders, and the second-core comparison passes all 28 scenes. Those passing suites do not prove the integrated track/voice/mixer path is unchanged. The independent Felucca-Engines suite passes all 122 renders, and the second-core comparison passes all 28 scenes. Those passing suites do not prove the integrated track/voice/mixer path is unchanged.
 
 The engine-switch test is in `tests/union_test.c`. Its hash is the complete stereo mix, not the output of the part under test alone. Each sequence switches `trk[0]` through a pair or A→B→A sequence, and also changes the engine on `trk[2]` after every primary step:
 
@@ -19,15 +19,16 @@ Consequently, a changed hash cannot by itself identify whether the difference ca
 
 The 1.4 reference hashes remain authoritative regression evidence until a controlled comparison explains the differences. Do not update `tests/union_golden.txt` merely to silence failures.
 
-## Next diagnostic sequence
+## Diagnostic implementation
 
-1. Preserve the existing test and its 1.4 references unchanged.
-2. Add diagnostic variants that hold the companion part on one fixed, memory-free engine and, separately, omit the companion part. Keep the primary part's exact note, preset, wait and switch sequence unchanged.
-3. Report primary-only and companion-present hashes separately, so the source of a difference is identifiable rather than inferred from a complete mix.
-4. Compare single-switch A→B, switch-back A→B→A, and the two timing cases (switch after 10 ms and during the fade).
-5. If the shared-state reset is confirmed as the cause, decide whether to preserve per-engine state selectively, explicitly reinitialize state on every switch, or document changed switch semantics. Evaluate every choice against the memory budget and musical behaviour.
-6. Re-run the host regression suite and target build. Keep all legacy golden files unchanged until the cause and intended behaviour are reviewed.
+`tests/union_test.c` now has an opt-in `UNION_DIAG=1` mode. It repeats each of the 720 sequence definitions in three independent renders: primary part only, companion part only, and the original combined arrangement. It reports separate aggregate hashes. The normal golden test remains unchanged and continues to compare the original combined render against the 1.4 references. The workflow runs the diagnostic after the ordinary host suite, even when that suite fails.
+
+This first isolation pass does not yet establish a root cause: the isolated runs have no historical per-part golden references, and a combined-vs-isolated hash difference is expected because the rendered arrangement differs. Its purpose is to provide a controlled breakdown of the two track paths. A fixed memory-free companion variant remains a follow-up if needed.
+
+## Run 124 memory result
+
+The lean target build (Slicer excluded) and linker diagnostics completed successfully despite the host regression failure. The linker reports `.data + .bss = 56,036 bytes of 73,728 bytes` and `.pool = 145,720 bytes of 368,640 bytes`; `.ram_text` is 3,124 bytes. These are the lean baseline image's placements, not proof that Rings and Clouds objects or their audio buffers fit. The development firmware artifact was correctly skipped because the host suite failed. The diagnostic linker files are retained in Actions artifact `rings-into-clouds-linker-diagnostics-5de46d5aaa185fb89a59f8f238f2fdfd773d9bd1`.
 
 ## Status
 
-Investigation only. No audio code or golden reference was changed by this document. Rings/Clouds DSP integration remains a separate unfinished milestone.
+The original 1.4 golden files remain unchanged. Run 124 built the FM-1 firmware, passed target ABI and upstream DSP compile-only checks, passed the compact Rings delay-line host comparison, and completed lean memory diagnostics. Its host suite failed on the legacy audio and engine-switch hashes described above. The isolated track diagnostic is queued in Run 126. No production Rings-to-Clouds audio integration exists yet; that remains a separate unfinished milestone.
