@@ -161,30 +161,43 @@ def main():
         obj = BUILD / (str(rel).replace("/", "__") + ".o")
         obj.parent.mkdir(parents=True, exist_ok=True)
         invoke([*common, "-c", str(rel), "-o", str(obj.relative_to(ROOT))])
-    # Emit target-side sizeof values as symbol extents; no DSP objects are constructed.
-    size_src = ROOT / "tools" / "cpp_smoke" / "size_probe.cc"
-    size_obj = BUILD / "size_probe.o"
-    invoke([*common, "-c", str(size_src.relative_to(ROOT)), "-o", str(size_obj.relative_to(ROOT))])
+    # Measure both the untouched six-model upstream class and the five-model FM-1 overlay.
+    # Each probe is compile-time symbol extent only; neither constructs a DSP object.
+    upstream_size_src = ROOT / "tools" / "cpp_smoke" / "size_probe.cc"
+    upstream_size_obj = BUILD / "size_probe_upstream.o"
+    upstream_common = [x for x in common if x != "-Ibuild/upstream-dsp-compile/source-patches"]
+    invoke([*upstream_common, "-c", str(upstream_size_src.relative_to(ROOT)),
+            "-o", str(upstream_size_obj.relative_to(ROOT))])
+
+    five_size_src = ROOT / "tools" / "cpp_smoke" / "size_probe_five_model.cc"
+    five_size_obj = BUILD / "size_probe_five_model.o"
+    invoke([*common, "-c", str(five_size_src.relative_to(ROOT)),
+            "-o", str(five_size_obj.relative_to(ROOT))])
 
     docker = os.environ.get("JIELI_DOCKER", "0" if platform.system() == "Linux" and platform.machine() in ("x86_64", "AMD64") else "1") == "1"
     if docker:
-        dump_cmd = ["docker", "run", "--rm", "--platform", "linux/amd64",
-                    "-v", f"{ROOT}:/work", "-v", f"{TOOLCHAIN}:/opt/jieli:ro",
-                    "-w", "/work", DOCKER_IMAGE, "/opt/jieli/common/bin/objdump",
-                    "-t", str(size_obj.relative_to(ROOT))]
+        dump_prefix = ["docker", "run", "--rm", "--platform", "linux/amd64",
+                       "-v", f"{ROOT}:/work", "-v", f"{TOOLCHAIN}:/opt/jieli:ro",
+                       "-w", "/work", DOCKER_IMAGE, "/opt/jieli/common/bin/objdump", "-t"]
     else:
-        dump_cmd = [str(TOOLCHAIN / "common/bin/objdump"), "-t", str(size_obj.relative_to(ROOT))]
-    dumped = subprocess.run(dump_cmd, cwd=ROOT, text=True, capture_output=True)
-    if dumped.returncode:
-        sys.stderr.write(dumped.stdout + dumped.stderr)
-        raise SystemExit("could not read target DSP sizeof symbols")
+        dump_prefix = [str(TOOLCHAIN / "common/bin/objdump"), "-t"]
     sizes = {}
-    wanted = {"ric_size_rings_part", "ric_size_rings_string",
-              "ric_size_rings_strummer", "ric_size_clouds_processor"}
-    for line in dumped.stdout.splitlines():
-        fields = line.split()
-        if len(fields) >= 5 and fields[-1] in wanted:
-            sizes[fields[-1]] = int(fields[-2], 16)
+    wanted = {
+        "ric_upstream_size_rings_part", "ric_upstream_size_rings_string",
+        "ric_upstream_size_rings_strummer", "ric_upstream_size_clouds_processor",
+        "ric_five_size_rings_part", "ric_five_size_rings_string",
+        "ric_five_size_rings_strummer", "ric_five_size_clouds_processor",
+    }
+    for obj in (upstream_size_obj, five_size_obj):
+        dumped = subprocess.run([*dump_prefix, str(obj.relative_to(ROOT))],
+                                cwd=ROOT, text=True, capture_output=True)
+        if dumped.returncode:
+            sys.stderr.write(dumped.stdout + dumped.stderr)
+            raise SystemExit("could not read target DSP sizeof symbols")
+        for line in dumped.stdout.splitlines():
+            fields = line.split()
+            if len(fields) >= 5 and fields[-1] in wanted:
+                sizes[fields[-1]] = int(fields[-2], 16)
     missing = wanted - sizes.keys()
     if missing:
         raise SystemExit("missing target sizeof symbols: " + ", ".join(sorted(missing)))
