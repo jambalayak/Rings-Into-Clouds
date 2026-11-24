@@ -146,9 +146,10 @@ static int union_diag(void)
                         n++;
                     }
                 }
-    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx; primary+muted-companion %016llx; companion+muted-primary %016llx\n",
+    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx; primary+muted-companion %016llx; companion+muted-primary %016llx; primary+mono-companion %u eligible sequences %016llx; matched primary-only %016llx; matched primary+muted %016llx\\n",
            n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb,
-           (unsigned long long)hpm, (unsigned long long)hcm);
+           (unsigned long long)hpm, (unsigned long long)hcm, nm, (unsigned long long)hmono,
+           (unsigned long long)hpe, (unsigned long long)hpme);
     return 0;
 }
 
