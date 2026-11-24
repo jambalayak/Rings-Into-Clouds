@@ -585,6 +585,7 @@ int main(void)
         a.t[1].p[P_FM2_LEVEL] = 100;
         a.t[1].p[P_LEVEL] = 90;
         memcpy(p, a.t[1].p, sizeof p);
+        p[P_CHOR] = p[P_DLY] = p[P_REV] = 0;       /* retired global sends are inert in the current project */
         fm4_convert(p, v);
         fm6_pack(v, pk);
         a.motion.count = 5;
@@ -613,6 +614,7 @@ int main(void)
         memcpy(p, a.t[1].p, sizeof p);                  /* (FUN4 had no OP ENV values: they load as defaults) */
         for (i = P_FM1_ATK; i <= P_FM4_LEVEL; i++)
             p[i] = TP[i].def;
+        p[P_CHOR] = p[P_DLY] = p[P_REV] = 0;       /* retired global sends are inert in the current project */
         fm4_convert(p, v);
         fm6_pack(v, pk);
         ok = proj_import(&c, &buf, (int)sizeof w4) && FM4_OK(c);
