@@ -73,7 +73,7 @@ def main():
         "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", "-fdata-sections",
         "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
         "-Wframe-larger-than=1024", "-Ifirmware/cxx", "-Ifirmware/sys",
-        "-Ithird_party/eurorack", "-Ithird_party",
+        "-Ithird_party", "-Ithird_party/eurorack",
         "-isystem", "/opt/jieli/pi32v2/include" if os.environ.get("JIELI_DOCKER", "0") == "1" else str(TOOLCHAIN / "pi32v2/include"),
     ]
     for src in sources:

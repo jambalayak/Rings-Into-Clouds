@@ -168,10 +168,10 @@ FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null
 
 | Profile | Projected combined use | Headroom against 442,368 B |
 |---|---:|---:|
-| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 556,780 B | 114,412 B over |
-| Compact 16-bit Rings delay stores + full Clouds | 458,476 B | 16,108 B over |
-| Compact Rings + 25% shorter full-quality Clouds recording storage | 425,772 B | 16,596 B free |
-| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 413,196 B | 29,172 B free |
+| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 590,808 B | 148,440 B over |
+| Compact 16-bit Rings delay stores + full Clouds | 492,504 B | 50,136 B over |
+| Compact Rings + 25% shorter full-quality Clouds recording storage | 459,800 B | 17,432 B over |
+| Compact Rings + approximately 0.5 s full-quality stereo Clouds | 427,224 B | 15,144 B free |
 
 The combined figures are not proof of a region fit. In particular, putting the 65,408-byte Clouds small buffer in ordinary RAM exceeds the current RAM region; putting both full-length buffers in POOL exceeds POOL once Rings is included. The approximately 0.5-second profile is the most promising conservative experiment, but the target linker must include the actual DSP object sizes, routing, resampler/FIFO state and required headroom before it is accepted.
 
@@ -194,3 +194,25 @@ Two Parts, two Strummers and one Clouds processor occupy 230,636 bytes of object
 If both Rings delay stores were converted to 16-bit, the two Parts' inline delay arrays would shrink by 98,304 bytes in total. The full-Clouds estimate would still be 492,504 bytes, 50,136 bytes over, before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
 
 A 0.5-second full-quality stereo Clouds profile requires 118,912 external bytes (32,768 recording bytes per channel plus 53,376 bytes workspace). With compact Rings storage, the measured-object combined estimate becomes 427,224 bytes, leaving 15,144 bytes before resampling/routing. After the required 4 KiB RAM and 8 KiB POOL reserves, only 2,856 bytes remain for those missing systems. It is therefore a tight candidate, not a fit claim. The region placement of both Clouds buffers and all object state must still be measured.
+
+
+## Target DSP object-size measurement (Run 68, 2026-11-24)
+
+The compile-only target size probe emitted symbol extents from the `pi32v2` compiler. It did not construct or initialise any DSP object:
+
+| Type | Target size |
+|---|---:|
+| `rings::Part` | 110,452 B |
+| `rings::String` | 12,428 B |
+| `rings::Strummer` | 524 B |
+| `clouds::GranularProcessor` | 8,684 B |
+
+The `Part` size includes its eight String objects and their two float delay lines each. The two delay arrays alone account for 98,304 B per Part; the measured object therefore adds 12,148 B of other Rings state per Part. Two Parts occupy 220,904 B, and two Strummers add 1,048 B. The Clouds processor object adds 8,684 B, separate from its external buffers.
+
+The revised table above now includes those measured object sizes, the measured base image, replacement of two 12,888-byte engine overlays, and the Clouds external-buffer estimates. It still excludes resampler histories, FIFOs, stereo routing/batch buffers, stack growth and any additional alignment. The 16-bit Rings row assumes the delay arrays halve in size while all other Part state remains unchanged; this is a prototype assumption, not an implementation result.
+
+### Clouds external-buffer breakdown
+
+In the FM1_Locus reference split, full stereo Clouds receives 118,784 B of POOL and 65,408 B of ordinary RAM. In stereo mode the processor uses 65,408 B per channel for recording (32,704 signed 16-bit samples, about 1.02 s at 32 kHz); the remaining 53,376 B in the large buffer is FX workspace. The workspace allocator requests 8,192 B for the diffuser, 32,768 B for the native Clouds reverb and 1,560 B for the correlator data. This workspace is independent of recording duration.
+
+A roughly 0.5 s full-quality recording uses 32,768 B per channel plus the unchanged 53,376 B workspace: 86,144 B large buffer + 32,768 B small buffer = 118,912 B total. Both buffers can be placed in POOL in the candidate profile. This preserves the 32 kHz processing bandwidth but halves the maximum captured duration. By contrast, 24 kHz with the original 1.02 s duration uses the same sample-storage bytes as a 25% shorter 32 kHz buffer and requires a different codec-to-Clouds resampler ratio. Shortening duration at 32 kHz is therefore the better first experiment; no buffer-size or sample-rate change has been applied.
