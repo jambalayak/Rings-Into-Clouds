@@ -233,6 +233,9 @@ static const preset_t PHYS_PRESETS[] = {
     /* SYMP: {MODEL, CHRD, BRIT, DAMP, SYMP, ACC, BUZZ, EXC} */
     {"DRONE STRING", {PM_SYMP, 127, 80, 88, 64, 100, 92, 0}, {0, 100, 127, 90}, 0, 0, FX(0, 10, 20, 50), PAT(3)},
     {"HARP", {PM_SYMP, 8, 62, 74, 60, 90, 0, 0}, {0, 100, 127, 80}, 0, 0, FX(0, 20, 20, 60), PAT(3)},
+    /* Patchstorage Minimalist adaptation: sympathetic strings, minor chord, long natural decay.
+     * The separate Clouds processor and Marbles generator are later milestones. */
+    {"MINIMALIST", {PM_SYMP, 64, 72, 104, 82, 100, 8, 0}, {0, 100, 127, 112}, 0, 0, FX(0, 0, 0, 0), PAT(14)},
 };
 
 static const engine_t ENG_PHYS = {
