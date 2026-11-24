@@ -26,8 +26,7 @@ FUNCS = ["analog_render", "digital_render", "digital_render_legacy", "digital_re
          "uac_tap48",                                       # the USB audio input at 48 kHz: the 44.1 -> 48 resampler (usb.c)
          "click_render",                                    # the metronome's click (click.c), while it sounds
          "mod_begin", "mod_voice", "mod_end",                 # the modulation matrix (mod.c), called when active
-         "perf_begin", "perf_mute", "perf_pre", "perf_block", "perf_master",   # the FX layer (perform.c), when busy
-         "perf_flanger", "perf_phaser",                     # .. FLANGER, PHASER (1.2), while held or fading
+         "perf_begin", "perf_mute", "perf_block", "perf_master",   # the FX layer (perform.c), when busy
          "track_insert", "ins_drive", "ins_swept",          # the per-track INSERT (fx.c, 1.5), while a TYPE plays
          "adp_render", "adp_block", "adp_post"]           # ADPCM (eng_adpcm.c, FELUCCA_ADPCM=1): voices, clock, echo
 # built only with FELUCCA_FM4=1 (DIGITAL, src/eng_digital.c; not in the default build, so not in BUDGET): absent,
