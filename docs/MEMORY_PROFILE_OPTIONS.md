@@ -81,7 +81,7 @@ and is not included in this Rings-specific calculation.
 
 ## Possible architecture work (not yet implemented)
 
-1. **Prototype compact Rings delay-line storage.** Keep the original capacities, update order and Hermite interpolation, but test a fixed-point 16-bit backing store against upstream float reference renders. Do not accept it until all five retained models pass SNR, peak, decay and musical reference tests. Keep RINGS A/B arrays independent.
+1. **Prototype compact Rings delay-line storage.** Keep the original capacities, update order and Hermite interpolation, but test a fixed-point 16-bit backing store against upstream float reference renders. Do not accept it until all five retained models pass SNR, peak, decay and musical reference tests. Keep the single `rings_main` state and delay storage isolated from the legacy engine overlays.
 2. **Reuse the two selected tracks' engine overlays.** Replace their small engine unions with the Rings runtime only where ownership/lifetime is proven; keep A and B completely independent.
 3. **Place Clouds buffers deliberately.** Keep the exact reference buffer sizes and quality. Allocate large/small buffers to regions based on the final map, not assumptions.
 4. **Measure all remaining state.** Target `sizeof` for Part, Strummer and Clouds processor, plus FIFO, resampler, stereo bus, stack and CPU2 handoff.
@@ -94,7 +94,7 @@ The experimental cache-way RAM in a newer BSP revision offers up to 28 KiB, but 
 - Produce a successful baseline target build and linker map.
 - Report exact `.bss`, `.data`, POOL and stack usage with headroom.
 - Measure actual Rings/Strummer/Clouds object sizes using the target compiler.
-- Prove two simultaneous independent Rings instances and full Clouds quality.
+- Prove one independent Rings instance feeding Clouds at the selected, documented recording duration.
 - Profile worst-case CPU, audio deadlines, MIDI clock and stereo routing.
 - Verify old project files load safely with retired effect parameters ignored.
 - Only then decide whether a future modular reverb instance fits.
@@ -126,7 +126,7 @@ This inventory explains the earlier 89,304-byte POOL discrepancy: `cv_px` is 59,
 ### What this means for the next memory pass
 
 - Keep the four engine slots for now: the fourth part is the GM drum part and the DRUM engine has per-part lane state. Do not remove its slot without auditing the drum engine and track-switch tests.
-- The two Rings tracks can replace two of the four 12,888-byte engine slots, as already counted in the projection.
+- The one Rings track can replace one of the four 12,888-byte engine slots.
 - The full-height UI canvas is not a quick 59 KiB win; a tiled renderer is a separate UI project.
 - The remaining 34.6 KiB of POOL outside `eng_mem` and `cv_px` supports user presets, project I/O, storage, editor, undo, scope and small state. Only reclaim it after an explicit feature/lifetime audit.
 - A custom Rings delay-line representation and a shorter Clouds recording buffer remain the DSP-side options to prototype and measure. No such reduction has been implemented or sound-validated yet.
@@ -189,7 +189,7 @@ The compile-only target size probe measured these upstream class sizes:
 
 The upstream `Part` size includes its eight inline String delay stores (98,304 bytes per Part) and the small embedded Rings Reverb state member. The external 65,536-byte-per-Part Rings reverb buffer is not part of `sizeof(Part)` and is not allocated by this compile-only probe. The later five-model source patch will remove the unused embedded Reverb member and model branch; its exact size reduction must be measured again.
 
-Two Parts, two Strummers and one Clouds processor occupy 230,636 bytes of object state before external buffers, resamplers, FIFOs or routing. With full Clouds external buffers (184,192 bytes), the total DSP state is 414,828 bytes. Adding that to the measured base image after replacing two 12,888-byte engine overlays (201,756 - 25,776 = 175,980 bytes) gives **590,808 bytes**, 148,440 bytes over the 442,368-byte combined SRAM budget.
+One Part, one Strummer and one Clouds processor occupy 119,660 bytes of object state before external buffers, resamplers, FIFOs or routing. With full Clouds external buffers (184,192 bytes), the total DSP state is 303,852 bytes. Adding that to the measured base image after replacing one 12,888-byte engine overlay (201,756 - 12,888 = 188,868 bytes) gives **492,720 bytes**, 50,352 bytes over the 442,368-byte combined SRAM budget.
 
 If both Rings delay stores were converted to 16-bit, the two Parts' inline delay arrays would shrink by 98,304 bytes in total. The full-Clouds estimate would still be 492,504 bytes, 50,136 bytes over, before resampling/routing. This is a hypothetical storage adaptation, not implemented or audio-validated.
 
