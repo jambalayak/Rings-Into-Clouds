@@ -36,13 +36,15 @@ static void urun(uint32_t ms)
 }
 
 /* engine e (preset pi) on t: notes base + a chord and base - 24; wait_ms before them (0: inside the fade) */
-static void uplay(track_t *t, uint32_t e, uint32_t pi, uint32_t base, uint32_t wait_ms)
+static void uplay(track_t *t, uint32_t e, uint32_t pi, uint32_t base, uint32_t wait_ms, int mono_limit)
 {
     static const uint8_t CH[4] = {0, 4, 7, 12};
     uint32_t i;
     if (e == ENGI_DRUM)                          /* (DRUM had one preset until 1.5.6 (#216): the 1.4 hashes play DRUM KIT */
         pi = 0;                                  /* at every pi; the new kits' presets are not engine-memory cases) */
     host_preset_req(t, e, pi);                   /* eng_req: the audio side switches (voice.c engine_block) */
+    if (mono_limit && !ENGINES[e]->oneshot)
+        t->p[P_VOICE] = V_LEGATO;                 /* diagnostic only: cap companion allocation to one voice */
     urun(wait_ms);
     for (i = 0; i < 4u; i++)
         input_on(t, base + CH[i], 100);
@@ -77,9 +79,9 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
         uh = 0xcbf29ce484222325ull;
         for (k = 0; k < n; k++) {
             if (mode != 2u)
-                uplay(&trk[0], e[k], pi + k, 60, wait_ms);
+                uplay(&trk[0], e[k], pi + k, 60, wait_ms, 0);
             if (mode != 1u)
-                uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10);   /* another part busy alongside */
+                uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10, mode == 5u);   /* another part busy alongside */
         }
         urun(1000);
         if (write(fd[1], &uh, 8) != 8)
@@ -103,13 +105,14 @@ static void ufeed(uint64_t *h, uint64_t x)
     }
 }
 
-/* Diagnostic only: aggregate isolated, combined, and muted-companion hashes.
+/* Diagnostic only: aggregate isolated, combined, muted, and one-voice companion hashes.
  * Modes 3/4 keep both parts rendering and consuming the shared voice budget, but mute one at the mix.
+ * Mode 5 limits only non-oneshot companion engines to V_LEGATO; primary notes and timing stay unchanged.
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp;
-    uint32_t a, b, pi, w, n = 0;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp;
+    uint32_t a, b, pi, w, n = 0, nm = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
             for (a = 0; a < UNE; a++)
@@ -121,6 +124,10 @@ static int union_diag(void)
                     ufeed(&hb, useq(s2, 2, pi, wait, 0u));
                     ufeed(&hpm, useq(s2, 2, pi, wait, 3u));
                     ufeed(&hcm, useq(s2, 2, pi, wait, 4u));
+                    if (UE[(3u) % UNE] != ENGI_DRUM && UE[(4u) % UNE] != ENGI_DRUM) {
+                        ufeed(&hmono, useq(s2, 2, pi, wait, 5u));
+                        nm++;
+                    }
                     n++;
                     if (a != b) {
                         ufeed(&hp, useq(s3, 3, pi, wait, 1u));
@@ -128,6 +135,10 @@ static int union_diag(void)
                         ufeed(&hb, useq(s3, 3, pi, wait, 0u));
                         ufeed(&hpm, useq(s3, 3, pi, wait, 3u));
                         ufeed(&hcm, useq(s3, 3, pi, wait, 4u));
+                        if (UE[3u % UNE] != ENGI_DRUM && UE[4u % UNE] != ENGI_DRUM && UE[5u % UNE] != ENGI_DRUM) {
+                            ufeed(&hmono, useq(s3, 3, pi, wait, 5u));
+                            nm++;
+                        }
                         n++;
                     }
                 }
