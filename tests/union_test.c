@@ -111,7 +111,7 @@ static void ufeed(uint64_t *h, uint64_t x)
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hpe = hp, hpme = hp;
     uint32_t a, b, pi, w, n = 0, nm = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -124,7 +124,9 @@ static int union_diag(void)
                     ufeed(&hb, useq(s2, 2, pi, wait, 0u));
                     ufeed(&hpm, useq(s2, 2, pi, wait, 3u));
                     ufeed(&hcm, useq(s2, 2, pi, wait, 4u));
-                    if (UE[(3u) % UNE] != ENGI_DRUM && UE[(4u) % UNE] != ENGI_DRUM) {
+                    if (UE[3u % UNE] != ENGI_DRUM && UE[4u % UNE] != ENGI_DRUM) {
+                        ufeed(&hpe, useq(s2, 2, pi, wait, 1u));
+                        ufeed(&hpme, useq(s2, 2, pi, wait, 3u));
                         ufeed(&hmono, useq(s2, 2, pi, wait, 5u));
                         nm++;
                     }
@@ -136,6 +138,8 @@ static int union_diag(void)
                         ufeed(&hpm, useq(s3, 3, pi, wait, 3u));
                         ufeed(&hcm, useq(s3, 3, pi, wait, 4u));
                         if (UE[3u % UNE] != ENGI_DRUM && UE[4u % UNE] != ENGI_DRUM && UE[5u % UNE] != ENGI_DRUM) {
+                            ufeed(&hpe, useq(s3, 3, pi, wait, 1u));
+                            ufeed(&hpme, useq(s3, 3, pi, wait, 3u));
                             ufeed(&hmono, useq(s3, 3, pi, wait, 5u));
                             nm++;
                         }
