@@ -18,8 +18,12 @@ DOCKER_IMAGE = os.environ.get("JIELI_DOCKER_IMAGE", "debian:bookworm-slim")
 BUILD = ROOT / "build" / "upstream-dsp-compile"
 
 
+def use_docker():
+    return os.environ.get("JIELI_DOCKER", "0" if platform.system() == "Linux" and platform.machine() in ("x86_64", "AMD64") else "1") == "1"
+
+
 def invoke(args):
-    docker = os.environ.get("JIELI_DOCKER", "0" if platform.system() == "Linux" and platform.machine() in ("x86_64", "AMD64") else "1") == "1"
+    docker = use_docker()
     if docker:
         if not shutil.which("docker"):
             raise SystemExit("Docker is required for the target compiler on this host.")
@@ -73,8 +77,8 @@ def main():
         "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", "-fdata-sections",
         "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
         "-Wframe-larger-than=1024", "-Ifirmware/cxx", "-Ifirmware/sys",
-        "-Ithird_party/eurorack", "-Ithird_party",
-        "-isystem", "/opt/jieli/pi32v2/include" if os.environ.get("JIELI_DOCKER", "0") == "1" else str(TOOLCHAIN / "pi32v2/include"),
+        "-Ithird_party", "-Ithird_party/eurorack",
+        "-isystem", "/opt/jieli/pi32v2/include" if use_docker() else str(TOOLCHAIN / "pi32v2/include"),
     ]
     for src in sources:
         rel = src.relative_to(ROOT)
