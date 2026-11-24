@@ -133,32 +133,23 @@ No C++ source or DSP code has been added to the firmware build at this stage.
 
 ## Current implementation status
 
-This manifest is a source-review specification only. No upstream Rings source has yet been copied into this repository, no patch has yet been applied to compiled code, and none of the validation items is claimed complete.
+This manifest remains a source-review specification. The upstream source is consumed through pinned submodules and the 15 translation units compile-only for the target. The only current local source patch in that check removes an unused STM32 debug-pin include from a build copy of Clouds; no Rings algorithm or model patch has been applied, and none of the five-model runtime validation items is complete.
 
 ### C++ header/runtime compatibility detail
 
-The pinned delay-line header is physically `dsp/delay_line.h` in the
-`pichenettes/stmlib` repository (included by Rings as
-`stmlib/dsp/delay_line.h`). Its implementation includes
-`<algorithm>` and calls `std::fill` in `Reset()`. The current target smoke
-probe compiles with `-nostdinc++`, and its tiny probe source includes no
-standard-library headers. Therefore a passing smoke probe would **not** show
-that this upstream header compiles with the configured target environment.
+The pinned stmlib delay-line header is physically `dsp/delay_line.h` in the
+`pichenettes/stmlib` repository and is included by Rings as
+`stmlib/dsp/delay_line.h`. It uses `<algorithm>` and `std::fill` in `Reset()`.
+The current compile-only check now compiles this header through the project-owned
+freestanding `firmware/cxx/algorithm` wrapper and the target C-header sysroot;
+all 15 selected Rings/Clouds/stmlib translation units compile successfully.
 
-Before importing this header, choose and test one of these explicit approaches:
-
-1. Provide a compatible target C++ header set and verify the required
-   implementation symbols at final link; or
-2. Make a narrowly scoped, documented upstream patch replacing
-   `std::fill` with a simple bounded loop over the supplied storage, then
-   compile the patched header with the existing no-standard-headers policy.
-
-Do not silently remove `-nostdinc++` or add a host C++ library. Audit every
-transitive Rings/stmlib include for standard-library dependencies, not just
-this one header. The C++ smoke test should eventually compile a representative
-upstream header and link a real Rings translation unit with the actual target
-linker. It must also report unresolved runtime symbols rather than treating a
-relocatable `ld -r` combination as a complete firmware link.
+This is stronger than the initial one-object ABI probe, but it is still not a
+complete final link. Keep `-nostdinc++`, do not add a host C++ library, and
+continue auditing every transitive dependency. The next gate is to link the
+actual DSP objects with the target linker and account for every unresolved
+runtime/math symbol. A relocatable `ld -r` combination is not a complete
+firmware link.
 
 The source-compatible external-storage adaptation must preserve the pinned
 header's public operations: `Init`, `Reset`, `set_delay`, `Write`,

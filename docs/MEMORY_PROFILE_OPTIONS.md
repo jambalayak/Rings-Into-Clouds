@@ -73,7 +73,7 @@ independent Rings instances. The approved five-model port removes the member,
 its initialisation and its processing path, so these buffers are not part of
 the RINGS INTO CLOUDS target allocation.
 
-The 411,440-byte combined lower-bound table above already excludes these two
+The current 556,780-byte full-quality Rings + Clouds projection above already excludes these two
 reverb buffers; it is not an additional saving to subtract from that total.
 This 128 KiB is a source-derived avoided allocation, not a measured linker
 delta. The separate Clouds-native reverb remains part of the Clouds processor

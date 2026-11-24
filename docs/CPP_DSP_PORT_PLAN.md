@@ -2,7 +2,7 @@
 
 ## Purpose and status
 
-This document records the next implementation boundary for bringing the pinned Mutable Instruments Rings and Clouds DSP into RINGS INTO CLOUDS. It is an engineering plan, not an implementation claim: no C++ source has been imported, compiled or run in this repository.
+This document records the next implementation boundary for bringing the pinned Mutable Instruments Rings and Clouds DSP into RINGS INTO CLOUDS. The pinned source submodules are now present, and a compile-only target check has successfully compiled 15 Rings/Clouds/stmlib C++ translation units for pi32v2. No DSP object is linked into the production firmware, instantiated, or run yet.
 
 The reference is the FM1_Locus integration by Steve Xfer, but only its build/runtime and DSP dependency findings are reused. Its application, audio scheduler, sample-rate converter and memory layout are not portable unchanged.
 
@@ -20,7 +20,7 @@ Inspected files in `stevexfer/FM1_Locus`:
 
 The reference C++ flags include `-target pi32v2`, `-mcpu=r3`, `-mfprev1`, `-std=gnu++11`, `-fno-exceptions`, `-fno-rtti`, `-fno-threadsafe-statics`, `-fno-use-cxa-atexit`, `-nostdinc++`, function/data sections, and the local C++ header directory. The reference also links its runtime object and the normal math/compiler runtime libraries.
 
-These flags are a reference, not approved settings for this repository. Confirm the exact compiler binaries, target ABI, FPU calling convention and linker behaviour against the installed JieLi toolchain and this project's startup/linker setup before adopting them.
+The target C++ smoke and 15-translation-unit compile-only checks now pass using the pinned JieLi compiler, target sysroot and a minimal freestanding header/runtime layer. The final production link, unresolved runtime symbols, constructor sections and FPU ABI boundary still require validation.
 
 ## Source and dependency boundary
 
@@ -65,9 +65,9 @@ Before importing DSP state, obtain a real baseline linker map and inventory ever
 
 ## Next implementation sequence
 
-- [ ] Confirm target toolchain `clang++` availability/version and compile/link ABI smoke test.
+- [x] Confirm target toolchain `clang++` availability and compile/link C/C++ ABI smoke test.
 - [ ] Inspect the current linker script, map generation and every static pool allocation.
-- [ ] Generate an exact transitive C++ source/header list for Rings `Part`, `Strummer`, Clouds `GranularProcessor` and stmlib.
+- [x] Compile the 15 selected pinned Rings/Clouds/stmlib C++ translation units; [ ] generate the final dependency-derived source manifest and complete link.
 - [ ] Create an independent upstream patch manifest with licences and rationale.
 - [ ] Build the source-only import and measure image, RAM and pool growth.
 - [ ] Add a standalone Rings harness and compare output to upstream at matched sample rate.
@@ -82,7 +82,7 @@ The reference LOCUS runtime and minimal headers have now been inspected separate
 
 ## Current truth
 
-The repository currently contains planning documents only for this integration. No Rings/Clouds source has been imported or built; no firmware build, emulator test, Harbor test or physical FM-1 test is claimed.
+The pinned Rings/Clouds/stmlib submodules are present and 15 upstream C++ translation units compile for the FM-1 target. A compile-time `sizeof` probe now measures `rings::Part`, `rings::String`, `rings::Strummer` and `clouds::GranularProcessor`. The C production build still does not link these objects; no DSP object is instantiated or run, and no Rings/Clouds audio, Harbor or physical FM-1 test is claimed.
 
 
 ## Follow-up source inventory (2026-11-23)
@@ -142,7 +142,7 @@ The LOCUS integration is not a byte-for-byte stock Rings implementation. It remo
 - [x] Enumerated upstream Rings/Clouds C++ translation units at the pinned commit.
 - [x] Identified the LOCUS candidate source files and the non-portable parts of its scheduler/build.
 - [ ] Confirm the candidate list using compiler-generated dependency files.
-- [ ] Establish exact target toolchain and C++ runtime availability.
+- [x] Establish target C++ compiler, minimal header layer and compile-only runtime prerequisites; [ ] verify all final-link runtime symbols.
 - [ ] Measure actual baseline map and all statically allocated memory.
 - [x] User decision: omit Rings String-and-Reverb and its dedicated reverb buffer; support the other five original models.
 - [ ] Only then import and compile the DSP.

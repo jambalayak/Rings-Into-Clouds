@@ -152,19 +152,19 @@ Source and platform requirements have been inspected and documented. No upstream
 
 ### C++ translation units are not currently supported by the base build
 
-The current `tools/build.py` compiles `firmware/src/felucca.c` as one C translation unit and links that object with the startup objects. It does not discover or compile standalone `.cc` files, and the current firmware tree does not provide the small C++ support library documented by FM1_Locus.
+The current `tools/build.py` still compiles `firmware/src/felucca.c` as one C translation unit and does not discover or link standalone `.cc` files into the production image. A minimal freestanding C++ header/runtime layer has now been added under `firmware/cxx/`, and a target ABI smoke test passes, but the production build path is not yet integrated.
 
 Rings and Clouds are C++ code. Their integration therefore needs a deliberate build-system change:
 
 - Add an explicit, reproducible list of required C++ source files; do not compile every upstream `.cc` file indiscriminately.
 - Confirm the JieLi clang version's C++ language support and ABI for the target.
-- Provide the required C++ headers/runtime support. FM1_Locus documents its own minimal `firmware/cxx/` library; inspect and adapt only what the selected DSP source actually needs.
+- The minimal `firmware/cxx/` headers/runtime are present and the smoke test covers the basic C++11 ABI, placement construction and selected standard functions. Continue adding only dependencies required by the pinned DSP sources.
 - Compile the C++ objects with compatible ABI, exception, RTTI, constructor and floating-point settings.
 - Link C and C++ objects together without pulling in an unsupported desktop standard library.
 - Add a tiny C ABI wrapper around Rings/Clouds so the existing C firmware does not depend on C++ class layout.
 - Add a build test that fails clearly if a required C++ object or runtime symbol is missing.
 
-This is a prerequisite, not a minor flag change. The integration should not start by pasting C++ headers into the existing `felucca.c` C translation unit.
+The target smoke and compile-only source checks are now passing, but this remains a production-build prerequisite. Do not paste C++ headers into the existing `felucca.c` C translation unit.
 
 ### Measured memory gate (supersedes the preliminary source subtotal)
 
@@ -191,9 +191,9 @@ A closer inspection of `firmware/apps/locus/locus_engine.cc` found an important 
 - `clouds_small[65536 - 128]` (65,408 bytes) has no `FW_POOL` attribute, so it occupies ordinary `.bss` RAM.
 - The combined two Clouds buffers are still 184,192 bytes, but they do **not** both consume the 360 KiB POOL region.
 
-This makes the RAM region an equally serious gate. The base linker provides only 72 KiB (73,728 bytes) for `.data/.bss`. A 65,408-byte Clouds array would leave just 8,320 bytes for all existing static RAM data and the required 4 KiB headroom. This is before any other ordinary-RAM buffers or runtime state.
+This makes the RAM region an equally serious gate. The base linker provides only 72 KiB (73,728 bytes) for `.data/.bss`. Adding the 65,408-byte Clouds small buffer to the measured 56,036-byte baseline would raise ordinary RAM use to 121,444 bytes, exceeding the region by 47,716 bytes before any Rings/Clouds object or runtime state.
 
-For POOL, adding only the 118,784-byte large buffer to the earlier 236,220-byte known subtotal gives 355,004 bytes of 368,640, leaving 13,636 bytes before Rings/Strummer state, Clouds object state, resampler histories, FIFOs, batch buffers, omitted current allocations and the required 8 KiB headroom. That is also not a viable complete integration without a deliberate memory-layout/resource redesign.
+The earlier 236,220-byte source subtotal is superseded by the measured 145,720-byte POOL baseline. With both Clouds external buffers placed in POOL, compact Rings delay stores and replacement of two engine overlays, the approximately 0.5-second full-quality stereo candidate projects to 337,160 bytes POOL before object/routing state, leaving 31,480 bytes against the 368,640-byte region. Full-length Clouds with compact Rings would project to 402,440 bytes POOL and would not fit.
 
 The next memory audit must therefore report **POOL and ordinary RAM separately**, and any proposal to relocate the 65,408-byte small Clouds buffer must identify a real available memory region and its linker/runtime constraints. Do not treat the 184,192-byte pair as a single POOL allocation.
 
