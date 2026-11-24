@@ -584,8 +584,8 @@ int main(void)
         a.t[1].p[P_FM2_ATK] = 30;
         a.t[1].p[P_FM2_LEVEL] = 100;
         a.t[1].p[P_LEVEL] = 90;
+        a.t[1].p[P_CHOR] = a.t[1].p[P_DLY] = a.t[1].p[P_REV] = 0; /* retired global sends are inert in the current project */
         memcpy(p, a.t[1].p, sizeof p);
-        p[P_CHOR] = p[P_DLY] = p[P_REV] = 0;       /* retired global sends are inert in the current project */
         fm4_convert(p, v);
         fm6_pack(v, pk);
         a.motion.count = 5;
