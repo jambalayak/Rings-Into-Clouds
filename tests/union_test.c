@@ -62,7 +62,7 @@ static const uint32_t UE[] = {0 /* ANALOG */, ENGI_SAMPLE, 7 /* WHEEL */, 8 /* G
 };
 #define UNE (sizeof UE / sizeof UE[0])
 
-static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_ms)
+static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_ms, uint32_t mode)
 {
     pid_t pid;
     int fd[2];
@@ -74,8 +74,10 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
         host_tracks_init();
         uh = 0xcbf29ce484222325ull;
         for (k = 0; k < n; k++) {
-            uplay(&trk[0], e[k], pi + k, 60, wait_ms);
-            uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10);   /* another part busy alongside */
+            if (mode != 2u)
+                uplay(&trk[0], e[k], pi + k, 60, wait_ms);
+            if (mode != 1u)
+                uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10);   /* another part busy alongside */
         }
         urun(1000);
         if (write(fd[1], &uh, 8) != 8)
@@ -90,11 +92,50 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
     return h;
 }
 
+static void ufeed(uint64_t *h, uint64_t x)
+{
+    uint32_t i;
+    for (i = 0; i < 8u; i++) {
+        *h ^= (uint8_t)(x >> (i * 8u));
+        *h *= 0x100000001B3ull;
+    }
+}
+
+/* Diagnostic only: aggregate independent primary-only, companion-only and combined hashes.
+ * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
+static int union_diag(void)
+{
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp;
+    uint32_t a, b, pi, w, n = 0;
+    for (w = 0; w < 2u; w++)
+        for (pi = 0; pi < 3u; pi++)
+            for (a = 0; a < UNE; a++)
+                for (b = 0; b < UNE; b++) {
+                    uint32_t s2[2] = {UE[a], UE[b]}, s3[3] = {UE[b], UE[a], UE[b]};
+                    uint32_t wait = w ? 0u : 10u;
+                    ufeed(&hp, useq(s2, 2, pi, wait, 1u));
+                    ufeed(&hc, useq(s2, 2, pi, wait, 2u));
+                    ufeed(&hb, useq(s2, 2, pi, wait, 0u));
+                    n++;
+                    if (a != b) {
+                        ufeed(&hp, useq(s3, 3, pi, wait, 1u));
+                        ufeed(&hc, useq(s3, 3, pi, wait, 2u));
+                        ufeed(&hb, useq(s3, 3, pi, wait, 0u));
+                        n++;
+                    }
+                }
+    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx\\n",
+           n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     static char got[4096][64];
     uint32_t a, b, pi, w, n = 0, bad = 0, i;
     const char *gf = argc > 1 ? argv[1] : 0;
+    if (getenv("UNION_DIAG"))
+        return union_diag();
     FILE *f;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -103,10 +144,10 @@ int main(int argc, char **argv)
                     uint32_t s2[2] = {UE[a], UE[b]}, s3[3] = {UE[b], UE[a], UE[b]};
                     uint32_t wait = w ? 0u : 10u;
                     snprintf(got[n++], 64, "%u-%u p%u w%u %016llx", UE[a], UE[b], pi, wait,
-                             (unsigned long long)useq(s2, 2, pi, wait));
+                             (unsigned long long)useq(s2, 2, pi, wait, 0u));
                     if (a != b)
                         snprintf(got[n++], 64, "%u-%u-%u p%u w%u %016llx", UE[b], UE[a], UE[b], pi, wait,
-                                 (unsigned long long)useq(s3, 3, pi, wait));
+                                 (unsigned long long)useq(s3, 3, pi, wait, 0u));
                 }
     if (!gf) {
         for (i = 0; i < n; i++)
