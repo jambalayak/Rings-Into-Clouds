@@ -92,3 +92,18 @@ Run [45337236367](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/4
 ## Other reserved memory
 
 The lean linker map's `.ram_text` section is 3,124 bytes in a 24 KiB region, leaving 21,452 bytes of potential slack. This is not part of the ordinary RAM + POOL figures above and is currently reserved for flash-safe code. A separate, guarded `.ram_pool` section may be considered for small DSP state or resampler tables, but it cannot replace the contiguous Clouds recording buffers and does not resolve the overall Rings + Clouds fit. The 8 KiB RAM-run debug gap and 32 KiB user/supervisor stack region remain reserved.
+
+
+## Run 69 result — 2026-11-24
+
+Run [45341777811](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45341777811), commit `db5a582a5fc8606b8096d14b247462f425a1434c`:
+
+- Required target C/C++ smoke probe: passed.
+- Normal FM-1 target firmware compile/link: passed.
+- PHYS host checks: passed — 5,760 stability renders, torture render, and demos for all 10 factory presets including MINIMALIST.
+- Full host suite: failed on pre-existing Felucca compatibility coverage: 720 engine-switch sequences differ from the Felucca 1.4 golden hashes; legacy UI/motion/song/FX/editor/librarian assertions also fail; six web editor assertions fail. The PHYS test itself reports all checks passed. No golden hashes were changed.
+- Lean Slicer-excluded target build: passed.
+- Diagnostic artifact [14897501208](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45341777811/artifacts/14897501208) contains `felucca.map`, `felucca.sections.txt` and `felucca.symbols.txt`.
+- Tested development firmware artifact: skipped because the host suite failed. This is not a Harbor-ready package.
+
+The artifact confirms `.ram_text` 3,124 B, `.data` 352 B, `.bss` 55,684 B, and `.pool` 145,720 B. The largest POOL symbols remain `cv_px` 59,520 B and `eng_mem` 51,552 B.

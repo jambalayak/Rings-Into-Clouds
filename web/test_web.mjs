@@ -377,7 +377,7 @@ function mockTables() {
     ok(ph.name === "PHYS" && ph.edit[0].names.join() === "MODAL,STRNG,MEMB,SYMP" && ph.edit[0].max === 3 &&
        ph.presets.length === 10 && ph.presets.some((p) => p.name === "MINIMALIST" && p.pat === 14) &&
        !ph.presets.some((p) => p.name === "RAIN" || p.name === "DRUM KIT"),
-       "editor: PHYS models MODAL STRNG MEMB SYMP (no DUST, no DRUM), 9 presets");
+       "editor: PHYS models MODAL STRNG MEMB SYMP (no DUST, no DRUM), 10 presets");
     ok(dr.name === "DRUM" && dr.edit.map((d) => d.label).join() === "KIT,TUNE,TONE,DECY,SNAP,ACC,KICK,DRV" &&
        dr.presets.length === 4 && dr.presets.every((p) => p.pat === 12) && dr.presets[0].name === "DRUM KIT",
        "editor: DRUM engine 10 (KIT TUNE TONE DECY SNAP ACC KICK DRV), four kits (1.5.6: DEEP TIGHT PERC) suggesting BEAT");

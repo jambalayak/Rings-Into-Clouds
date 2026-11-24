@@ -140,3 +140,42 @@ This inventory explains the earlier 89,304-byte POOL discrepancy: `cv_px` is 59,
 The linker map shows a separate 24 KiB `RAMTEXT` region at `0x01C00000`. The lean build uses 3,124 bytes (`.ram_text` including the second-core waiting loop), leaving 21,452 bytes in that region. It is currently reserved for code that must execute while flash is busy; the ordinary RAM/POOL build checks do not count this unused space.
 
 A future, explicit `.ram_pool` NOLOAD section placed after `_rt_end` could potentially use some of this free region for small mutable DSP state or resampler tables. It must not overlap the copied `.ram_text`, must be accounted for in new linker/build headroom checks, and must be tested during flash operations. It is not a contiguous 65,408-byte substitute for the Clouds small buffer, and it does not close the roughly 114 KiB Rings + Clouds deficit. The 8 KiB gap before ordinary RAM is reserved for RAM-run debug and is not counted as free. The 32 KiB user/supervisor stack region must not be reclaimed without stack-watermark evidence.
+
+
+## Rings delay-line floor: source-level breakdown
+
+The pinned upstream `rings/dsp/part.h` allocates `String string_[kNumStrings]` in every `Part`. With `kMaxPolyphony = 4`, `kNumStrings = 8`. Each `String` in `rings/dsp/string.h` contains:
+
+- `StringDelayLine`: 2,048 `float` samples;
+- `StiffnessDelayLine`: 1,024 `float` samples.
+
+At 4 bytes per float, each String occupies 12,288 bytes of delay-line storage; eight Strings occupy 98,304 bytes per Rings Part. Two fully independent Parts therefore reserve 196,608 bytes for these two delay-line arrays alone. This is the source of the minimum in the projection above; it excludes the other Rings state, object alignment, Clouds object, resampler, FIFOs, routing and stacks.
+
+This storage is embedded in the Part object even when its current model is Modal or FM Voice, because the same Part can switch models. Omitting the arrays would break the supported String and Sympathetic Strings models. The original String-and-Reverb model has been excluded as requested, but that does not remove the String delay lines used by the remaining models.
+
+### Candidates to prototype, not decisions
+
+1. **Compact delay-line storage.** A custom 16-bit representation could theoretically halve the two delay arrays to 98,304 bytes for both Parts, but upstream `DelayLine<float>` performs fractional and Hermite reads in floating point. A fixed-point adapter must define signal scaling/headroom, interpolation precision, saturation and round-trip error, and pass host reference renders for all five models before it can be accepted.
+2. **Shorter maximum delay.** Halving both line lengths would also halve their memory, but the 2,048-sample line supports periods down to roughly 21.5 Hz at 44.1 kHz; a 1,024-sample line raises that floor to roughly 43 Hz and would compromise low bass notes. It is not a transparent optimisation.
+3. **Reduce polyphony.** Reducing `kMaxPolyphony` changes `kNumStrings` and can reduce memory, but it also changes the voice capability of each independent Rings instance. Do not apply without an explicit product decision.
+
+The most promising path to investigate first is a bounded 16-bit delay-line adapter with the upstream float implementation retained as a host reference. No compact representation is implemented or sound-validated yet.
+
+## Reverb-model exclusion detail
+
+The upstream Rings `Part` embeds a small `Reverb` object and calls `reverb_.Init(reverb_buffer)` unconditionally from `Part::Init()`. Its reverb delay storage is external: `FxEngine<32768, FORMAT_16_BIT>` requires 32,768 16-bit samples (65,536 bytes) supplied by the caller. The original upstream `FxEngine::Init()` immediately clears that buffer, so passing `NULL` to unmodified upstream code is unsafe.
+
+FM1_Locus carries a local guard around `reverb_.Init()` when the pointer is null, and calls `Part::Init(NULL)` because it does not use the String-and-Reverb model. Our port must explicitly review and carry an equivalent safe patch, or remove the unused reverb member/model path entirely. Do not pass `NULL` to unmodified upstream `Part::Init()`. The 65,536-byte external reverb buffer is not included in the Rings + Clouds projection; it is omitted by design. This also means the current Rings Part object still contains a small Reverb state member unless our local patch removes it.
+
+## Candidate combined memory profiles (planning arithmetic only)
+
+| Profile | Projected combined use | Headroom against 442,368 B |
+|---|---:|---:|
+| Two original float Rings Parts + full 32 kHz / 16-bit Clouds | 556,780 B | 114,412 B over budget |
+| Two compact 16-bit Rings delay stores + full Clouds | 458,476 B | 16,108 B over budget |
+| Compact Rings + Clouds recording storage shortened 25% | 425,772 B | 16,596 B free |
+| Compact Rings + 16 kHz / 8-bit Clouds with about 1 s stereo recording | 359,660 B | 82,708 B free |
+
+The last row assumes 16,000 bytes per channel for 8-bit recording, plus the unchanged 53,376-byte stereo workspace, and the compact Rings delay stores. It is a potentially comfortable memory profile, but it changes Clouds to its original low-fidelity mode and still needs an explicit custom short-buffer allocation, target linker measurement and listening tests. Full float Rings with this one-second low-fidelity Clouds buffer would still project to 457,964 bytes, above the combined memory budget.
+
+The 25%-shortened full-quality Clouds row fits the combined total on paper but does not fit the present linker-region split if both stereo recording buffers are simply moved into POOL; more detailed placement and additional DSP object sizes still need to be measured. None of these rows includes the complete Rings/Clouds object, resampler/FIFO/routing state or worst-case stack growth. These are not build-fit claims or selected product settings.

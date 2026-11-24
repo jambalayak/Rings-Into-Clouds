@@ -295,3 +295,8 @@ The measured Slicer-excluded baseline is 56,036 bytes ordinary RAM plus 145,720 
 ## Math compatibility gate
 
 The pinned Rings sources use `fabs` and `powf`; the current JieLi C++ toolchain does not find a system `math.h` in its default include path. The smoke probe now uses a freestanding `fabs` bridge and declares `powf`, but it does not prove the final link can resolve `powf`. Prefer the source-local RT60 coefficient approximation documented in `CPP_FREESTANDING_RUNTIME_AUDIT.md`, then compare host renders before adopting it. Keep the smoke probe advisory until the actual upstream C++ files compile and the final firmware link resolves every undefined symbol.
+
+
+### Rings reverb exclusion patch
+
+The pinned upstream `Part::Init()` unconditionally calls `reverb_.Init(reverb_buffer)`; the upstream `FxEngine::Init()` immediately clears the caller's 32,768-sample `uint16_t` buffer. Therefore `Part::Init(NULL)` is unsafe in unmodified upstream code. FM1_Locus adds an explicit null guard because it does not offer `RESONATOR_MODEL_STRING_AND_REVERB`. Our patch must do the same or remove the unused reverb member and model path. The external 65,536-byte reverb buffer is not part of the proposed memory profile. The small embedded Reverb object remains part of `sizeof(Part)` unless removed locally.
