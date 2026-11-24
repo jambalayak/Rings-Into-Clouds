@@ -29,7 +29,7 @@ The processor does not simply treat both allocations as one undifferentiated aud
 | DSP workspace | 53,376 | remainder of large POOL array |
 | **Total** | **184,192** | **130,816 sample storage + 53,376 workspace** |
 
-The 16-bit stereo mode uses 32,704 samples per channel after the interpolation-tail reservation. At 32 kHz this is approximately 1.022 seconds of recording per channel. This is a source-derived duration from the reference allocation, not a measured target result.
+The 16-bit stereo mode allocates 32,704 sample slots per channel; Clouds reserves 8 slots as an interpolation tail, leaving 32,696 recordable samples. At 32 kHz this is approximately 1.02175 seconds per channel. This is a source-derived duration from the reference allocation, not a measured target result.
 
 In mono mode, the large 118,784-byte array is used for the recording buffer and the 65,408-byte small array becomes DSP workspace. The exact partition is selected by `Prepare()`.
 
@@ -47,7 +47,7 @@ The source's `sample_rate()` returns 32,000 Hz normally and 16,000 Hz when low-f
 
 **Changing the stock quality flag does not automatically reduce the externally reserved 118,784 + 65,408 bytes.** The memory arrays are still allocated at their caller-provided sizes. The 8-bit mode can store more samples in those same byte capacities (and therefore gives longer recording time), while also reducing resolution and processing bandwidth. It does not return RAM to the rest of the firmware.
 
-A custom 24 kHz mode would require a deliberate resampler and rate-dependent DSP validation. It is not a one-line quality flag.
+The stock 16-bit stereo buffer holds 32,696 recordable samples per channel (about 1.02175 s at 32 kHz). Stock 8-bit low-fidelity stereo uses 65,400 recordable samples per channel (about 4.0875 s at 16 kHz) in the same reserved bytes. A custom 24 kHz mode would require a deliberate resampler and rate-dependent DSP validation. It is not a one-line quality flag.
 
 ## Memory-saving options
 

@@ -22,6 +22,16 @@ Preserve upstream MIT copyright headers and licence text. Preserve the exact sou
 
 ## Critical platform differences
 
+### Exact base-to-Clouds rate ratio
+
+The current audio source documents `DAC_TICKS = 544` from a 24 MHz timer:
+
+- Base frame rate: `24,000,000 / 544 = 44,117.6470588 Hz`.
+- Clouds full-quality processing rate: `32,000 Hz`.
+- Exact rational output/input ratio: `32,000 / 44,117.6470588 = 272 / 375` (375 input frames correspond to 272 Clouds frames).
+
+This is not the 2:3 ratio used by FM1_Locus at its different codec clock. A target converter can use a 272/375 phase accumulator and a designed polyphase low-pass bank; coefficient quantization, passband, alias rejection, phase/group delay, stereo matching and FIFO drift must all be measured. The physical codec rate still needs hardware confirmation.
+
 ### Audio sample rate
 
 FM1_Locus documents a 48,076.9 Hz codec rate and adjusts Rings' sample-rate constant to match it. The current RINGS INTO CLOUDS base source instead defines `DAC_TICKS = 544` from a 24 MHz timer, which gives approximately 44,117.65 audio frames per second.

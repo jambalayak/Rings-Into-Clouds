@@ -71,8 +71,19 @@ The Run 64 host regression step was cancelled when a newer documentation commit 
 
 The map confirms that the 72 KiB ordinary-RAM region contains 352 bytes of `.data`, 55,684 bytes of `.bss`, and a 3,072-byte CPU1 stack allocation. The combined RAM figure is 56,036 bytes. The POOL input section is one large allocation from the unity-built firmware object, so the map alone does not attribute its bytes to individual C objects.
 
-The build now writes `build/felucca.symbols.txt` from the target ELF symbol table. The workflow will include it in future diagnostic artifacts so static data symbols can be attributed to their linked addresses and sizes where the toolchain reports them.
+The build now writes `build/felucca.symbols.txt` from the target ELF symbol table. Run 68's diagnostic artifact includes it; the `.pool` symbol sizes and addresses account for 145,711 of the 145,720 bytes, with 9 bytes of alignment.
 
 ## Exact Clouds buffer partition
 
 See [CLOUDS_BUFFER_AUDIT.md](CLOUDS_BUFFER_AUDIT.md) for the pinned upstream source audit. In stereo mode, the 184,192-byte FM1_Locus pair comprises 130,816 bytes of recording storage (65,408 bytes per channel) plus 53,376 bytes of workspace carved from the large POOL array. The processor's stock low-fidelity mode is 16 kHz / 8-bit, not 24 kHz, and changing that flag does not shrink the caller-reserved arrays. The initial 32 kHz / 16-bit stereo reference remains the fidelity target.
+
+
+## Run 68 diagnostic result
+
+Run [45337236367](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45337236367), commit `d21f9a5af7588ec64b99dc9f69da67ad7bfd0abf`:
+
+- Target firmware compilation/link: passed.
+- Host regression suite: failed. It still reports 720 engine-switch golden-hash differences and legacy UI/song/FX/editor/librarian failures. It also caught the directly introduced PHYS test gap: 10 factory presets but only 9 demo phrases. The MINIMALIST preset itself passes the PHYS stability and torture renders; the missing tenth demo phrase is being added to the test fixture.
+- Lean Slicer-excluded firmware build: passed.
+- Diagnostic artifact: [14895241257](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/45337236367/artifacts/14895241257), containing `felucca.map`, `felucca.sections.txt` and `felucca.symbols.txt`.
+- Tested firmware artifact: skipped because the host regression suite failed. This is not a Harbor-ready package.

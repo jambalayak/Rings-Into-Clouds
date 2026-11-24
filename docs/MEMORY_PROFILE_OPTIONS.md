@@ -103,3 +103,33 @@ The experimental cache-way RAM in a newer BSP revision offers up to 28 KiB, but 
 - Only then decide whether a future modular reverb instance fits.
 
 No target build, audio test or physical FM-1 test has yet verified these changes.
+
+## Symbol-level inventory from the lean linker artifact
+
+The latest lean artifact (Run 68, commit `d21f9a5`) contains `felucca.symbols.txt`. The target symbol table attributes the 145,711 bytes of named POOL objects as follows (9 bytes remain as linker alignment):
+
+| POOL object | Bytes | Notes |
+|---|---:|---|
+| `cv_px` | 59,520 | UI RGB565 canvas, 240 × 124 pixels |
+| `eng_mem` | 51,552 | Four per-track engine-memory slots, 12,888 bytes each |
+| `up_bank` | 6,160 | User preset bank |
+| `proj_scratch` | 4,808 | Project scratch |
+| `st_buf` | 3,840 | Storage transfer buffer |
+| `proj_wire_u` | 3,840 | Project wire/transfer buffer |
+| `upf` | 3,728 | User-preset transfer state |
+| Other named POOL objects | 12,263 | FX/editor/persistence/favorites/scope and small state |
+| **Named symbols** | **145,711** | plus 9 bytes alignment = 145,720 |
+
+The largest non-engine allocation is the UI canvas. `firmware/src/gfx.c` sets `CV_MAX = 240 × 124`; the full graph panel is 240 × 122 pixels (`H_GRAPH = 122`). Merely trimming the two spare rows would save only 960 bytes. A material saving would require a real renderer change, such as tiled/row-based drawing or a reduced pixel representation, and would need visual regression coverage. The graph area is a core UI element, so do not shrink it or reduce color depth without comparing screenshots and antialiasing.
+
+The ordinary `.bss` section is 55,684 bytes (plus 352 bytes `.data`). Its largest named objects include `chain` 13,096 B, `trk` 7,360 B, `drw_v` 2,944 B, `abuf` 2,048 B, `ua_ring` 2,048 B, `midi_sel_on` 2,048 B and `cdc_out` 2,048 B. The 3,072-byte CPU1 stack is also in ordinary RAM. The rest is distributed across USB/MIDI, motion, editor, audio and UI state.
+
+This inventory explains the earlier 89,304-byte POOL discrepancy: `cv_px` is 59,520 bytes; the remaining 29,784 bytes are other named allocations not included in the earlier 56,416-byte subtotal. That subtotal consists of `eng_mem` 51,552 B, the 1,024-byte scope snapshot, and the 3,840-byte storage buffer.
+
+### What this means for the next memory pass
+
+- Keep the four engine slots for now: the fourth part is the GM drum part and the DRUM engine has per-part lane state. Do not remove its slot without auditing the drum engine and track-switch tests.
+- The two Rings tracks can replace two of the four 12,888-byte engine slots, as already counted in the projection.
+- The full-height UI canvas is not a quick 59 KiB win; a tiled renderer is a separate UI project.
+- The remaining 34.6 KiB of POOL outside `eng_mem` and `cv_px` supports user presets, project I/O, storage, editor, undo, scope and small state. Only reclaim it after an explicit feature/lifetime audit.
+- A custom Rings delay-line representation and a shorter Clouds recording buffer remain the DSP-side options to prototype and measure. No such reduction has been implemented or sound-validated yet.
