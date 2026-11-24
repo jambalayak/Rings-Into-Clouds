@@ -143,7 +143,7 @@ static int motion_locks(void)
     {
         uint32_t i, ok = 1;
         for (i = 0; i < MOTION_MAX - 1u; i++)            /* 127 on track 2: two ids a step */
-            ok &= !motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_DIST : P_PAN, (int16_t)(i % 100u));
+            ok &= !motion_set_event(&trk[1], i % NSTEP, i < NSTEP ? P_DIST : P_PAN, (int16_t)(i < NSTEP ? i % 100u : i % 64u));
         a[1] = 5; a[2] = 63; a[3] = P_PAN; a[4] = (uint8_t)((-3 + 8192) & 127); a[5] = (uint8_t)((-3 + 8192) >> 7);
         n = request(ED_MOTION, a, 6);                   /* the 128th: a lock of PAN -3 */
         ok &= host_wire[6] == 0 && motion.count == MOTION_MAX && host_wire[8] == 64 && host_wire[9] == 64 &&
