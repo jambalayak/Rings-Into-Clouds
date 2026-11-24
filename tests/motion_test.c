@@ -147,7 +147,7 @@ static int fun7_89(void)
     project_capture(&before);
     memset(&m, 0, sizeof m);                                       /* as the 89-parameter firmware numbered them */
     m.count = 3; m.on = 1;
-    m.event[0] = (motion_event_t){3, P_SPRD, 90};
+    m.event[0] = (motion_event_t){3, P_REV, 90};
     m.event[1] = (motion_event_t){5, 81, 40};                      /* its P_E0 (81) */
     m.event[2] = (motion_event_t){6, 61, 20};                      /* FM OP1 ATK: 61 then and now */
     pack_fun7_89(&old, &before, &m);
