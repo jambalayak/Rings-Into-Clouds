@@ -546,6 +546,17 @@ static int formats(void)
                                       "in place",
                      ok);
     }
+    {   /* an unmarked 1.8 FUN10: the same 114 parameter bytes, no selector marker, all tracks STANDARD */
+        static project_store_t old18;
+        memcpy(old18.raw, st.raw, sizeof old18.raw);
+        old18.raw[65] = 0;
+        i = proj_hash(old18.raw, PROJ_STORE_SIZE - 4u);
+        memcpy(old18.raw + PROJ_STORE_SIZE - 4u, &i, 4);
+        ok = old18.raw[66] == 114u && proj_import(&b, &old18, sizeof old18) && !memcmp(&a, &b, sizeof a) &&
+             !b.t[0].p[P_SEQMODE] && !b.t[1].p[P_SEQMODE] && !b.t[2].p[P_SEQMODE] && !b.t[3].p[P_SEQMODE] &&
+             b.t[2].p[P_E0 + 3] == 5;
+        bad += check("legacy 1.8 FUN10: 114 packed parameters, no byte-65 marker, STANDARD defaults and engine motion IDs stay put", ok);
+    }
     {   /* the song's sections (1.2): a slot per track, "-" silent, 5 bytes a row, 84 in all, right after the steps */
         project_t c = a, d;
         uint32_t at = 68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u);
