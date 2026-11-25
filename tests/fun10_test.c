@@ -795,6 +795,15 @@ static int test_gated_pitch(const track_t *t, uint32_t note)
     return 0;
 }
 
+static uint32_t test_pitch_velocity(const track_t *t, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < NVOICE; i++)
+        if (t->v[i].active && t->v[i].gate && t->v[i].note == note)
+            return t->v[i].vel;
+    return 0;
+}
+
 /* Exercise the real voice-boundary wrappers, not just the pure bitset helper. */
 static int note_ownership_runtime(void)
 {
@@ -808,8 +817,9 @@ static int note_ownership_runtime(void)
 
     trk_note_on(t, 60, 100);
     trk_marbles_note_on(t, 60, 90);
+    ok = test_pitch_velocity(t, 60) == 100u; /* Marbles joins without retriggering the legacy voice */
     trk_note_off(t, 60);                              /* legacy releases first */
-    ok = test_gated_pitch(t, 60);
+    ok &= test_gated_pitch(t, 60);
     trk_marbles_note_off(t, 60);
     ok &= !test_gated_pitch(t, 60);
 
