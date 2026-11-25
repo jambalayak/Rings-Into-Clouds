@@ -2443,6 +2443,7 @@ static int test_chain(void)
         for (k = 0; k < P_COUNT; k++)
             if (k < P_SLEN || k > P_SGATE) ok &= trk[i].p[k] == sounds[i][k];
     }
+    if (!ok) { printf("SONG row diag: row=%u rem=%u clk=%u carry=%u\n", chain.row, chain.remaining, chain.clk, chain.carry); for (i = 0; i < NTRK; i++) printf("  T%u idx=%u pos=%u len=%d div=%d note=%u seq=%u\n", i + 1u, trk[i].seq_idx, trk[i].seq_pos, trk[i].p[P_SLEN], trk[i].p[P_SDIV], seq_steps(&trk[i])[0].note[0], trk[i].seq_notes[0]); }
     bad += check("SONG row change: four tracks together, sounds unchanged", ok);
     open_family(FAM_SEQ);
     for (k = 0; k < NPAGES && cur_page()->scope != SC_STEP; k++) open_family(FAM_SEQ);
@@ -3288,11 +3289,13 @@ static int test_layer(void)
     perf_begin(CTL);
     turn(EN_K4, 40);
     ok &= perf_k[3] == -40;
+    printf("FX diag after knob: depth=%d latch=%u held=%x\n", perf_k[3], perf_latch_on, perf_held);
     key_up(white(10)); key_down(white(11)); frame();
     ok &= perf_held == PF_BIT(PF_PHS) && !gates() && mo_w == mo;
     key_up(white(11)); key_down(white(12)); frame();
     ok &= !perf_held && (kb_layer >> white(12)) & 1u && !gates();
     key_up(white(12)); btn_up(B_FX); frame();
+    printf("FX diag exit: ok=%d depth=%d latch=%u held=%x layer=%u kb=%x gates=%u mo=%u/%u\n", ok, perf_k[3], perf_latch_on, perf_held, ui.layer, kb_layer, gates(), mo_w, mo);
     bad += check("FX layer: FLANGER / PHASER retained, other keys unassigned; depth knob resets on exit",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
     /* Global delay, chorus and reverb were removed. Their stored IDs are inert; no FX pages expose them. */
@@ -5487,6 +5490,7 @@ static int test_breath(void)
                           led_of(fm1_led_breath, panel.btn[LB[i]]) && !led_of(fm1_led, panel.btn[LB[i]]) &&
                           !led_of(fm1_led_dim, panel.btn[LB[i]]);
                 }
+                if (br0 != want_br || lit0 != want_lit || !br0 || (br0 & lit0)) printf("#119 diag: layer=%u lock=%u mode=%u held=%u key=%u br=%x wantbr=%x lit=%x wantlit=%x\n", LL[i], lk, MODES[m], held, hk, br0, want_br, lit0, want_lit);
                 ok &= br0 == want_br && lit0 == want_lit && br0 && !(br0 & lit0);
                 ok &= !held || (((lit0 >> hk) & 1u) && !((br0 >> hk) & 1u));   /* held: lit, not breathing */
                 okm &= host_dim_lo == (MODES[m] == LEDS_DIM_LO);
@@ -7737,8 +7741,10 @@ static int test_div_order(void)
             found++;
             *vp = 2;                                 /* 1/16 */
             turn(EN_K1 + c, 1);
+            if (*vp != 5) printf("#48 page diag: %s K%u +1 got %d expected 5\n", cur_page()->title, c + 1u, *vp);
             ok &= *vp == 5;                         /* 16T */
             turn(EN_K1 + c, -2);
+            if (*vp != 4) printf("#48 page diag: %s K%u -2 got %d expected 4\n", cur_page()->title, c + 1u, *vp);
             ok &= *vp == 4;                         /* 8T */
         }
     ui_power_on();                                  /* SEQ's DIV: SEQ TOOLS' KNOB 2 (1.2: the PATTERN page is gone) */
@@ -7752,6 +7758,7 @@ static int test_div_order(void)
     printf("  #48 SEQ DIV after -2: layer=%u armed=%u state=%u div=%d page=%u\n", ui.layer, ui.ly, ui.ly_t0, TSEL->p[P_SDIV], ui.page);
     ok &= TSEL->p[P_SDIV] == 4;
     btn_up(B_SEQ); frame();
+    printf("#48 diag: ok=%d found=%u\n", ok, found);
     bad += check("#48 the pages' knobs step the divisions by length (SEQ TOOLS and ARP)", ok && found >= 2u);
     return bad;
 }
@@ -8746,6 +8753,7 @@ static int test_song_lanes(void)
     int bad = 0, ok;
     uint32_t n = 0, h, k, i, st, rev[NTRK];
     h = song_probe(&n);
+    if (h != SONG_PROBE_GOLDEN || n != SONG_PROBE_BLOCKS) printf("SONG probe diag: hash=%08x expected=%08x blocks=%u expected_blocks=%u\n", h, SONG_PROBE_GOLDEN, n, SONG_PROBE_BLOCKS);
     bad += check("SONG of rows (one slot each): bit for bit as before lanes, block by block (song_probe.h)",
                  h == SONG_PROBE_GOLDEN && n == SONG_PROBE_BLOCKS);
     seq_stop();
@@ -8802,6 +8810,7 @@ static int test_song_lanes(void)
     ok = chain.clk == 1u && !trk[0].seq_n && !trk[3].seq_n && trk[2].seq_notes[0] == 62 && trk[1].seq_notes[0] == 73;
     for (k = 0; k < NTRK; k++) ok &= trk[k].seq_idx == 0u;
     ok &= trk[2].p[P_SPRD] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
+    if (!ok) printf("SONG lane diag: row=%u clk=%u T3 dist=%d sprd=%d len=%d qnt=%d seqnote=%u idx=%u\n", chain.row, chain.clk, trk[2].p[P_DIST], trk[2].p[P_SPRD], trk[2].p[P_SLEN], trk[2].p[P_SQNT], trk[2].seq_notes[0], trk[2].seq_idx);
     bad += check("SONG lanes: T1 \"-\" releases its note; all four from step 1 together; T3 plays A with its automation", ok);
     ok = 1;
     n = 0;
