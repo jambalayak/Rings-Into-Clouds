@@ -130,3 +130,13 @@ The narrow two-owner bridge in section 7 is not yet sufficient as written unless
 Option 1 preserves notes through an engine switch and is preferred if the queue can be extended without breaking its bounded capacity or legacy behavior. Tests must cover a Marbles note started during the fade, released before the fade completes, and replayed after the new engine is active.
 
 The existing source families are not yet individually separated at the voice boundary. A dedicated Marbles owner alongside the legacy aggregate is still the least disruptive design, but Marbles must never be silently converted into a legacy pending note.
+
+## 10. Canonical generator helper selected
+
+The duplicate helper API has now been consolidated:
+
+- Keep `firmware/src/marbles_gen.h` and `tests/marbles_gen_test.c` as the single canonical helper implementation and test.
+- Remove `firmware/src/marbles_core.h` and `tests/marbles_core_test.c`; remove the latter's invocation from `tests/run_tests.sh`.
+- The canonical quantizer is explicitly ROOT-relative, matching `seq.c`'s `scale_snap()` mask convention. A non-zero-root major-scale regression case is included in the generator test.
+
+This is source consolidation only. The test suite has not been executed here, and the helper is still not included by `felucca.c`. The note-ownership and engine-switch queue gates remain open.
