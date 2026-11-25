@@ -717,7 +717,7 @@ static void layer_knob(uint32_t k, int32_t s)
     uint32_t l = layer_open();
     if (l == LAYER_FX) {                                /* compact live performance controls */
         if (k != 2u)
-            perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, s, k ? 100 : 200), k ? 0 : -100, 100);
+            perf_k[k] = (int8_t)clamp(perf_k[k] + accel(EN_K1 + k, k == 3u ? -s : s, k ? 100 : 200), k ? 0 : -100, 100);
     } else if (l == LAYER_GLO) {                        /* T1..T4 LEVEL, recorded as on MIXER */
         int16_t *vp = &trk[k].p[P_LEVEL];
         *vp = (int16_t)clamp(*vp + accel(EN_K1 + k, s, TP[P_LEVEL].max - TP[P_LEVEL].min), TP[P_LEVEL].min,
