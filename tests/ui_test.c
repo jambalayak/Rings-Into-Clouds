@@ -3260,12 +3260,12 @@ static int test_layer(void)
         uint32_t cur = ui.cursor;
         memcpy(before, TSEL->step, sizeof before);
         btn_down(B_FX); key_down(white(4)); frame();
-        ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && (kb_layer >> white(2)) & 1u &&
+        ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && (kb_layer >> white(4)) & 1u &&
              (perf_held & PF_BIT(PF_LPF));                    /* white key 5 (C4): retained LPF */
         for (i = 0; i < 40u; i++) events_block(CTL);
         ok &= !memcmp(before, TSEL->step, sizeof before) && ui.cursor == cur;
         bad += check("FX + LPF key: map at once; no voice, no MIDI, no recording, no step written", ok);
-        key_up(white(2)); frame();
+        key_up(white(4)); frame();
         bad += check("  the key let go: its effect off, no note-off sent", !perf_held && !kb_layer && mo_w == mo);
         btn_up(B_FX); frame();
         bad += check("  FX let go after a combo: no tap, the map gone", !ui.layer && cur_page()->graph == GR_ROLL);
