@@ -891,9 +891,13 @@ static uint32_t layer_leds(uint32_t *br)
         } else if (l == LAYER_EDIT && (a = eqa_of(TSEL, p)) != 0) {   /* the quick actions: on lit (DRUM: sounding), */
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
-        } else if (l == LAYER_SEQ) {                    /* the tools breathe (not while a song plays); DRUM: the lane */
-            on = (b && p < NLANE && drum_track(TSEL) && p == ui.lane) || (!b && p == TL_EUCLID && eu.on);   /* lit, the */
-            can = b ? p < NLANE && drum_track(TSEL) : tl_cell(TSEL, p) && !chain_busy();
+        } else if (l == LAYER_SEQ) {                    /* tools breathe; DRUM: lane; synth: mode / freeze */
+            on = (b && drum_track(TSEL) && p < NLANE && p == ui.lane) ||
+                 (b && !drum_track(TSEL) && p == 0u && TSEL->p[P_SEQMODE]) ||
+                 (b && !drum_track(TSEL) && p == 1u && TSEL->p[P_SEQMODE] && TSEL->p[P_AHOLD]) ||
+                 (!b && p == TL_EUCLID && eu.on);
+            can = b ? (drum_track(TSEL) ? p < NLANE : p == 0u || (p == 1u && TSEL->p[P_SEQMODE])) :
+                       tl_cell(TSEL, p) && !chain_busy();
         } else if (l == LAYER_REC && !b && p < 4u) {    /* a setting on (LEVEL: the click on) lit, the rest breathe; */
             on = p == 1u ? rp_get(RP_CLICK) != 0u : p == 2u ? rp_get(RP_COUNTIN) != 0u :   /* CLEAR: something to */
                  p == 3u && rp_get(RP_CLICK) != 0u;    /* clear, not while a song plays */
