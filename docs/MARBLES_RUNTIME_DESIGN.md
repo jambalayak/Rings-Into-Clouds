@@ -112,7 +112,7 @@ The first isolated, host-testable primitives now exist:
 - `tests/marbles_gen_test.c`: deterministic replay, bounded output, probability endpoints, degree range, root-relative scale mapping and MIDI bounds.
 - `tests/run_tests.sh`: compiles and runs the new test alongside the existing host tests.
 
-These helpers are intentionally not wired into `seq_tick()` yet. The confirmed pitch-only `trk_note_off()` collision must be addressed first with a source-aware ownership design. The new test has been added to the suite but has not been executed in this environment; no build or test pass is claimed.
+These helpers are intentionally not wired into `seq_tick()` yet. The pitch-only note-off collision has been addressed at the voice boundary with a two-owner legacy / Marbles ledger and regression tests, but the full suite and target build have not been run in this environment; no build or test pass is claimed.
 
 ## Canonical helper implementation (2026-11-25)
 
