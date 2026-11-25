@@ -763,7 +763,8 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         memcpy(&q->motion, b + pos, sizeof q->motion);
     else if (!proj_motion_v9(&q->motion, b + pos))
         return 0;
-    if (!proj_motion_ids(&q->motion, np) || !chain_valid(&q->chain) || !motion_valid(&q->motion)) return 0;
+    if (!proj_motion_ids(&q->motion, v10 && (b[65] & PROJ_SEQMODE_MARK) ? P_COUNT : np) ||
+        !chain_valid(&q->chain) || !motion_valid(&q->motion)) return 0;
     if (v10)
         proj_midi_unpack(q, b);                         /* (1.5.5: 0 in every FUN10 before, FUN9..FUN7 have none) */
     for (t = 0; t < NTRK; t++) {
