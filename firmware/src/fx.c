@@ -859,20 +859,16 @@ static __attribute__((noinline)) void mix_spread(track_t *t, int32_t *b, uint32_
     t->peak = pk;
 }
 
-/* a part's cost for the second core's split (mix_split, after Jangada's): its voices x its engine's cost per
- * voice (ENG_VCOST: the host's instructions per sample, tests/regress.c CPU at 8 notes held less the idle mix, over the
- * engine's voices), and the DIST, INSERT and sends while it sounds or its tail runs. ENGINES[] order; DIGITAL as FM6
- * when built, nothing when retired. An estimate: it only steers the split, the sound does not depend on it */
+/* a part's cost for the second core's split (mix_split): voices x engine cost per voice, plus DIST / INSERT / sends.
+ * The values are conservative estimates in ENGINES[] order; DIGITAL is zero when retired, and absent optional slots
+ * stay zero. RINGS starts at PHYS' cost until host and target regression runs provide a measured value. */
 #if FELUCCA_CPU2
 static uint16_t part_cost[NTRK];                        /* the last block's, per part */
-static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67, 70, 174, 144, 143, 189, 309, 113, 134,
-                                             181,
-#if FELUCCA_SLICE
-                                             129,
-#endif
-#if FELUCCA_ADPCM
-                                             168,      /* ADPCM (ORGAN, 1693 instructions / sample at 8 notes) */
-#endif
+static const uint16_t ENG_VCOST[NENGINES] = {
+    163, FELUCCA_FM4 ? 181 : 0, 162, 67, 70, 174, 144, 143, 189, 309, 113, 134, 181,
+    FELUCCA_SLICE ? 129 : 0,
+    FELUCCA_ADPCM ? 168 : 0,
+    309                                               /* RINGS: provisional conservative estimate, benchmark pending */
 };
 #endif
 
