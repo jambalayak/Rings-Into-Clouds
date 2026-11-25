@@ -107,7 +107,10 @@ static void host_preset_values(track_t *t, uint32_t e, uint32_t pi, const preset
 }
 static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
 {
-    uint32_t n = ENGINES[e]->npresets;
+    uint32_t n;
+    if (e >= NENGINES || (!eng_ok(e) && !(e == ENGI_DIGITAL && !FELUCCA_FM4)))
+        e = ENGI_FM6;                              /* fuzz / host requests may choose a reserved optional slot */
+    n = ENGINES[e]->npresets;
 #if !FELUCCA_FM4
     if (e == ENGI_DIGITAL) {                      /* DIGITAL preset pi (retired): converted, as ui.c fm4_load_preset */
         uint8_t v[FP_SIZE + 1u];
