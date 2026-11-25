@@ -29,7 +29,7 @@ static inline uint32_t marbles_rng_next(marbles_rng_t *r)
     return r->state;
 }
 
-/* Uniform integer in [0, bound). A zero bound safely returns zero. */
+/* Constant-time integer in [0, bound); multiply-high avoids rejection loops (at most one-count skew). */
 static inline uint32_t marbles_rng_bounded(marbles_rng_t *r, uint32_t bound)
 {
     return bound ? (uint32_t)(((uint64_t)marbles_rng_next(r) * bound) >> 32) : 0u;
