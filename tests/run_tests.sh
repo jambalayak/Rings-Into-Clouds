@@ -563,6 +563,10 @@ else
     run "ASan/UBSan fuzz: user sample slot headers -> scan -> SAMPLE / GRAIN / SLICE (1000, seed 17)" "$A/fuzz_smp" 1000 17
 fi
 
+# Marbles generator primitives (pure integer helpers; no firmware linkage required).
+$SCC -o "$A/marbles_gen_test" tests/marbles_gen_test.c
+run "Marbles generator: deterministic PRNG, bounds, probability and scale quantisation" "$A/marbles_gen_test"
+
 run "target budget: parser, cost and CLI fixtures" python3 tests/target_budget_test.py
 
 run "regression: target cost of the render loops (pi32v2 disassembly)" python3 tests/target_budget.py \
