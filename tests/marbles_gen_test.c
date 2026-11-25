@@ -43,5 +43,36 @@ int main(void)
     assert(marbles_quantize_note(-1, 0, (1u << 0) | (1u << 4) | (1u << 7)) == 55u);
     assert(marbles_quantize_note(1000, 0, 0x0FFFu) == 127u);
     assert(marbles_quantize_note(-1000, 0, 0x0FFFu) == 0u);
+    assert(marbles_quantize_note(0, 14u, (1u << 0) | (1u << 2) | (1u << 4) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 11)) == 62u);
+
+    /* Every built-in seq.c scale mask stays ROOT-relative across a pitch sweep. */
+    {
+        static const uint16_t masks[] = {
+            0xFFFu,
+            (1u << 0) | (1u << 2) | (1u << 4) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 11),
+            (1u << 0) | (1u << 2) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 8) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 4) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 4) | (1u << 7) | (1u << 9),
+            (1u << 0) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 8) | (1u << 11),
+            (1u << 0) | (1u << 1) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 8) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 4) | (1u << 6) | (1u << 7) | (1u << 9) | (1u << 11),
+            (1u << 0) | (1u << 1) | (1u << 3) | (1u << 5) | (1u << 6) | (1u << 8) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 3) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 11),
+            (1u << 0) | (1u << 3) | (1u << 5) | (1u << 6) | (1u << 7) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 4) | (1u << 6) | (1u << 8) | (1u << 10),
+            (1u << 0) | (1u << 1) | (1u << 3) | (1u << 4) | (1u << 6) | (1u << 7) | (1u << 9) | (1u << 10),
+            (1u << 0) | (1u << 2) | (1u << 3) | (1u << 5) | (1u << 6) | (1u << 8) | (1u << 9) | (1u << 11)
+        };
+        uint32_t s, d;
+        for (s = 0; s < sizeof masks / sizeof masks[0]; s++)
+            for (d = 0; d <= 32u; d++) {
+                int32_t degree = (int32_t)d - 16;
+                uint8_t note = marbles_quantize_note(degree, 5u, masks[s]);
+                uint32_t pc = (uint32_t)(((int32_t)note - 65 + 120) % 12);
+                assert(masks[s] & (1u << pc));
+            }
+    }
     return 0;
 }
