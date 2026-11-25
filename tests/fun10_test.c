@@ -510,7 +510,7 @@ static int formats(void)
      * load by count: SPREAD 0, the INSERT OFF (its defaults), TYPE LP, ENV SYNC OFF, the rest as written */
     for (uint32_t from = P_SPRD; from <= P_ITYPE; from += P_ITYPE - P_SPRD) {
         static project_store_t so;
-        uint32_t pi = 68u, po = 68u, tr, m0, drop = P_E0 - from;
+        uint32_t pi = 68u, po = 68u, tr, m0, drop = P_E0 - from, motion_drop = P_E0 - 1u - from;
         memset(&so, 0, sizeof so);
         ok = proj_pack(&st, &a) && !a.t[0].p[P_SPRD] && !a.t[0].p[P_ITYPE] && !a.t[0].p[P_FTYPE] && !a.t[0].p[P_ESYNC];
         memcpy(so.raw, st.raw, 68u);
@@ -531,8 +531,8 @@ static int formats(void)
         m0 = po + sizeof(chain_config_t);
         for (i = 0; i < so.raw[m0]; i++) {
             uint8_t *id = &so.raw[m0 + 4u + 3u * i + 1u];
-            if ((*id & 0x7Fu) >= P_E0)
-                *id = (uint8_t)(*id - drop);            /* (the lock bit kept) */
+            if ((*id & 0x7Fu) >= P_E0 - 1u)
+                *id = (uint8_t)((*id & MOTION_LOCK) | ((*id & 0x7Fu) - motion_drop));
         }
         memcpy(so.raw + PROJ_FM6_OFF, st.raw + PROJ_FM6_OFF, PROJ_STORE_SIZE - 4u - PROJ_FM6_OFF);
         i = proj_hash(so.raw, PROJ_STORE_SIZE - 4u);
@@ -548,14 +548,8 @@ static int formats(void)
     }
     {   /* an unmarked 1.8 FUN10: the same 114 parameter bytes, no selector marker, all tracks STANDARD */
         static project_store_t old18;
-        uint32_t m0 = 68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u) + sizeof(chain_config_t);
         memcpy(old18.raw, st.raw, sizeof old18.raw);
-        old18.raw[65] = 0;
-        for (i = 0; i < old18.raw[m0]; i++) {
-            uint8_t *id = &old18.raw[m0 + 4u + 3u * i + 1u];
-            if ((*id & 0x7Fu) >= P_E0)
-                *id = (uint8_t)((*id & MOTION_LOCK) | ((*id & 0x7Fu) - 1u));
-        }
+        old18.raw[65] = 0;                           /* old firmware left the reserved byte clear */
         i = proj_hash(old18.raw, PROJ_STORE_SIZE - 4u);
         memcpy(old18.raw + PROJ_STORE_SIZE - 4u, &i, 4);
         ok = old18.raw[66] == 114u && proj_import(&b, &old18, sizeof old18) && !memcmp(&a, &b, sizeof a) &&
