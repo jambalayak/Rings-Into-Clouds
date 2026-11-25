@@ -100,3 +100,33 @@ The safe compatibility approach remains append-only common parameter insertion i
 Do not change FUN10's magic or size merely to add this selector if the exact pack/unpack cursor and checksum tests prove the reserved byte budget is sufficient. Older firmware already rejects FUN10 records whose parameter count is greater than its own, so document that expected downgrade behavior.
 
 This correction supersedes the "exactly four bytes" budget sentence in section 4. No serializer code has been changed yet.
+
+## 9. Runtime call-site audit (2026-11-25)
+
+The focused source inspection confirms the ownership boundary and adds several concrete constraints:
+
+- The only definitions of `trk_note_on()`, `trk_note_off()` and `trk_all_off()` are in `firmware/src/voice.c` (around lines 395, 442 and 475 in the audited revision).
+- The engine-switch completion path in `voice.c` replays the pending `xp_note[] / xp_vel[]` queue by calling `trk_note_on()` directly. A Marbles-specific pending note must therefore retain its owner across the four-block engine fade; replaying all pending notes as legacy would lose ownership.
+- In `seq.c`, the arpeggiator has its own note-on/off calls (around lines 299, 307, 315, 454), live input has note-on/off calls (around 682 and 699), and the Standard sequencer releases its tracked notes and starts new notes (around 926, 1058 and 1064). Track panic/reset calls `trk_all_off()` (around 1433).
+- The arpeggiator also has `arp_forget()`, which ends its currently sounding notes through the ordinary note-off API. The Standard sequencer has its own `seq_notes[]` list. These are separate lifecycle owners in the callers even though the voice layer currently merges them.
+- `trk_note_off()` first removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. It has no note-instance token. `trk_all_off()` releases all voices and clears mono and pending-note state. Engine-switch completion independently hard-clears all old voices before replaying queued notes. Those invalidation paths must clear any new ledger consistently.
+- The audited `felucca.c` does not include either Marbles helper header, and no Marbles runtime scheduler is currently wired into the firmware translation unit.
+
+### Helper consolidation warning
+
+Two different pure Marbles helper headers currently exist:
+
+- `firmware/src/marbles_gen.h` defines `marbles_rng_t`, seeded xorshift, multiply-high bounded draws, `marbles_chance()`, scale-degree displacement and degree-to-note quantisation. `tests/marbles_gen_test.c` exercises this API.
+- `firmware/src/marbles_core.h` defines a pointer-state RNG API, modulo bounded draws, probability, and note-based scale snapping. `tests/marbles_core_test.c` exercises this different API.
+
+The host test script contains separate test invocations for both helpers. Neither header is included by `felucca.c` in the audited revision. These are not interchangeable APIs: the bounded-draw algorithms and quantisation semantics differ. Before runtime wiring, select one canonical implementation, reconcile its tests and design notes, and remove or explicitly retain the other as a compatibility/test fixture. Do not include both and accidentally create divergent random streams or scale behavior.
+
+### Revised implementation gate
+
+The narrow two-owner bridge in section 7 is not yet sufficient as written unless the pending engine-switch queue also stores source ownership. A safe first runtime milestone should either:
+1. add owner metadata to each pending-note slot and replay through the matching owner API; or
+2. keep Marbles notes out of the existing pending queue and explicitly cancel their ownership when an engine switch begins.
+
+Option 1 preserves notes through an engine switch and is preferred if the queue can be extended without breaking its bounded capacity or legacy behavior. Tests must cover a Marbles note started during the fade, released before the fade completes, and replayed after the new engine is active.
+
+The existing source families are not yet individually separated at the voice boundary. A dedicated Marbles owner alongside the legacy aggregate is still the least disruptive design, but Marbles must never be silently converted into a legacy pending note.
