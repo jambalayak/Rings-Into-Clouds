@@ -509,8 +509,9 @@ static void trk_marbles_note_on(track_t *t, uint32_t note, uint32_t vel)
 {
     note_ownership_t *o = &note_owners[(uint32_t)(t - trk)];
     if (t->p[P_MUTE]) return;
-    if (note_ownership_acquire(o, NOTE_OWNER_MARBLES, note))
-        trk_note_on_raw(t, note, vel);                  /* one gate per Marbles pitch */
+    if (note_ownership_acquire(o, NOTE_OWNER_MARBLES, note) &&
+        !note_ownership_other_has(o, NOTE_OWNER_MARBLES, note))
+        trk_note_on_raw(t, note, vel);                  /* don't retrigger a pitch already sounding for legacy */
 }
 static void trk_marbles_note_off(track_t *t, uint32_t note)
 {
