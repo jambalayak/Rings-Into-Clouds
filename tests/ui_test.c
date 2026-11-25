@@ -6698,8 +6698,8 @@ static int test_layer_knob_race(void)
                     ok = !memcmp(&a0, &a1, sizeof a0) && !memcmp(&b0, &b1, sizeof b0) &&
                          lk_same(LL[l] == LAYER_EDIT && k == 2u ? 0u : LL[l]) && song.sel == 0u &&
                          !perf_k[0] && !perf_k[1] && !perf_k[2] && !perf_k[3];
-                    if (LL[l] == LAYER_FX)                  /* the layer's own control moved */
-                        ok &= a1.k[k] == 3;
+                    if (LL[l] == LAYER_FX)                  /* KNOB 3 has no FX macro; KNOB 4 is inverted DEPTH */
+                        ok &= a1.k[k] == (k == 2u ? 0 : 3);
                     else if (LL[l] == LAYER_GLO)
                         ok &= a1.p[k][P_LEVEL] == lk_p[k][P_LEVEL] - 3;
                     else if (LL[l] == LAYER_SCL)
