@@ -40,6 +40,29 @@ The 1.4 reference hashes remain authoritative regression evidence until a contro
 
 The lean target build (Slicer excluded) and linker diagnostics completed successfully despite the host regression failure. Prior baseline measurements are not proof that Rings and Clouds objects or their audio buffers fit. The exact Run 129 linker artifact should be inspected before quoting new memory figures. The development firmware artifact was correctly skipped because the host suite failed.
 
+## Run 134 — one-voice companion diagnostic and linker checkpoint (2026-11-25)
+
+Run 134 (`45511891223`, commit `733acca93ae06e14c142e919ee24aa71f3104fe8`) completed with **failure**. Target setup, ABI smoke, pinned Rings/Clouds compile-only checks, compact Rings delay-line host comparison, normal firmware build, engine-switch diagnostic, and lean memory diagnostic all completed successfully. The tested development firmware artifact was skipped because host regression failed.
+
+The new counterfactual diagnostic constrained the companion to one LEGATO voice while leaving it rendering and muted at the mixer. DRUM sequences were excluded because DRUM's `oneshot` policy forces polyphony. Across 384 matched eligible sequences it reported:
+- Primary + mono companion: `558a162ca31d0554`
+- Matched primary-only: `4f2f3dfb4780a7c1`
+- Matched primary + muted polyphonic companion: `11cbfc7fd013575a`
+
+These are aggregate hash fingerprints, not numerical distances: different hashes cannot be described as “closer” or “farther.” The one-voice result differs from both matched controls, so this experiment does **not** establish that companion voice count is the sole cause, nor does it exonerate shared voice allocation. Next isolate allocator effects with per-part victim/kill counters or a test-only mode that prevents companion allocation while preserving the same render schedule. If the primary-only hash is not restored, investigate per-part engine-memory ownership and shared/global modulation or random state.
+
+The lean linker artifact confirms the same baseline section sizes:
+- `.data`: 352 bytes
+- `.bss`: 55,684 bytes
+- `.data + .bss`: 56,036 bytes of 73,728 bytes ordinary RAM
+- `.pool`: 145,720 bytes of 368,640 bytes
+- `.ram_text`: 3,124 bytes
+- `.text`: 471,232 bytes
+
+This is still the lean baseline only. It contains no live Rings/Clouds processor state or audio buffers, so it is not a Rings/Clouds memory-fit result. The artifact is `rings-into-clouds-linker-diagnostics-733acca93ae06e14c142e919ee24aa71f3104fe8`.
+
+The host regression suite's UI test reports 15 distinct failing assertions in the first configuration, repeated in the CPU2-off and FM4/ADPCM configurations. They cover: empty OTHER preset list; SONG row change and lane playback; FX key press/release and combo handling; FX LEDs; FX GLO/SCL knob handling; FX depth direction; SEQ TOOLS/ARP division stepping; FX LED breathing; and HELP text layout. The suite also reports 90/91 golden renders changed and all 720 engine-switch sequences differ from the 1.4 references. Health, voice/routing, CPU-budget and crash checks remain separate and must not be mistaken for a clean regression. Do not regenerate golden hashes or weaken tests.
+
 ## Status
 
-The original 1.4 golden files remain unchanged. Run 129 passed target ABI and pinned Rings/Clouds DSP compile-only checks, the compact Rings delay-line host comparison, the FM-1 firmware build, and lean memory-diagnostic build. It failed the host regression suite. No production Rings-to-Clouds audio integration exists yet; that remains a separate unfinished milestone.
+The original 1.4 golden files remain unchanged. Run 134 passed target ABI and pinned Rings/Clouds DSP compile-only checks, compact delay-line host comparison, normal FM-1 firmware build, engine-switch diagnostic execution, and lean memory-diagnostic build. It failed the host regression suite. No production Rings-to-Clouds audio integration exists yet; that remains a separate unfinished milestone.
