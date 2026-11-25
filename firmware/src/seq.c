@@ -1344,7 +1344,7 @@ static void seq_tick(track_t *t, uint32_t n)
                 if (m)
                     motion_step(t, t->seq_idx, m, 1);
             }
-            marbles_step_play(t, cur_len);
+            marbles_step_play(t, step_samples(t, period, t->seq_idx));
         }
         return;
     }
