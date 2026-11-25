@@ -1456,6 +1456,18 @@ static int test_categories(void)
         bad += check("favourites: ADPCM's in settings byte [15][13] (MIDI LEARN's row 14 untouched), kept with the settings", fok);
     }
 #endif
+    {   /* RINGS (engine 15): its eight favorites live in the settings row's spare byte 14. */
+        persist_t p;
+        int fok = favorite_set(ENGI_RINGS, 3, 1) && favorite_has(ENGI_RINGS, 3) &&
+                  favorites.factory[15][14] == 0x08u;
+        settings_export(&p);
+        favorites.factory[15][14] = 0;
+        fok &= settings_import(&p, sizeof p) == 1 && favorite_has(ENGI_RINGS, 3) &&
+               favorites.factory[15][14] == 0x08u;
+        fok &= favorite_set(ENGI_RINGS, 3, 0) && !favorite_has(ENGI_RINGS, 3) &&
+               !favorites.factory[15][14];
+        bad += check("favourites: RINGS presets persist in settings byte [15][14]", fok);
+    }
     go_page(GR_BROWSE);
     select_engine(0);
     apply_preset(0);                                       /* ANALOG SAW LEAD */
