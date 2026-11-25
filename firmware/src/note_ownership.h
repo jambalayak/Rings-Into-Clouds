@@ -19,6 +19,7 @@ typedef struct {
     uint32_t legacy[NOTE_OWNERSHIP_WORDS];
     uint32_t marbles[NOTE_OWNERSHIP_WORDS];
 } note_ownership_t;
+_Static_assert(sizeof(note_ownership_t) == 32u, "note ownership stays 32 bytes per track");
 
 static inline uint32_t note_ownership_mask(uint32_t note)
 {
@@ -59,7 +60,7 @@ static inline int note_ownership_release(note_ownership_t *o, uint32_t owner, ui
 
 static inline int note_ownership_other_has(const note_ownership_t *o, uint32_t owner, uint32_t note)
 {
-    if (note >= NOTE_OWNERSHIP_PITCHES)
+    if (note >= NOTE_OWNERSHIP_PITCHES || owner > NOTE_OWNER_MARBLES)
         return 0;
     return note_ownership_has(owner == NOTE_OWNER_MARBLES ? o->legacy : o->marbles, note);
 }
