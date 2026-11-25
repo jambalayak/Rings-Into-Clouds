@@ -163,6 +163,10 @@ static int fun7_89(void)
     bad += check("  its motion: E0 (81) -> P_E0, REV and FM OP1 ATK (61) kept",
         after.motion.count == 3u && after.motion.event[0].param == P_REV && after.motion.event[1].param == P_E0 &&
         after.motion.event[1].value == 40 && after.motion.event[2].param == P_FM1_ATK);
+    motion_begin();
+    { int16_t rev = t->p[P_REV]; motion_step(t, 3, &after.motion, 1);
+      bad += check("  legacy REV motion is retained but inert during playback", t->p[P_REV] == rev); }
+    motion_end();
     bad += check("  written again (P_COUNT parameters): the same project", proj_pack(&old, &after) && old.raw[66] == P_COUNT &&
         proj_import(&before, &old, sizeof old) && !memcmp(&before, &after, sizeof before));
     pack_fun7_89(&old, &before, &m);                                /* SONG: a slot of the old firmware */

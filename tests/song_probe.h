@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* A song played block by block and hashed (tests/ui_test.c test_song_lanes): what every track's sequencer does (its step,
- * its sounding notes, LEN / DIV, the automated DIST) and the song's row and repeats, every audio block, until the song
+ * its sounding notes, LEN / DIV, the automated PAN) and the song's row and repeats, every audio block, until the song
  * stops. Rows of one slot each, as every song before lanes (1.2) had: the same source compiles against the firmware of
  * before (src/ of 1.2 before lanes, chain_row_t {slot, repeat}), which gave SONG_PROBE_GOLDEN. Included after the UI
  * sources and ui_test.c's helpers (ui_power_on, project_save) */
@@ -34,7 +34,7 @@ static uint32_t song_probe(uint32_t *blocks)
             t->p[P_SDIV] = DIV[s][k];
             t->p[P_SGATE] = (int16_t)(40 + 20 * (int16_t)k);
             motion_set_enabled(t, 1);
-            motion_set_event(t, (uint32_t)(2u + s), P_SPRD, (int16_t)(20 + 30 * (int16_t)s + (int16_t)k));
+            motion_set_event(t, (uint32_t)(2u + s), P_PAN, (int16_t)(20 + 30 * (int16_t)s + (int16_t)k));
         }
         project_save(s);
     }
@@ -51,7 +51,7 @@ static uint32_t song_probe(uint32_t *blocks)
         for (k = 0; k < NTRK; k++) {
             const track_t *t = &trk[k];
             h = song_probe_mix(h, t->seq_idx | (uint32_t)t->seq_n << 8 | (uint32_t)t->seq_notes[0] << 16);
-            h = song_probe_mix(h, (uint32_t)t->p[P_SLEN] | (uint32_t)t->p[P_SDIV] << 8 | (uint32_t)(uint16_t)t->p[P_SPRD] << 16);
+            h = song_probe_mix(h, (uint32_t)t->p[P_SLEN] | (uint32_t)t->p[P_SDIV] << 8 | (uint32_t)(uint16_t)t->p[P_PAN] << 16);
         }
     }
     *blocks = n;

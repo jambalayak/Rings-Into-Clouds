@@ -33,16 +33,17 @@ static void motion_unguard(uint32_t f)
 }
 static int motion_param(uint32_t id)
 {
-    /* Sound only: transport, routing, voice allocation, discrete engine changes, and the
-     * retired global-bus sends (P_DIST..P_REV) never become automation. */
+    /* Sound only: transport, routing, voice allocation and discrete engine
+     * changes never become automation. Legacy FX-send IDs remain valid in stored projects. */
     return id < P_COUNT && (id <= P_REL || (id >= P_ED_FLT && id <= P_LD_AMP) ||
-        id == P_GLIDE || id == P_PAN ||
+        (id >= P_DIST && id <= P_REV) || id == P_GLIDE || id == P_PAN ||
         id == P_DETUNE || (id >= P_FM1_ATK && id <= P_FM4_LEVEL) || (id >= P_LN0 && id <= P_LN7) ||
         id == P_SPRD || (id >= P_ITYPE && id <= P_IMIX) || id >= P_E0);   /* (not the chord keys, nor 1.2's LFO SYNC TRIG
                                         * POL and QUANTIZE, nor 1.5's filter TYPE and ENV SYNC: settings; the DRUM lane
                                         * levels, SPREAD (#148: continuous, as PAN), 1.5's INSERT (TYPE too: a lock
                                         * switches it for a step, fx.c track_insert fades over), E0..E7) */
 }
+static int motion_legacy_send(uint32_t id) { return id >= P_DIST && id <= P_REV; }
 static int motion_valid(const motion_store_t *m)
 {
     uint32_t i, j;
@@ -99,7 +100,7 @@ static uint32_t motion_mask(uint32_t k, uint32_t m[(P_COUNT + 31u) / 32u])
     if (k >= NTRK || !((motion.on >> k) & 1u)) return 0;
     for (i = 0; i < motion.count; i++) {
         const motion_event_t *e = &motion.event[i];
-        if ((e->place >> 6) != k || MOTION_ID(e) >= P_COUNT) continue;
+        if ((e->place >> 6) != k || MOTION_ID(e) >= P_COUNT || motion_legacy_send(MOTION_ID(e))) continue;
         m[MOTION_ID(e) / 32u] |= 1u << (MOTION_ID(e) % 32u);
         any = 1;
     }
@@ -279,7 +280,7 @@ static __attribute__((noinline)) void motion_step(track_t *t, uint32_t step, con
     for (i = 0; i < m->count; i++) {
         const motion_event_t *e = &m->event[i];
         uint32_t id = MOTION_ID(e);
-        if (e->place != (k << 6 | step) || ((e->param & MOTION_LOCK) && !play)) continue;
+        if (e->place != (k << 6 | step) || motion_legacy_send(id) || ((e->param & MOTION_LOCK) && !play)) continue;
         const param_desc_t *d = param_desc_of(eng_idx(t->eng_req), id);
         t->p[id] = (int16_t)param_fit(d, e->value);
         motion_active[k][id / 32u] |= 1u << (id % 32u);

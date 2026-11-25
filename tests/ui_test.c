@@ -8760,7 +8760,7 @@ static int test_song_lanes(void)
     seq_stop();
     ui_power_on();
     for (k = 0; k < NTRK; k++) rev[k] = (uint32_t)trk[k].p[P_DIST];
-    /* A: notes 60 + k, LEN 4 of 1/16, QUANTIZE ON; T3 automated (DIST 100 on its step 1). B: notes 72 + k, T1 LEN 8,
+    /* A: notes 60 + k, LEN 4 of 1/16, QUANTIZE ON; T3 automated (SPREAD 100 on its step 1). B: notes 72 + k, T1 LEN 8,
      * T2 LEN 6, T3 LEN 4 of 1/8 QUANTIZE OFF, T4 LEN 2 */
     for (st = 0; st < 2u; st++) {
         static const int16_t LEN[2][NTRK] = {{4, 4, 4, 4}, {8, 6, 4, 2}};

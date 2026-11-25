@@ -1038,12 +1038,12 @@ static void setup(int s)
      * value just turned); + ADD CHANCE on step 4; the first row (PLAY ON, the counts, OCT+ CLEAR) */
     case S_AUTO_STEPS:
         step_set_chance(&TSEL->step[0], 65); step_set_chance(&TSEL->step[4], 25); step_set_ratchet(&TSEL->step[4], 3);
-        step_set_ratchet(&TSEL->step[8], 2); motion_set_event(TSEL, 2, P_LRATE, 70); motion_set_lock(TSEL, 4, P_REV, 100);
+        step_set_ratchet(&TSEL->step[8], 2); motion_set_event(TSEL, 2, P_LRATE, 70); motion_set_lock(TSEL, 4, P_SPRD, 100);
         go_page(GR_EVENTS); (void)auto_pick(EVC(EVK_CHANCE, 4)); ui.hot_col = 3; ui.hot_t = 30;
         break;
     case S_AUTO_ADD_CHANCE: go_auto_add(EV_CHANCE, 3); break;
     case S_MOTION:
-        motion_set_event(TSEL, 1, P_REV, 40); motion_set_lock(TSEL, 2, P_REV, 100); step_set_chance(&TSEL->step[3], 50);
+        motion_set_event(TSEL, 1, P_SPRD, 40); motion_set_lock(TSEL, 2, P_SPRD, 100); step_set_chance(&TSEL->step[3], 50);
         go_auto_top();
         break;
     /* 1.1.5, the REC layer (REC held): over HOME, the settings as they come (CLICK OFF, COUNT-IN OFF, LEVEL MID);
@@ -1309,7 +1309,7 @@ static void setup(int s)
     case S_BATT_USB: usb.config = 1; usb.suspended = 0; song.batt_raw = 500; go_home(); break;
     case S_MOTION_REC: song.rec = 1u << song.sel; go_auto_top(); break;          /* recording into the motion */
     case S_MOTION_OFF:                                                            /* stopped, PLAY OFF (OCT+ CLEAR) */
-        song.playing = 0; motion_set_event(TSEL, 1, P_REV, 40); motion_set_enabled(TSEL, 0); go_auto_top(); break;
+        song.playing = 0; motion_set_event(TSEL, 1, P_SPRD, 40); motion_set_enabled(TSEL, 0); go_auto_top(); break;
     case S_MOTION_CARD: {                                          /* #63: HOME, MOTION drives KNOB 1 and 3 (3 just turned) */
         const engine_t *en = ENGINES[TSEL->eng_req];
         motion_set_event(TSEL, 2, en->knob[0], TSEL->p[en->knob[0]]);
@@ -1497,8 +1497,8 @@ static void setup(int s)
      * LOCK count */
     case S_ROLL_LOCKS: case S_ROLL_LOCK_HELD:
         roll_scene(S_ROLL_ACID);
-        motion_set_lock(TSEL, 2, P_REV, 100); motion_set_lock(TSEL, 6, P_E4, 20); motion_set_lock(TSEL, 6, P_ATK, 90);
-        motion_set_lock(TSEL, 9, P_E5, 110); motion_set_lock(TSEL, 13, P_REV, 80);
+        motion_set_lock(TSEL, 2, P_SPRD, 100); motion_set_lock(TSEL, 6, P_E4, 20); motion_set_lock(TSEL, 6, P_ATK, 90);
+        motion_set_lock(TSEL, 9, P_E5, 110); motion_set_lock(TSEL, 13, P_SPRD, 80);
         if (s == S_ROLL_LOCK_HELD) {
             ui.plk_src = 0;
             ui.entry_open = 1;
@@ -1525,7 +1525,7 @@ static void setup(int s)
         detail_values(TSEL, 1);
         if (s == S_DRUM_MARKS) {
             go_page(GR_ROLL); ui.cursor = 4; ui.lane = 1;
-            motion_set_lock(TSEL, 4, P_REV, 100);
+            motion_set_lock(TSEL, 4, P_SPRD, 100);
             break;
         }
         go_title_page("DETAIL"); ui.cursor = 6; ui.hot_col = 0; ui.hot_t = 30;
@@ -1576,7 +1576,7 @@ static void setup(int s)
     case S_CONFIRM_CLEAN: ui.confirm = CF_CLEAN_SOUND; ui.confirm_trk = 0; break;
     case S_DRUM_LOCKS: case S_DRUM_LOCK_HELD:
         drum(0); go_page(GR_ROLL); ui.cursor = 4; ui.lane = 1; trk[3].seq_idx = 9;
-        motion_set_lock(TSEL, 2, P_E1, 90); motion_set_lock(TSEL, 4, P_REV, 100); motion_set_lock(TSEL, 4, P_DLY, 70);
+        motion_set_lock(TSEL, 2, P_E1, 90); motion_set_lock(TSEL, 4, P_SPRD, 100); motion_set_lock(TSEL, 4, P_PAN, 70);
         motion_set_lock(TSEL, 8, P_E2, 30); motion_set_lock(TSEL, 15, P_E1, 40);
         if (s == S_DRUM_LOCK_HELD) {
             uint32_t i;
@@ -1588,16 +1588,16 @@ static void setup(int s)
         }
         break;
     case S_MOTION_LOCKS:
-        motion_set_event(TSEL, 1, P_REV, 40); motion_set_lock(TSEL, 2, P_REV, 100); motion_set_lock(TSEL, 6, P_ATK, 90);
+        motion_set_event(TSEL, 1, P_SPRD, 40); motion_set_lock(TSEL, 2, P_SPRD, 100); motion_set_lock(TSEL, 6, P_ATK, 90);
         go_auto_top();
         break;
     /* 1.1.5 AUTO LIST, SEQ > AUTOMATION since 1.2 (ui_events.c): locks and automation events of the track, the 4th selected, its
      * VALUE just turned; empty (+ ADD LOCK: step 5, the first knob of HOME); a DRUM track's long list, scrolled
      * (its lane levels, E names, the last row), playing */
     case S_AUTO_LIST:
-        motion_set_event(TSEL, 0, P_LRATE, 70); motion_set_lock(TSEL, 2, P_REV, 100); motion_set_lock(TSEL, 2, P_ED_FLT, -30);
+        motion_set_event(TSEL, 0, P_LRATE, 70); motion_set_lock(TSEL, 2, P_SPRD, 100); motion_set_lock(TSEL, 2, P_ED_FLT, -30);
         motion_set_lock(TSEL, 6, P_ATK, 90); motion_set_lock(TSEL, 6, P_E4, 20); motion_set_event(TSEL, 8, P_PAN, -40);
-        motion_set_lock(TSEL, 11, P_LD_FLT, 50); motion_set_lock(TSEL, 13, P_DLY, 80); motion_set_lock(TSEL, 15, P_GLIDE, 60);
+        motion_set_lock(TSEL, 11, P_LD_FLT, 50); motion_set_lock(TSEL, 13, P_PAN, 80); motion_set_lock(TSEL, 15, P_GLIDE, 60);
         go_page(GR_EVENTS); ui.ev_row = 5; ui.hot_col = 3; ui.hot_t = 30;   /* (row 0: PLAY, 1: QUANTIZE) */
         break;
     case S_AUTO_LIST_ADD: ui.cursor = 4; go_page(GR_EVENTS); break;
@@ -1606,7 +1606,7 @@ static void setup(int s)
         drum(0); go_page(GR_ROLL);
         for (i = 0; i < 12u; i++)
             motion_set_lock(TSEL, i, i & 1u ? P_LN0 + i % 8u : P_E0 + i % 8u, 100);
-        motion_set_event(TSEL, 15, P_REV, 127);
+        motion_set_event(TSEL, 15, P_SPRD, 127);
         go_page(GR_EVENTS); ui.ev_row = 15; song.playing = 1;
         break;
     }
@@ -1617,7 +1617,7 @@ static void setup(int s)
     case S_AUTO_QNT:
         step_set_chance(&TSEL->step[0], 65); step_set_ratchet(&TSEL->step[4], 3); step_set_nudge(&TSEL->step[2], 3);
         step_set_nudge(&TSEL->step[6], -5); step_set_nudge(&TSEL->step[9], 2); TSEL->step[9].time = ST_REST;
-        motion_set_lock(TSEL, 6, P_REV, 100);
+        motion_set_lock(TSEL, 6, P_SPRD, 100);
         TSEL->p[P_SQNT] = s == S_AUTO_QNT;
         go_page(GR_EVENTS);
         if (s == S_AUTO_QNT) {
@@ -1639,7 +1639,7 @@ static void setup(int s)
             step_put(&TSEL->step[i], ST_NOTE, i == 8u ? SF_ACCENT : 0u, 1, &n);
             TSEL->step[i].vel = VEL[i / 2u];
         }
-        step_set_chance(&TSEL->step[2], 70); motion_set_lock(TSEL, 4, P_REV, 100);
+        step_set_chance(&TSEL->step[2], 70); motion_set_lock(TSEL, 4, P_SPRD, 100);
         go_page(GR_EVENTS); ui.ev_vel = 1; (void)auto_pick(EVC(EVK_VEL, 4)); ui.hot_col = 3; ui.hot_t = 30;
         break;
     }
@@ -2297,12 +2297,14 @@ int main(int argc, char **argv)
         cv_text(4, 31, &AF_S, "SPILL", T_TEXT);
         cv_blit(4, Y_LABEL);
         lint();
+        fprintf(stderr, "ui_render: before rule self-test\n");
         nrules = 0;                                         /* a word on a divider (STYLE LINE) */
         lcd_rule(0, 120, 240, 1);
         cv_begin(40, 16, T_BG);
         cv_text(2, 0, &AF_S, "RULE", T_TEXT);
         cv_blit(8, 112);
         lint();
+        fprintf(stderr, "ui_render: after rule lint\n");
         nrules = 0;
         {   /* the alignment check: a word 2 px right of its box's centre, one centred */
             uint32_t f0 = al_fail;
@@ -2316,12 +2318,15 @@ int main(int argc, char **argv)
             al_count -= 2u;
             npend = 0;
         }
+        fprintf(stderr, "ui_render: after alignment self-test\n");
         if (nfind < 5u || !nspill) { fprintf(stderr, "ui_render: the lint missed its self-test (%u)\n", nfind); return 1; }
         fprintf(rep, "(self-test: %u findings above are expected)\n\n", nfind);
         nfind = 0;
     }
+    fprintf(stderr, "ui_render: entering screen sweep\n");
     for (p = 0; p < NPALETTES; p++)
         for (s = 0; s < S_COUNT; s++) {
+            if (p == 0u && s < 12u) fprintf(stderr, "ui_render: screen %u %u %s\n", p, s, S_NAME[s]);
             char name[64];
             uint32_t k;
             if (!FELUCCA_FM4 && (s == S_OP_ENV || (s >= S_ALG1 && s <= S_OP_LEVEL)))
@@ -2338,6 +2343,7 @@ int main(int argc, char **argv)
             for (k = 0; k < sizeof SHOW / sizeof SHOW[0]; k++)
                 if (!strcmp(UI_PALETTES[p].name, SHOW[k])) write_ppm(out, SHOW[k], S_NAME[s]);
         }
+    fprintf(stderr, "ui_render: flat screen sweep complete\n");
     {   /* STYLE LINE (gfx.c ST_*): every screen in every palette, linted (GREY: gray, MONO: neutral); GREY MONO NIGHT
          * PAPER as OUTDIR/ppm/<STYLE>_<PALETTE>_<screen>.ppm (ui_render.py: sheet_<STYLE>_<PALETTE>.png) */
         static const char *const ST_N[2] = {"FLAT", "LINE"}, *const ST_PAL[] = {"GREY", "MONO", "NIGHT", "PAPER"};
