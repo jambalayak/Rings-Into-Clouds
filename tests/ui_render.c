@@ -2333,11 +2333,16 @@ int main(int argc, char **argv)
                 continue;                           /* (DIGITAL's own screens: FELUCCA_FM4=1 only) */
             snprintf(name, sizeof name, "%s/%s", UI_PALETTES[p].name, S_NAME[s]);
             cur_name = name;
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty setup begin palette=%u\\n", p);
             setup((int)s);
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty setup done palette=%u\\n", p);
             pal(p);
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty palette done palette=%u\\n", p);
             if (p == UI_GREY_INDEX) aud = audf;
             draw((int)s);
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty draw done palette=%u\\n", p);
             lint();
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty lint done palette=%u\\n", p);
             if (p == UI_GREY_INDEX) { audit_scene(S_NAME[s]); font_scene("FLAT", S_NAME[s]); aud = 0; }
             mono_check();
             for (k = 0; k < sizeof SHOW / sizeof SHOW[0]; k++)
