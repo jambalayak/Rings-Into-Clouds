@@ -91,9 +91,11 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
         host_tracks_init();
         if (mode == 8u || mode == 9u || mode == 10u || mode == 11u)
             host_lfo_rng_isolate_part = 2u;
+        if (mode == 12u)
+            host_render_skip_part = 2u;
         if (mode == 10u || mode == 11u)
             host_lfo_freeze_part = 2u; /* companion keeps rendering but uses its own LFO S&H stream */
-        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u || mode == 8u || mode == 9u || mode == 10u || mode == 11u || mode == 10u || mode == 11u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
+        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u || mode == 8u || mode == 9u || mode == 10u || mode == 11u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
         /* mode 7 switches the companion engine without sending any note events. */
         if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
@@ -103,7 +105,7 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
             if (mode != 1u) {
                 if (mode == 7u || mode == 8u || mode == 10u)
                     uswitch(&trk[2], UE[(k + 3u) % UNE], pi, 10);
-                else if (mode == 9u || mode == 11u) { /* matched no-switch control: same render time, no companion notes */
+                else if (mode == 9u || mode == 11u || mode == 12u) { /* matched elapsed time; mode 12 skips companion part work */
                     urun(10);
                     urun(400);
                     urun(300);
@@ -140,7 +142,7 @@ static void ufeed(uint64_t *h, uint64_t x)
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hswitch = hp, hswitch_iso = hp, hswitch_iso_control = hp, hswitch_freeze = hp, hswitch_freeze_control = hp, hpe = hp, hpme = hp;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hswitch = hp, hswitch_iso = hp, hswitch_iso_control = hp, hswitch_freeze = hp, hswitch_freeze_control = hp, hskip = hp, hpe = hp, hpme = hp;
     uint32_t a, b, pi, w, n = 0, nm = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -162,6 +164,7 @@ static int union_diag(void)
                         ufeed(&hswitch_iso_control, useq(s2, 2, pi, wait, 9u));
                         ufeed(&hswitch_freeze, useq(s2, 2, pi, wait, 10u));
                         ufeed(&hswitch_freeze_control, useq(s2, 2, pi, wait, 11u));
+                        ufeed(&hskip, useq(s2, 2, pi, wait, 12u));
                         nm++;
                     }
                     n++;
@@ -180,6 +183,7 @@ static int union_diag(void)
                             ufeed(&hswitch_iso_control, useq(s3, 3, pi, wait, 9u));
                             ufeed(&hswitch_freeze, useq(s3, 3, pi, wait, 10u));
                             ufeed(&hswitch_freeze_control, useq(s3, 3, pi, wait, 11u));
+                            ufeed(&hskip, useq(s3, 3, pi, wait, 12u));
                             nm++;
                         }
                         n++;
@@ -191,6 +195,7 @@ static int union_diag(void)
            (unsigned long long)hswitch, (unsigned long long)hpe, (unsigned long long)hpme);
     printf("union_diag: RNG-isolated engine-switch companion %016llx; matched RNG-isolated no-switch companion %016llx\\n", (unsigned long long)hswitch_iso, (unsigned long long)hswitch_iso_control);
     printf("union_diag: frozen-LFO engine-switch companion %016llx; matched frozen-LFO no-switch companion %016llx\\n", (unsigned long long)hswitch_freeze, (unsigned long long)hswitch_freeze_control);
+    printf("union_diag: elapsed-time-matched primary with companion part skipped %016llx\\n", (unsigned long long)hskip);
     return 0;
 }
 

@@ -411,6 +411,11 @@ static const uint16_t ENG_VCOST[NENGINES] = {163, FELUCCA_FM4 ? 181 : 0, 162, 67
  * the LFO tick and a cleared buffer only (after the DIST tail has run out) */
 static void mix_part(track_t *t, uint32_t n SM_DECL)
 {
+#ifdef FELUCCA_HOSTSIM
+    extern uint32_t host_render_skip_part;
+    if ((uint32_t)(t - trk) == host_render_skip_part)
+        return;                                         /* diagnostic counterfactual: same block/master time, no part work */
+#endif
     int32_t *b = SM(b);
     uint32_t i;
 #if FELUCCA_CPU2
