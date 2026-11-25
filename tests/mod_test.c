@@ -358,6 +358,24 @@ static void test_math(void)
     mod_end(t);
 }
 
+/* Marbles' independent X/Y outputs are per-track bipolar matrix sources. */
+static void test_marbles_sources(void)
+{
+    track_t *t = &trk[0];
+    fresh(0, 0);
+    t->p[P_PAN] = 0;
+    t->p[P_DIST] = 64;
+    marbles_mod_set(t, 32767, -32768);
+    slot(t, 0, MS_MX, MD_PAN, 63);
+    slot(t, 1, MS_MY, MD_DIST, 32);
+    mod_begin(t);
+    check("MARBLES X -> PAN: positive bipolar output reaches the right", t->p[P_PAN] > 0);
+    check("MARBLES Y -> DIST: negative bipolar output lowers the value", t->p[P_DIST] < 64);
+    mod_end(t);
+    check("MARBLES X/Y per-block destinations restore their base values", t->p[P_PAN] == 0 && t->p[P_DIST] == 64);
+    marbles_mod_clear(t);
+}
+
 /* ------------------------------------------------------------------ 3 --- */
 static void pkt(uint32_t st, uint32_t d1, uint32_t d2)
 {
@@ -628,6 +646,7 @@ int main(int argc, char **argv)
 {
     test_off();
     test_math();
+    test_marbles_sources();
     test_midi();
     test_cost();
     if (argc > 1)
