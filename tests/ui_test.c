@@ -421,13 +421,14 @@ static int test_sound_loads(void)
     t->p[P_SLCR] = SL_GATE;
     t->p[P_SLPAT] = 4;
     t->p[P_SDIV] = 1;
+    t->p[P_SEQMODE] = 1;                       /* the Marbles / Standard source is a track setting too */
     t->p[P_LEVEL] = 90;
     before = *t;
     turn(EN_PRESET, 1);                           /* HOME: the next preset */
     bad += check("PRESETS on HOME loads the sound: steps, LEN, DIV untouched", t->preset == (uint8_t)((before.preset + 1u) % ENGINES[0]->npresets) &&
                  !memcmp(t->step, before.step, sizeof t->step) && t->p[P_SLEN] == 32 && t->p[P_SDIV] == 1);
     bad += check("..ARP, SCL, the SLICER and the mix stay the track's", t->p[P_AMODE] == 2 && t->p[P_AOCT] == 3 && t->p[P_SCALE] == 2 &&
-                 t->p[P_TRANS] == 5 && t->p[P_SLCR] == SL_GATE && t->p[P_SLPAT] == 4 && t->p[P_LEVEL] == 90);
+                 t->p[P_TRANS] == 5 && t->p[P_SLCR] == SL_GATE && t->p[P_SLPAT] == 4 && t->p[P_SEQMODE] == 1 && t->p[P_LEVEL] == 90);
     bad += check("..and no warning about the sequence", !msg_is("T1 SEQ REPLACED"));
     for (i = 0; i < ENGINES[0]->npresets; i++)
         if (str_eq(ENGINES[0]->presets[i].name, "RAVE"))
