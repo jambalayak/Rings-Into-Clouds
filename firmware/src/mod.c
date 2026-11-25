@@ -16,7 +16,8 @@
  *         DEPTH; bipolar, 0 until the LFO's first cycle ends. It follows RATE and SYNC (a step per note value)
  *   SLEW  (#132) S&H slewed: it glides linearly from the cycle before's value to this cycle's over the cycle
  *         (a smooth random line, one cycle behind S&H, continuous where S&H steps); bipolar
- *   Both are per track (one value for every voice) and cost no state but the one value kept per cycle.
+ *   MX / MY Marbles' independent X and Y random outputs, bipolar, one value per track.
+ *   All sources above are per track (one value for every voice); MX / MY cost only their two held values.
  * Destinations:
  *   per voice (vmod_t, like the fixed routings):
  *     PITCH  AMT 63 at a full source = +-11.8 semitones (as LFO DEST PIT)
