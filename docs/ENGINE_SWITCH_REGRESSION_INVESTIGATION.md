@@ -93,3 +93,35 @@ The existing shared voice allocator remains a separate possible contributor in t
 ## Current regression summary — Run 139
 
 The 91-render audio golden suite reports 90 changed renders and zero missing renders. The 720 engine-switch golden sequences differ from the 1.4 references. Health, voice/routing, CPU-budget and crash checks report zero failures. UI tests report 15 failing assertions in each tested configuration, covering preset-list handling, SONG, FX keys/LEDs/knobs, sequencer tools/ARP division, and HELP layout. Do not regenerate golden hashes or weaken the assertions.
+
+
+## Run 142 — shared-LFO-RNG counterfactual (2026-11-25)
+
+Run 142 (`45524656333`, commit `5e6f80138fb7c6bf2ca80922e351f9323650959e`) completed with **failure**. The target ABI smoke probe, pinned Rings/Clouds compile-only check, compact Rings delay-line host comparison, normal FM-1 firmware build, engine-switch diagnostic, and lean memory-diagnostic build all completed successfully. The host regression suite failed, so the tested development firmware artifact was skipped. A linker-diagnostics artifact was uploaded.
+
+The mode-8 counterfactual preserved the note-free companion's engine-switch/render schedule and muted it, but isolated that companion's LFO random draws from the shared RNG using a host-only test hook. Its aggregate fingerprint was:
+- Primary + RNG-isolated engine-switching companion: `ac341378dd96f829`
+- Matched primary-only: `4f2f3dfb4780a7c1`
+- Matched primary + muted rendering companion: `11cbfc7fd013575a`
+- Primary + ordinary note-free engine-switching companion (Run 139): `8293e8d6902f8147`
+
+The RNG-isolated fingerprint is distinct from both matched controls. This counterfactual therefore does **not** restore the primary-only result. It weakens the hypothesis that companion LFO consumption of the shared RNG, by itself, explains the mode-7 difference. It does not prove the shared RNG is irrelevant: other shared-RNG consumers (including engine noise), changed RNG call ordering, or interactions with other global state remain possible. Do not change production RNG behavior based on this result.
+
+Next isolate other shared state while keeping the companion note-free and preserving the same render/engine-switch schedule. Prioritize auditing engine-memory ownership and all global RNG consumers reached during render; add narrow host-only counters or counterfactuals that identify which shared resource changes. Keep the production path untouched until a causal test restores the matched primary-only fingerprint and golden-render coverage exists. Hashes are fingerprints, not numerical distances.
+
+### Run 142 host regression and memory results
+
+The host suite still reports 90 of 91 audio golden renders changed (zero missing), and all 720 engine-switch sequences differ from the 1.4 references. The UI test reports 15 failing assertions per tested configuration, in the same SONG, FX key/LED/knob, sequencer division, and HELP-layout areas recorded above. The UI render/layout phase also emitted a segmentation fault while generating render assets; the script continued to later checks, so this is an additional host-test warning to investigate rather than evidence that the target build failed. Health, voice/routing, CPU-budget and crash checks remain distinct from the golden-hash failures; do not regenerate golden hashes or weaken assertions.
+
+The lean target linker diagnostic passed with:
+- `.data + .bss`: 56,036 bytes of 73,728 bytes ordinary RAM
+- `.pool`: 145,720 bytes of 368,640 bytes
+- `.ram_text`: 3,124 bytes
+- `.text`: 471,232 bytes
+- Firmware image: 474,708 bytes; packaged `.fwsc`: 610,286 bytes
+
+These are still lean-baseline figures and do not include live Rings/Clouds state or audio buffers. They do not establish final Rings/Clouds memory fit or provide a firmware release. The linker artifact is `rings-into-clouds-linker-diagnostics-5e6f80138fb7c6bf2ca80922e351f9323650959e`.
+
+## Current status after Run 142
+
+The shared-LFO-RNG-only explanation is not supported by the mode-8 counterfactual: isolating the companion LFO RNG does not restore the primary-only fingerprint. The next investigation should examine other shared render state and RNG consumers, while keeping the production firmware unchanged. Rings/Clouds remain compile-tested only; there is still no production Rings-to-Clouds audio path or final target memory-fit result.
