@@ -223,6 +223,9 @@ run "TRS UART: pending events, stale counts, exact packets and continuous traffi
 
 run "flash storage (A/B, torn writes)" "$OUT/storage_test"
 
+$CC -O2 -o "$OUT/marbles_core_test" tests/marbles_core_test.c
+run "Marbles core: deterministic PRNG, bounded draws, probability endpoints and scale snapping" "$OUT/marbles_core_test"
+
 $CC -o "$OUT/upreset_test" tests/upreset_test.c
 run "user presets (UP_PUT parser, bank round trip, versions, PHYS DRUM and SAMPLE PERC -> DRUM, grid records, DIGITAL kept)" "$OUT/upreset_test"
 
