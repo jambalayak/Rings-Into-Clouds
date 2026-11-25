@@ -50,7 +50,7 @@
  * presets read and write t->p from the main loop, which the ISR preempts; TIMER5 only fills the MIDI rings),
  * and the engines read t->p as before. An engine reads its parameters in note_on (events_block) unmodulated.
  * Nothing active (every slot with SRC, DST or AMT at 0): no work, and the sound is bit-identical. */
-enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RAND, MS_MODW, MS_AT, MS_EXPR, MS_SH, MS_SLEW, MS_N };
+enum { MS_OFF, MS_LFO, MS_ENV, MS_VEL, MS_KEY, MS_RAND, MS_MODW, MS_AT, MS_EXPR, MS_SH, MS_SLEW, MS_MX, MS_MY, MS_N };
 enum { MD_OFF, MD_PITCH, MD_CUT, MD_SHP, MD_AMP, MD_PAN, MD_DIST, MD_CHO, MD_DLY, MD_REV, MD_RATE, MD_VIB, MD_E1,
        MD_DEPTH = MD_E1 + 8, MD_VEL, MD_TIME, MD_N };   /* (append-only: the stored values keep their meaning) */
 _Static_assert(NELEM(N_MSRC) == MS_N && NELEM(N_MDST) == MD_N, "N_MSRC / N_MDST == MS_* / MD_*");
@@ -96,6 +96,20 @@ static modw_t mod;               /* (one core: the one of 1.6, the same code) */
 #endif
 #define MOD_W_CLEAR() memset(&MOD(&trk[0]), 0, C1_NP * sizeof(modw_t))   /* (the host tests: every part's) */
 
+static volatile int16_t marbles_x[NTRK], marbles_y[NTRK];
+static __attribute__((unused)) void marbles_mod_set(track_t *t, int16_t x, int16_t y)
+{
+    uint32_t i = (uint32_t)(t - trk);
+    marbles_x[i] = x;
+    marbles_y[i] = y;
+}
+static __attribute__((unused)) void marbles_mod_clear(track_t *t)
+{
+    uint32_t i = (uint32_t)(t - trk);
+    marbles_x[i] = marbles_y[i] = 0;
+}
+
+
 static uint32_t mod_seed = 0x2545F491u;
 static int16_t mod_rand(void)    /* RAND of a note-on: xorshift32, bipolar */
 {
@@ -118,6 +132,8 @@ static int32_t mod_tsrc(const track_t *t, uint32_t s, int32_t lfo)
         return mod_sh(t);
     case MS_SLEW:                                       /* the cycle before's value .. this one's, by the phase */
         return t->lfo_prev + (((mod_sh(t) - t->lfo_prev) * (int32_t)(t->lfo_ph >> 17)) >> 15);
+    case MS_MX: return marbles_x[(uint32_t)(t - trk)];
+    case MS_MY: return marbles_y[(uint32_t)(t - trk)];
     case MS_LFO:
         return lfo;
     case MS_ENV:
