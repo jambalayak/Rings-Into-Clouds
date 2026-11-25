@@ -857,10 +857,54 @@ static int note_ownership_runtime(void)
     return check("voice ownership: pending engine-switch notes survive until their final owner releases", ok);
 }
 
+static int marbles_sequencer_runtime(void)
+{
+    int ok;
+    track_t *t, *other;
+    uint32_t note;
+    ui_power_on();
+    song.g[G_CLOCK] = 0;
+    song.rec = 0;
+    t = &trk[0];
+    other = &trk[1];
+    t->p[P_MUTE] = other->p[P_MUTE] = 0;
+    t->p[P_VOICE] = other->p[P_VOICE] = V_POLY;
+    t->p[P_SEQMODE] = 1;
+    other->p[P_SEQMODE] = 0;
+    t->p[P_APROB] = 127;                              /* full density */
+    t->p[P_AOCT] = 1;
+    t->p[P_AGATE] = 64;
+    t->p[P_ASWING] = 0;
+    t->p[P_AHOLD] = 0;
+    trk_all_off(t);
+    trk_all_off(other);
+    seq_start();
+    seq_tick(t, CTL);
+    seq_tick(other, CTL);
+    note = marbles_gate_note[0];
+    ok = marbles_mode_on[0] && marbles_gate_on[0] && note_ownership_any(&note_owners[0], note) &&
+         !marbles_mode_on[1] && !marbles_gate_on[1] &&
+         (mod_tsrc(t, MS_MX, 0) != 0 || mod_tsrc(t, MS_MY, 0) != 0);
+    t->p[P_SEQMODE] = 0;                              /* switch back while running */
+    seq_tick(t, CTL);
+    ok &= !marbles_gate_on[0] && !note_ownership_any(&note_owners[0], note);
+    seq_stop();
+    if (!ok) return check("sequencer dispatch: per-track MARBLES note, X/Y outputs and safe switch back to STANDARD", 0);
+
+    t->p[P_SEQMODE] = 1;
+    t->p[P_APROB] = 0;                                /* no T gates at zero density */
+    seq_start();
+    seq_tick(t, CTL);
+    ok = marbles_mode_on[0] && !marbles_gate_on[0];
+    seq_stop();
+    return check("sequencer dispatch: zero density emits no Marbles note", ok);
+}
+
 int main(void)
 {
     int bad = 0;
     bad += note_ownership_runtime();
+    bad += marbles_sequencer_runtime();
     bad += lfo();
     bad += nudge();
     bad += motion128();
