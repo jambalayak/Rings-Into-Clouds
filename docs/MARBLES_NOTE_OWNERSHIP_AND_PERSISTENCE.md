@@ -163,6 +163,7 @@ The selector is now represented by `P_SEQMODE` before `P_E0`, with `STANDARD = 0
 - FUN10 byte 65 carries a marker in bit 7 and one selector bit per track in bits 0..3.
 - Byte 66 remains 114, the previous firmware's common-plus-engine parameter count. The regular parameter bytes are therefore still the exact old 1.8 layout, so older firmware can load the project and safely ignore the new reserved-byte selector (it will play STANDARD).
 - New firmware unpacks the regular 114 values through `params_by_count()`, then restores each track's selector from byte 65. Older FUN10 projects have byte 65 clear and therefore default to STANDARD.
+- Motion event IDs are written in the legacy 1.8 namespace (`P_E0 = 106`) so older firmware reads its existing automation correctly. New firmware uses the ordinary `proj_motion_ids(np=114)` migration on import to move engine-parameter IDs to the new `P_E0 = 107`; the marker identifies the selector but does not change the motion-ID storage namespace.
 - The compile-time size guard uses `P_COUNT - 1` in the packed track formula, ensuring the out-of-line selector does not consume the existing MIDI IN TRACK extension or move the FM6 patches.
 - Project tests now cover per-track mode round-trip, the legacy 114-parameter FUN10 default, and the earlier 103/104-parameter FUN10 migrations. User-preset parameter mapping retains the selector in its full parameter stream and defaults it for older records.
 
