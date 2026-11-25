@@ -968,7 +968,6 @@ static void seq_start(void)
         t->rskip_n = 0;
         t->rh_n = 0;
         t->rat_left = 0;
-        t->rh_n = t->rskip_n = 0;
         t->nd_late = t->nd_early = ND_NONE;
         t->nd_fired = 0;
         marbles_gate_off(t);
@@ -1319,6 +1318,7 @@ static void seq_tick(track_t *t, uint32_t n)
         marbles_reset(t);
         marbles_mode_on[ti] = (uint8_t)mode;
         t->rat_left = 0;
+        t->rh_n = t->rskip_n = 0;
         t->nd_late = t->nd_early = ND_NONE;
         t->nd_fired = 0;
         len = (uint32_t)t->p[P_SLEN];
