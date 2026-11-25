@@ -638,7 +638,7 @@ static int proj_pack(project_store_t *out, const project_t *q)
             int32_t value = q->t[t].p[i];
             if (value < -64 || value > 127) return 0;
             if (i == P_SEQMODE) {
-                if (value > 1) return 0;
+                if (value < 0 || value > 1) return 0;
                 if (value) b[65] |= (uint8_t)(1u << t);
             } else {
                 b[pos++] = (uint8_t)(value + 64);
