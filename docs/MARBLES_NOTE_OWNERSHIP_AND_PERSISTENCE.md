@@ -69,3 +69,18 @@ Do not store volatile PRNG history in unused project bytes by assumption. Decide
 ## 6. Current status
 
 No runtime sequencer or voice code is changed by this decision. The existing note-off API is insufficient for safe independent Marbles note ownership, and the next implementation step is a focused source-ownership design plus host tests. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
+
+
+## 7. Narrow ownership bridge candidate
+
+A less invasive first implementation may be possible without redesigning every existing input source. Keep all existing callers on the current legacy note API and add a dedicated Marbles note API:
+
+- Rename the current voice operations internally to raw track-note operations.
+- Keep `trk_note_on/off()` as the legacy path, tracking whether the legacy path currently owns each pitch.
+- Add `trk_marbles_note_on/off()`, tracking Marbles ownership separately per track and pitch.
+- A raw note-off is issued only when the releasing owner was active and no other owner still holds that pitch.
+- If Marbles starts a pitch already owned by the legacy path, record its ownership but do not issue a second raw note-on. This avoids duplicate entries collapsing in the mono stack.
+- If the legacy path starts a pitch already owned by Marbles, it may retrigger normally; Marbles' later release is suppressed while legacy ownership remains.
+- Clear both ledgers in `trk_all_off()` and on every path that invalidates a track's voices (preset/project panic, track silence, and any equivalent reset).
+
+This two-owner bridge preserves the current aggregate semantics among keyboard, MIDI, arp and Standard sequencing, while preventing Marbles from releasing their pitch. It is a candidate, not an approved implementation: it still needs tests for note-on ordering, mono priority, poly allocation, unison, engine-switch pending notes, mute, panic and track reset. In particular, every call path that can bypass `trk_note_on/off()` or invalidate voices must be accounted for. Use fixed-size per-track bitsets (128 MIDI pitches) rather than dynamic allocation, and keep the ledger out of `track_t` unless its alignment / memory budget is re-audited.
