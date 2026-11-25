@@ -130,3 +130,14 @@ The per-track selector groundwork is now committed:
 - Project, user-preset and FUN10 tests were updated for the new selector and old-file defaults. The compile-time pack-size guard accounts for the omitted selector byte.
 
 This is persistence and parameter groundwork only. `seq_tick()` still runs the existing Standard sequencer for every track; Marbles mode dispatch, source-safe note ownership and the UI selector are not yet implemented. The C test suite and target build have not been run here.
+
+## Voice-boundary note ownership (2026-11-25)
+
+The pitch collision is now handled by a fixed two-owner ledger:
+
+- `firmware/src/note_ownership.h` stores legacy and MARBLES ownership as two 128-pitch bitsets per track (32 bytes per track, compile-time asserted).
+- `voice.c` keeps the existing keyboard/MIDI/ARP/STANDARD callers on their legacy wrappers and adds `trk_marbles_note_on/off()`. The raw allocator receives a note-off only after the releasing source no longer owns the pitch and the other owner does not hold it.
+- Panic/all-off clears both owners. Engine-switch start clears old-engine ownership; new notes during the fade acquire fresh bits and remain represented while the existing pending-note queue is replayed through the raw allocator.
+- `tests/note_ownership_test.c` covers the pure ledger, and `tests/fun10_test.c` now exercises same-pitch release ordering, MONO fallback, panic and pending engine-switch behavior.
+
+The standalone ownership helper test was compiled and passed locally with C11, `-Wall -Wextra -Werror`. The integrated FUN10 test, full host suite, target CPU budget and FM-1 build remain unrun. Marbles event generation is still not wired into `seq_tick()`.
