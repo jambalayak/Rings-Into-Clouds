@@ -10035,6 +10035,50 @@ static int test_ux18(void)
     return bad;
 }
 
+static int test_seq_layer_modes(void)
+{
+    uint32_t k, black0 = 27u, black1 = 27u, dn;
+    int ok;
+    track_t *t;
+    ui_power_on();
+    go_home();
+    song.sel = 0;
+    t = &trk[0];
+    t->p[P_SEQMODE] = 0;
+    t->p[P_AHOLD] = 0;
+    t->p[P_APROB] = 127;
+    t->p[P_AOCT] = 1;
+    t->p[P_ASWING] = 0;
+    t->p[P_AGATE] = 64;
+    for (k = 0; k < 27u; k++)
+        if (key_black(k)) {
+            if (key_place(k) == 0u) black0 = k;
+            if (key_place(k) == 1u) black1 = k;
+        }
+    layer_opened(LAYER_SEQ);
+    layer_key(LAYER_SEQ, black0);                     /* black key 1: select MARBLES */
+    ok = black0 < 27u && black1 < 27u && t->p[P_SEQMODE] == 1 &&
+         ly_page(LAYER_SEQ) == &LY_MARBLES;
+    layer_key(LAYER_SEQ, black1);                     /* black key 2: freeze */
+    ok &= t->p[P_AHOLD] == 1;
+    t->p[P_APROB] = 33;
+    t->p[P_AOCT] = 4;
+    t->p[P_ASWING] = 70;
+    t->p[P_AGATE] = 127;
+
+    /* OCT- restores the mode, freeze and both sequencer control sets captured on layer open. */
+    ui.ly = LAYER_SEQ;
+    ui.ly_t0 = LY_OPEN;
+    fm1_in.buttons = ly_bit(LAYER_SEQ);
+    dn = panel.btn[B_OCTDN];
+    layer_oct(1u << dn, 1u << dn);
+    ok &= t->p[P_SEQMODE] == 0 && t->p[P_AHOLD] == 0 && t->p[P_APROB] == 127 &&
+          t->p[P_AOCT] == 1 && t->p[P_ASWING] == 0 && t->p[P_AGATE] == 64;
+    fm1_in.buttons = 0;
+    ui.ly = ui.ly_t0 = 0;
+    return check("SEQ quick layer: black keys select STANDARD / MARBLES and FREEZE; OCT- restores the opened settings", ok);
+}
+
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -10079,6 +10123,7 @@ int main(void)
     bad += test_layer_lock();
     bad += test_rec_layer();
     bad += test_seq_tools();
+    bad += test_seq_layer_modes();
     bad += test_edit_quick_actions();
     bad += test_menu_prefs();
     bad += test_style();
