@@ -97,13 +97,13 @@ static modw_t mod;               /* (one core: the one of 1.6, the same code) */
 #define MOD_W_CLEAR() memset(&MOD(&trk[0]), 0, C1_NP * sizeof(modw_t))   /* (the host tests: every part's) */
 
 static volatile int16_t marbles_x[NTRK], marbles_y[NTRK];
-static __attribute__((unused)) void marbles_mod_set(track_t *t, int16_t x, int16_t y)
+static void marbles_mod_set(track_t *t, int16_t x, int16_t y)
 {
     uint32_t i = (uint32_t)(t - trk);
     marbles_x[i] = x;
     marbles_y[i] = y;
 }
-static __attribute__((unused)) void marbles_mod_clear(track_t *t)
+static void marbles_mod_clear(track_t *t)
 {
     uint32_t i = (uint32_t)(t - trk);
     marbles_x[i] = marbles_y[i] = 0;
