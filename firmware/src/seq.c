@@ -3,6 +3,7 @@
 /* Keyboard, scale, arpeggiator, sequencer and transport.
  * Everything here runs in the audio ISR, once per CTL-sample block, and
  * ends in trk_note_on / trk_note_off: engines never see where a note came from.
+#include "marbles_runtime.h"
  * Four tracks, one transport: every track's pattern loops on its own LEN / DIV /
  * SWING / GATE (polymeter). The keys play the selected track; MIDI IN by MENU > MIDI > MIDI IN (G_ROUTE):
  * CH1-4 (0) channels 1..4 play parts 1..4, channels 5..16 are ignored (midi_control.c midi_event); SEL (1)
@@ -59,6 +60,65 @@ static volatile uint8_t midi_seen;       /* 1.5.5 (#208): bit per track, a MIDI 
                                           * ui.c scr_input: MENU > MIDI > SCREEN WAKE +MIDI) */
 
 static uint32_t trk_index(const track_t *t) { return (uint32_t)(t - trk); }
+
+/* Per-track Marbles state; the Standard sequencer's pattern and clock fields remain authoritative in STANDARD mode. */
+static marbles_runtime_t marbles_rt[NTRK];
+static uint8_t marbles_mode_on[NTRK], marbles_gate_on[NTRK], marbles_gate_note[NTRK], marbles_engine_seen[NTRK];
+static uint32_t marbles_gate_left[NTRK];
+
+static uint32_t marbles_seed(uint32_t track)
+{
+    return 0x6D2B79F5u ^ (0x9E3779B9u * (track + 1u));
+}
+static void marbles_reset(track_t *t)
+{
+    uint32_t i = trk_index(t);
+    marbles_runtime_seed(&marbles_rt[i], marbles_seed(i));
+    marbles_gate_on[i] = 0;
+    marbles_gate_left[i] = 0;
+    marbles_mod_clear(t);
+}
+static void marbles_gate_off(track_t *t)
+{
+    uint32_t i = trk_index(t);
+    if (marbles_gate_on[i]) {
+        trk_marbles_note_off(t, marbles_gate_note[i]);
+        marbles_gate_on[i] = 0;
+        marbles_gate_left[i] = 0;
+    }
+}
+static void marbles_gate_tick(track_t *t, uint32_t n)
+{
+    uint32_t i = trk_index(t);
+    if (!marbles_gate_on[i])
+        return;
+    if (n >= marbles_gate_left[i])
+        marbles_gate_off(t);
+    else
+        marbles_gate_left[i] -= n;
+}
+static void marbles_step_play(track_t *t, uint32_t cur_len)
+{
+    uint32_t i = trk_index(t), mask = scale_mask(t), count = 0, k, spread, density, gate;
+    marbles_step_t step;
+    for (k = 0; k < 12u; k++)
+        count += (mask >> k) & 1u;
+    spread = (uint32_t)clamp(t->p[P_AOCT], 1, 4) * 2u * (count ? count : 12u);
+    density = ((uint32_t)clamp(t->p[P_APROB], 0, 127) * 100u + 63u) / 127u;
+    step = marbles_runtime_step(&marbles_rt[i], density, spread, (uint32_t)clamp(t->p[P_ASWING], 0, 100),
+                                (uint32_t)(t->p[P_AHOLD] != 0), (uint32_t)t->p[P_ROOT],
+                                (uint16_t)mask, t->p[P_TRANS]);
+    marbles_mod_set(t, step.x, step.y);              /* available to the modulation matrix as MX / MY */
+    if (!step.trigger || t->p[P_MUTE])
+        return;
+    marbles_gate_off(t);                             /* the Marbles T output is one gated note per track */
+    trk_marbles_note_on(t, step.note, 100u);
+    marbles_gate_note[i] = step.note;
+    marbles_gate_on[i] = 1u;
+    gate = cur_len * (uint32_t)clamp(t->p[P_AGATE], 1, 127) / 127u;
+    marbles_gate_left[i] = gate < CTL ? CTL : gate;
+}
+
 
 /* MENU > MIDI > MIDI IN (G_ROUTE, up to 1.1.5 GLO > SYSTEM ROUT): the first channel (0..15) of the block of four that
  * plays tracks 1..4, -1 with SEL, -2 with TRACK (each track its own: song.mch). Stored
@@ -1232,9 +1292,54 @@ static __attribute__((noinline)) void seq_enter(track_t *t, uint32_t top, uint32
 
 static void seq_tick(track_t *t, uint32_t n)
 {
-    uint32_t period, len, top;
+    uint32_t period, len, top, ti = trk_index(t), mode = t->p[P_SEQMODE] != 0;
     if (song.g[G_CLOCK])
         n = midi_grid_advance(&midi_seq_grid[trk_index(t)], n, (uint32_t)t->p[P_SDIV]);
+    if (marbles_engine_seen[ti] != t->engine) {
+        marbles_gate_off(t);
+        marbles_reset(t);
+        marbles_engine_seen[ti] = t->engine;
+    }
+    if (mode != marbles_mode_on[ti]) {
+        if (marbles_mode_on[ti])
+            marbles_gate_off(t);
+        else
+            seq_release(t);
+        marbles_reset(t);
+        marbles_mode_on[ti] = (uint8_t)mode;
+        t->rat_left = 0;
+        t->nd_late = t->nd_early = ND_NONE;
+        t->nd_fired = 0;
+        len = (uint32_t)t->p[P_SLEN];
+        len = len ? len : 1u;
+        t->seq_idx = (uint16_t)(len - 1u);
+        t->seq_pos = 0x7FFFFFFFu;
+    }
+    if (mode) {
+        marbles_gate_tick(t, n);
+        if (!song.playing)
+            return;
+        period = div_samples((uint32_t)t->p[P_SDIV]);
+        len = (uint32_t)t->p[P_SLEN];
+        len = len ? len : 1u;
+        t->seq_pos += n;
+        for (;;) {
+            uint32_t cur_len = step_samples(t, period, t->seq_idx);
+            if (t->seq_pos < cur_len && t->seq_pos != 0x7FFFFFFFu + n)
+                break;
+            top = t->seq_pos >= 0x7FFFFFFFu;
+            t->seq_pos = top ? (chain.running ? chain.carry : 0u) : t->seq_pos - cur_len;
+            t->seq_idx = (uint16_t)((t->seq_idx + 1u) % len);
+            seq_enter(t, top, len);
+            {
+                const motion_store_t *m = chain_motion(t);
+                if (m)
+                    motion_step(t, t->seq_idx, m, 1);
+            }
+            marbles_step_play(t, cur_len);
+        }
+        return;
+    }
     if (t->seq_n && !t->seq_hold) {
         if (t->seq_off <= n)
             seq_release(t);
