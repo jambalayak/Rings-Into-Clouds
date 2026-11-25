@@ -2,16 +2,24 @@
 
 RINGS INTO CLOUDS is an independent M-VAVE FM-1 firmware project based on the Felucca hardware platform. The aim is a playable hybrid instrument, not a visual mock-up.
 
+## Current implementation status — 2026-11-25
+
+- **M0:** source, memory, audio, storage, MIDI, parameter and test architecture audited. The full target build remains pending.
+- **M1 Rings voice:** one original three-mode fixed-point resonator engine has been added as engine ID 15, with eight factory presets and eight continuous controls. It is one engine, not a collection of Rings models. Host regression coverage has been added but not run; target CPU and audio validation remain outstanding.
+- **M1 Clouds processor:** not yet implemented. The existing GRAIN engine is not being treated as a complete Clouds replacement; the planned granular processor remains a separate post-voice/part stage.
+- **M3 sequencing:** the existing Standard step sequencer remains available, and a per-track Marbles-inspired mode now shares its clock/transport. The Marbles mode has X/Y modulation sources, Freeze, Deja Vu, pitch quantisation and a dedicated quick-layer control page. Host tests have been added but not run.
+- **Validation:** no full firmware build, integrated host-suite pass, target CPU measurement or physical FM-1 test is claimed.
+
 ## Product direction
 
-- Core voice: Mutable Instruments Rings-inspired resonator synthesis feeding a Clouds-inspired granular processor.
+- Core voice: exactly one Mutable Instruments Rings-inspired resonator engine feeding a separate Clouds-inspired granular processor; no multiple Rings models as separate engines.
 - Playability: immediate preset selection, chromatic keyboard input, MIDI input, and hands-on parameter control.
 - Generative layer: a Marbles-inspired probabilistic sequencer and a Yarns-inspired arpeggiator.
 - Modulation: Peaks-inspired envelopes/LFOs and assignable modulation routing.
 - Tone shaping: Ripples-inspired multimode filtering.
 - Effects: Beads-inspired granular/time effects.
 - Additional engines: optional hidden six-operator DX-style FM and Disastrous Peace-inspired experimental engine.
-- Sequencing: retain a conventional step sequencer alongside generative modes.
+- Sequencing: retain the conventional Standard step sequencer as a selectable alternative to the Marbles-inspired generative mode, independently per track.
 
 Names describe functional and sonic references. Implementations must be original ports/reimplementations or properly licensed code; do not copy proprietary artwork, trademarks, or assets. Preserve all upstream and third-party licence notices.
 
