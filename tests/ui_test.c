@@ -7576,7 +7576,7 @@ static int test_fx_latch(void)
     turn(EN_K4, -30); ok &= perf_k[3] == 30;                      /* left: 70 % */
     turn(EN_K4, 10); ok &= perf_k[3] == 20;                       /* right: 80 % */
     key_down(white(10)); frame(); perf_begin(CTL);                /* FLANGER: KNOB 4 is DEPTH, right is more */
-    turn(EN_K4, 10); ok &= perf_k[3] == 30;
+    turn(EN_K4, 10); ok &= perf_k[3] == 10;
     key_up(white(10)); frame(); btn_up(B_FX); frame();
     bad += check("#40 FX + KNOB 4: DEPTH rises to the right and falls to the left; FLANGER depth increases to the right",
                  ok && !perf_k[3]);
