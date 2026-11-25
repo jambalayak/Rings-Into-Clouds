@@ -154,3 +154,26 @@ These are lean baseline figures only. They contain no linked Rings/Clouds proces
 ## Current status after Run 144
 
 The matched mode-8/mode-9 equality shows that engine switching is not required to produce the isolated-companion fingerprint in this test. The remaining discrepancy is associated with some aspect shared by the two companion-render conditions, but its cause is unresolved. Production audio/RNG code remains unchanged. Rings and Clouds remain compile-tested only: no production Rings-to-Clouds audio path, final target memory-fit result, or physical FM-1 validation exists.
+
+
+## Run 148 — frozen-LFO matched control (2026-11-25)
+
+Run 148 (`45534837366`, commit `6a3eebccfceca859a5f6f2427295df882ca75d9e`) completed with **failure**. Target ABI smoke, pinned Rings/Clouds DSP compile-only check, compact Rings delay-line host comparison, normal FM-1 firmware regression build, engine-switch diagnostic, and lean memory-diagnostic build all completed successfully. The host regression suite failed, so upload of the tested development firmware was skipped. The run's engine-switch diagnostic itself completed successfully.
+
+The new host-only modes 10/11 freeze the note-free companion's LFO progression while preserving its render schedule, mute state, and matched wait durations; mode 10 switches the companion engine and mode 11 does not. The diagnostic reported:
+- Primary + RNG-isolated engine-switch companion (mode 8): `ac341378dd96f829`
+- Matched primary + RNG-isolated no-switch companion (mode 9): `ac341378dd96f829`
+- Primary + frozen-LFO engine-switch companion (mode 10): `ac341378dd96f829`
+- Matched primary + frozen-LFO no-switch companion (mode 11): `ac341378dd96f829`
+- Matched primary-only: `4f2f3dfb4780a7c1`
+- Matched primary + ordinary muted rendering companion: `11cbfc7fd013575a`
+
+All four isolated/frozen companion conditions produce the same fingerprint, while that fingerprint remains different from both primary-only and ordinary muted-rendering controls. Thus freezing the companion LFO does not restore the primary-only fingerprint. In this controlled configuration, engine switching still adds no detectable change. The remaining difference is not explained by companion LFO phase advancement alone; some other effect of rendering the companion remains. This is equality/difference evidence only, not a numerical distance or a root-cause proof.
+
+The host-only LFO freeze hook is guarded by `FELUCCA_HOSTSIM`; production firmware LFO behavior is unchanged. Do not change production RNG/LFO behavior, update golden hashes, or weaken assertions based on these fingerprints. The next useful experiment should isolate another concrete render-time shared resource while retaining the same primary input, companion render schedule, mute state, and matched waits. Audit shared control/modulation state and global state touched by `track_render()` beyond LFO progression; use narrowly scoped host-only instrumentation rather than production changes.
+
+The host regression remains separate and failing: the 91-render suite reports 90 changed renders and zero missing, while the UI suite continues to report its 15 failing assertions in the default, CPU2-off, and FM4/ADPCM configurations. Health, voice/routing, CPU-budget and crash checks are not substitutes for golden/UI success. The target compile/build steps passing do not constitute a release or hardware validation.
+
+## Current status after Run 148
+
+The frozen-LFO counterfactual further narrows the investigation: companion LFO progression is not sufficient to explain the changed aggregate fingerprint, and engine switching is not necessary in the matched isolated configuration. The unresolved influence is associated with rendering the companion under the test schedule. Production audio, RNG, and LFO behavior remain unchanged. Rings/Clouds are still compile-tested only; no production Rings-to-Clouds audio path, final target memory-fit result, or physical FM-1 validation exists.
