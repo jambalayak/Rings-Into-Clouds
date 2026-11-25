@@ -41,8 +41,7 @@
 #define NENGINES 16u               /* stable IDs 0..15; optional SLICE / ADPCM slots remain reserved when absent */
 #define NENG_SHOWN (14u + FELUCCA_SLICE + FELUCCA_ADPCM - !FELUCCA_FM4)
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-/* NENG_SHOWN above counts selectable engines; ENGINE_ORDER omits unavailable optional slots. */
-                                                * in the display order of engines.c ENGINE_ORDER */
+/* NENG_SHOWN counts selectable engines; ENGINE_ORDER omits unavailable optional slots. */ */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
 /* ------------------------------------------------------- parameters --- */
