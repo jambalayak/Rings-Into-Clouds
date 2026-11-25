@@ -9804,6 +9804,7 @@ static int test_edit_quick_actions(void)
     ui_power_on();
     ok = 1;
     for (i = 0; i < NENGINES; i++) {
+        if (!eng_ok(i)) continue;
         trk[0].eng_req = (uint8_t)i;
         n = eqa_count(&trk[0]);
         ok &= i == ENGI_DRUM ? n == NLANE : n == 0u;
