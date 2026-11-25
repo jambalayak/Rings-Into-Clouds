@@ -125,3 +125,32 @@ These are still lean-baseline figures and do not include live Rings/Clouds state
 ## Current status after Run 142
 
 The shared-LFO-RNG-only explanation is not supported by the mode-8 counterfactual: isolating the companion LFO RNG does not restore the primary-only fingerprint. The next investigation should examine other shared render state and RNG consumers, while keeping the production firmware unchanged. Rings/Clouds remain compile-tested only; there is still no production Rings-to-Clouds audio path or final target memory-fit result.
+
+
+## Run 144 — matched RNG-isolated no-switch control (2026-11-25)
+
+Run 144 (`45530719898`, commit `f46584a80298345b931b7dec43524a4f1964fde8`) completed with **failure**. Target ABI smoke, pinned Rings/Clouds compile-only checks, compact Rings delay-line host comparison, normal FM-1 firmware build, engine-switch diagnostic, and lean memory-diagnostic build all completed successfully. The host regression suite failed; upload of the tested development firmware was skipped. A lean linker-diagnostics artifact was uploaded.
+
+The new mode-9 control uses the same note-free, mixer-muted companion and isolated LFO RNG as mode 8, with the same render/wait schedule, but does not switch the companion's engine. The diagnostic reported:
+- Primary + RNG-isolated engine-switch companion (mode 8): `ac341378dd96f829`
+- Matched primary + RNG-isolated no-switch companion (mode 9): `ac341378dd96f829`
+
+The fingerprints are exactly equal. In this controlled configuration, engine switching adds no detectable change beyond the matched note-free companion render schedule. This is evidence against engine switching itself being the necessary trigger for the mode-8 aggregate difference. It does **not** restore the matched primary-only fingerprint (`4f2f3dfb4780a7c1`) or the ordinary muted-rendering companion fingerprint (`11cbfc7fd013575a`), and it does not identify the remaining shared-state mechanism. Keep hash interpretation binary (equal/different), never as a numerical distance. Do not change production RNG or engine-switch behavior based on this test.
+
+The earlier PHYS-reset/global-RNG candidate is not supported for this host configuration: the host build enables `FELUCCA_CPU2=1`, for which `PHYS_RSEED(t)` uses per-part `noise32()`, not the global `rng()`. Continue auditing other state touched by rendering a note-free companion, including per-track LFO/control state, global modulation state, and any shared buffers or scheduling side effects. A useful next counterfactual should isolate one candidate at a time while preserving the same primary input, companion render schedule, and matched wait durations.
+
+### Run 144 regression and linker result
+
+The host suite reports 90 of 91 audio golden renders changed (zero missing), and all 720 engine-switch sequences differ from the 1.4 references. Health, voice/routing, CPU-budget and crash checks remain at zero failures. The same UI test assertions recorded in Run 134 remain a separate failure category; do not regenerate golden hashes or weaken assertions.
+
+The lean linker diagnostic reports:
+- Image: 474,708 bytes
+- `.data + .bss`: 56,036 bytes of 73,728 bytes ordinary RAM
+- `.pool`: 145,720 bytes of 368,640 bytes
+- `.ram_text`: 932 instructions, no calls
+
+These are lean baseline figures only. They contain no linked Rings/Clouds processor state or audio buffers and do not establish final memory fit. The artifact is `rings-into-clouds-linker-diagnostics-f46584a80298345b931b7dec43524a4f1964fde8`.
+
+## Current status after Run 144
+
+The matched mode-8/mode-9 equality shows that engine switching is not required to produce the isolated-companion fingerprint in this test. The remaining discrepancy is associated with some aspect shared by the two companion-render conditions, but its cause is unresolved. Production audio/RNG code remains unchanged. Rings and Clouds remain compile-tested only: no production Rings-to-Clouds audio path, final target memory-fit result, or physical FM-1 validation exists.
