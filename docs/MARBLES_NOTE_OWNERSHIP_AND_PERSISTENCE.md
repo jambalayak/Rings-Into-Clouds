@@ -98,10 +98,10 @@ This correction supersedes the earlier estimates in sections 4 and 8. The serial
 The focused source inspection confirms the ownership boundary and adds several concrete constraints:
 
 - The raw pitch allocator operations and the source-aware wrappers are all in `firmware/src/voice.c`: `trk_note_on_raw/off_raw()`, the legacy `trk_note_on/off()`, `trk_marbles_note_on/off()`, and `trk_all_off()`.
-- The engine-switch completion path in `voice.c` replays the pending `xp_note[] / xp_vel[]` queue by calling `trk_note_on()` directly. A Marbles-specific pending note must therefore retain its owner across the four-block engine fade; replaying all pending notes as legacy would lose ownership.
+- The engine-switch completion path in `voice.c` replays the pending `xp_note[] / xp_vel[]` queue through `trk_note_on_raw()`. The per-track owner bitsets retain ownership for notes started during the four-block fade, so replay does not relabel a Marbles note as legacy.
 - In `seq.c`, the arpeggiator has its own note-on/off calls (around lines 299, 307, 315, 454), live input has note-on/off calls (around 682 and 699), and the Standard sequencer releases its tracked notes and starts new notes (around 926, 1058 and 1064). Track panic/reset calls `trk_all_off()` (around 1433).
 - The arpeggiator also has `arp_forget()`, which ends its currently sounding notes through the ordinary note-off API. The Standard sequencer has its own `seq_notes[]` list. These are separate lifecycle owners in the callers even though the voice layer currently merges them.
-- `trk_note_off()` first removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. It has no note-instance token. `trk_all_off()` releases all voices and clears mono and pending-note state. Engine-switch completion independently hard-clears all old voices before replaying queued notes. Those invalidation paths must clear any new ledger consistently.
+- `trk_note_off_raw()` removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. The public legacy and Marbles wrappers first release their own ledger bit and call this raw path only when the other owner no longer holds the pitch. `trk_all_off()` clears both ledgers; engine-switch start clears old ownership before the fade, while new pending notes keep their fresh bits.
 - `voice.c` now includes `note_ownership.h` and defines the MARBLES note wrappers. `felucca.c` still does not include a Marbles scheduler, and `seq_tick()` remains STANDARD-only.
 
 ### Helper consolidation warning
@@ -113,15 +113,11 @@ Two different pure Marbles helper headers currently exist:
 
 The host test script contains separate test invocations for both helpers. Neither header is included by `felucca.c` in the audited revision. These are not interchangeable APIs: the bounded-draw algorithms and quantisation semantics differ. Before runtime wiring, select one canonical implementation, reconcile its tests and design notes, and remove or explicitly retain the other as a compatibility/test fixture. Do not include both and accidentally create divergent random streams or scale behavior.
 
-### Revised implementation gate
+### Remaining runtime integration gate
 
-The narrow two-owner bridge in section 7 is not yet sufficient as written unless the pending engine-switch queue also stores source ownership. A safe first runtime milestone should either:
-1. add owner metadata to each pending-note slot and replay through the matching owner API; or
-2. keep Marbles notes out of the existing pending queue and explicitly cancel their ownership when an engine switch begins.
+The voice-boundary bridge no longer requires per-slot source metadata in the pending queue: the fixed per-track ledgers retain which owner holds each pitch, and the queue continues to store one pending voice per pitch.
 
-Option 1 preserves notes through an engine switch and is preferred if the queue can be extended without breaking its bounded capacity or legacy behavior. Tests must cover a Marbles note started during the fade, released before the fade completes, and replayed after the new engine is active.
-
-The existing source families are not yet individually separated at the voice boundary. A dedicated Marbles owner alongside the legacy aggregate is still the least disruptive design, but Marbles must never be silently converted into a legacy pending note.
+The remaining work is to connect the MARBLES scheduler to `trk_marbles_note_on/off()`, then test mode changes, transport stop/restart, external-clock loss, mute, engine switching, voice stealing and simultaneous STANDARD / MARBLES tracks. The legacy keyboard, MIDI, arp and STANDARD sources intentionally remain one aggregate owner to avoid changing their established same-pitch behavior.
 
 ## 10. Canonical generator helper selected
 
