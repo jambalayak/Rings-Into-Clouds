@@ -34,7 +34,7 @@ static uint32_t song_probe(uint32_t *blocks)
             t->p[P_SDIV] = DIV[s][k];
             t->p[P_SGATE] = (int16_t)(40 + 20 * (int16_t)k);
             motion_set_enabled(t, 1);
-            motion_set_event(t, (uint32_t)(2u + s), P_DIST, (int16_t)(20 + 30 * (int16_t)s + (int16_t)k));
+            motion_set_event(t, (uint32_t)(2u + s), P_SPRD, (int16_t)(20 + 30 * (int16_t)s + (int16_t)k));
         }
         project_save(s);
     }
@@ -51,7 +51,7 @@ static uint32_t song_probe(uint32_t *blocks)
         for (k = 0; k < NTRK; k++) {
             const track_t *t = &trk[k];
             h = song_probe_mix(h, t->seq_idx | (uint32_t)t->seq_n << 8 | (uint32_t)t->seq_notes[0] << 16);
-            h = song_probe_mix(h, (uint32_t)t->p[P_SLEN] | (uint32_t)t->p[P_SDIV] << 8 | (uint32_t)(uint16_t)t->p[P_DIST] << 16);
+            h = song_probe_mix(h, (uint32_t)t->p[P_SLEN] | (uint32_t)t->p[P_SDIV] << 8 | (uint32_t)(uint16_t)t->p[P_SPRD] << 16);
         }
     }
     *blocks = n;

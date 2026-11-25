@@ -8782,7 +8782,7 @@ static int test_song_lanes(void)
         }
         if (!st) {
             motion_set_enabled(&trk[2], 1);
-            motion_set_event(&trk[2], 0, P_DIST, 100);
+            motion_set_event(&trk[2], 0, P_SPRD, 100);
         }
         project_save(st);
     }
@@ -8810,7 +8810,7 @@ static int test_song_lanes(void)
     bad += check("  section 1 lasts T1's loop (A: 4 x 1/16)", chain.row == 1u && lanes_near(n, 4u * div_samples(2)));
     ok = chain.clk == 1u && !trk[0].seq_n && !trk[3].seq_n && trk[2].seq_notes[0] == 62 && trk[1].seq_notes[0] == 73;
     for (k = 0; k < NTRK; k++) ok &= trk[k].seq_idx == 0u;
-    ok &= trk[2].p[P_DIST] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
+    ok &= trk[2].p[P_SPRD] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
     bad += check("SONG lanes: T1 \"-\" releases its note; all four from step 1 together; T3 plays A with its automation", ok);
     ok = 1;
     n = 0;

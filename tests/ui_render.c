@@ -2259,8 +2259,6 @@ static void al_table(void)
 
 int main(int argc, char **argv)
 {
-    setvbuf(stderr, NULL, _IONBF, 0);
-    fprintf(stderr, "ui_render: entered main\n");
     const char *out = argc > 1 ? argv[1] : "build/ui_new";
     char path[600];
     uint32_t p, s;
@@ -2268,7 +2266,6 @@ int main(int argc, char **argv)
     snprintf(path, sizeof path, "%s/report.txt", out);
     rep = fopen(path, "w");
     if (!rep) { fprintf(stderr, "cannot write %s\n", path); return 1; }
-    fprintf(stderr, "ui_render: report opened\n");
     {
         char ap[600];
         snprintf(ap, sizeof ap, "%s/align.txt", out);
@@ -2289,12 +2286,9 @@ int main(int argc, char **argv)
     }
     if (audf) fprintf(audf, "screen\ttexts\ttext_px\ticons\ticon_px\tkeycaps\tkeycap_px\tellipsised\ttight\twords\ttight_list\n");
     {   /* the lint itself: an overlap, a value too wide for its column, a text past its canvas, one past its cell */
-        fprintf(stderr, "ui_render: before state\n");
         state(); pal(0); cur_name = "self-test";
-        fprintf(stderr, "ui_render: after state\n");
         nscr = npend = 0;
         cv_begin(COL_W, COL_H, T_BG);
-        fprintf(stderr, "ui_render: after first canvas\n");
         cv_text(0, 0, &AF_S, "AAAA", T_TEXT);
         cv_text(10, 4, &AF_S, "BBBB", T_TEXT);
         cv_text_fit(0, 15, &AF_M, "WWWWWWWW", T_THEME, T_BG, COL_W);
@@ -2302,9 +2296,7 @@ int main(int argc, char **argv)
         cv_rrect(2, 31, 20, 13, 3, T_SURF, T_BG);          /* a cell narrower than its word */
         cv_text(4, 31, &AF_S, "SPILL", T_TEXT);
         cv_blit(4, Y_LABEL);
-        fprintf(stderr, "ui_render: after first blit\n");
         lint();
-        fprintf(stderr, "ui_render: after first lint\n");
         nrules = 0;                                         /* a word on a divider (STYLE LINE) */
         lcd_rule(0, 120, 240, 1);
         cv_begin(40, 16, T_BG);
