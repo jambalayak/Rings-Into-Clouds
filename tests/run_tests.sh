@@ -573,6 +573,9 @@ run "note ownership: legacy and Marbles overlapping pitches, both release orders
 $SCC -o "$A/marbles_runtime_test" tests/marbles_runtime_test.c
 run "Marbles runtime: deterministic gates, bounded history, Deja Vu, freeze and pitch clamps" "$A/marbles_runtime_test"
 
+$SCC -o "$A/rings_engine_test" tests/rings_engine_test.c -lm
+run "RINGS engine: deterministic pluck, stable modal state and continuous resonator controls" "$A/rings_engine_test"
+
 run "target budget: parser, cost and CLI fixtures" python3 tests/target_budget_test.py
 
 run "regression: target cost of the render loops (pi32v2 disassembly)" python3 tests/target_budget.py \
