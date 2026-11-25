@@ -45,7 +45,7 @@ static uint32_t cur_fam(void) { return ui.home ? FAM_HOME : cur_page()->fam; }
 static void at_turn_on(track_t *t)
 {
     if (!t->p[P_ATDST]) {
-        t->p[P_ATDST] = (int16_t)(t->eng_req % NENGINES == ENGI_DRUM ? MD_DIST : MD_CUT);
+        t->p[P_ATDST] = (int16_t)(eng_idx(t->eng_req) == ENGI_DRUM ? MD_DIST : MD_CUT);
         t->p[P_ATAMT] = 32;
     }
     ui_message("AT: F3-C5 KEYS ONLY");
