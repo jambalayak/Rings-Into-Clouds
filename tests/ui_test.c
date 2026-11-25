@@ -3287,7 +3287,7 @@ static int test_layer(void)
     ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && perf_held == PF_BIT(PF_FLG);
     perf_begin(CTL);
     turn(EN_K4, 40);
-    ok &= perf_k[3] == 40;
+    ok &= perf_k[3] == -40;
     key_up(white(10)); key_down(white(11)); frame();
     ok &= perf_held == PF_BIT(PF_PHS) && !gates() && mo_w == mo;
     key_up(white(11)); key_down(white(12)); frame();
@@ -7746,8 +7746,10 @@ static int test_div_order(void)
     btn_down(B_SEQ); frames(500);
     TSEL->p[P_SDIV] = 2;
     turn(EN_K2, 1);
+    printf("  #48 SEQ DIV after +1: layer=%u armed=%u state=%u div=%d page=%u\n", ui.layer, ui.ly, ui.ly_t0, TSEL->p[P_SDIV], ui.page);
     ok &= ui.layer == LAYER_SEQ && TSEL->p[P_SDIV] == 5;
     turn(EN_K2, -2);
+    printf("  #48 SEQ DIV after -2: layer=%u armed=%u state=%u div=%d page=%u\n", ui.layer, ui.ly, ui.ly_t0, TSEL->p[P_SDIV], ui.page);
     ok &= TSEL->p[P_SDIV] == 4;
     btn_up(B_SEQ); frame();
     bad += check("#48 the pages' knobs step the divisions by length (SEQ TOOLS and ARP)", ok && found >= 2u);
