@@ -10037,7 +10037,7 @@ static int test_ux18(void)
 
 static int test_seq_layer_modes(void)
 {
-    uint32_t k, black0 = 27u, black1 = 27u, dn;
+    uint32_t k, black0 = 27u, black1 = 27u, dn, br = 0, leds;
     int ok;
     track_t *t;
     ui_power_on();
@@ -10055,12 +10055,17 @@ static int test_seq_layer_modes(void)
             if (key_place(k) == 0u) black0 = k;
             if (key_place(k) == 1u) black1 = k;
         }
+    ui.layer = LAYER_SEQ;
+    leds = layer_leds(&br);
+    ok = black0 < 27u && black1 < 27u && !(leds & (1u << black0)) && (br & (1u << black0));
     layer_opened(LAYER_SEQ);
     layer_key(LAYER_SEQ, black0);                     /* black key 1: select MARBLES */
-    ok = black0 < 27u && black1 < 27u && t->p[P_SEQMODE] == 1 &&
-         ly_page(LAYER_SEQ) == &LY_MARBLES;
+    leds = layer_leds(&br);
+    ok &= t->p[P_SEQMODE] == 1 && ly_page(LAYER_SEQ) == &LY_MARBLES &&
+          (leds & (1u << black0)) && (br & (1u << black1));
     layer_key(LAYER_SEQ, black1);                     /* black key 2: freeze */
-    ok &= t->p[P_AHOLD] == 1;
+    leds = layer_leds(&br);
+    ok &= t->p[P_AHOLD] == 1 && (leds & (1u << black1));
     t->p[P_APROB] = 33;
     t->p[P_AOCT] = 4;
     t->p[P_ASWING] = 70;
@@ -10077,6 +10082,7 @@ static int test_seq_layer_modes(void)
     fm1_in.buttons = 0;
     layer_oct(0, 0);
     ui.ly = ui.ly_t0 = 0;
+    ui.layer = 0;
     return check("SEQ quick layer: black keys select STANDARD / MARBLES and FREEZE; OCT- restores the opened settings", ok);
 }
 
