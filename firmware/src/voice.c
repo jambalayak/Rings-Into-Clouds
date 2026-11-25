@@ -11,6 +11,9 @@
  * over one block (stage 4: the envelope goes to 0, the block's amplitude ramp
  * declicks it); one of the part's own is restarted in place, as before. Extra UNISON
  * voices only start when there is room. */
+#include "note_ownership.h"
+
+static note_ownership_t note_owners[NPART];             /* legacy aggregate + Marbles, per track and MIDI pitch */
 static uint32_t vage;                                   /* voice ages: one clock for every part */
 static int32_t lfo_wave(track_t *t, uint32_t ph)
 {
@@ -392,7 +395,7 @@ static void mono_remove(track_t *t, uint32_t note)
     t->nmono = (uint8_t)k;
 }
 
-static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
+static void trk_note_on_raw(track_t *t, uint32_t note, uint32_t vel)
 {
     uint32_t any = 0, i, mode = trk_vmode(t);
     if (t->p[P_MUTE])
@@ -439,7 +442,7 @@ static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
     }
 }
 
-static void trk_note_off(track_t *t, uint32_t note)
+static void trk_note_off_raw(track_t *t, uint32_t note)
 {
     uint32_t i, k = 0, mode = trk_vmode(t);
     for (i = 0; i < t->xp_n; i++)                       /* not sounding yet (engine switch): forget it */
@@ -482,6 +485,38 @@ static void trk_all_off(track_t *t)
     t->nmono = 0;
     t->mono_note = 0;
     t->xp_n = 0;
+    note_ownership_clear(&note_owners[(uint32_t)(t - trk)]);
+}
+
+/* The legacy API remains one aggregate owner for keys, MIDI, ARP and STANDARD.
+ * Marbles has its own bitset; one source releases the pitch only after neither
+ * source still owns it. */
+static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
+{
+    if (t->p[P_MUTE]) return;
+    note_ownership_acquire(&note_owners[(uint32_t)(t - trk)], NOTE_OWNER_LEGACY, note);
+    trk_note_on_raw(t, note, vel);                      /* preserve legacy retrigger behavior */
+}
+static void trk_note_off(track_t *t, uint32_t note)
+{
+    note_ownership_t *o = &note_owners[(uint32_t)(t - trk)];
+    if (!note_ownership_release(o, NOTE_OWNER_LEGACY, note)) return;
+    if (!note_ownership_other_has(o, NOTE_OWNER_LEGACY, note))
+        trk_note_off_raw(t, note);
+}
+static void trk_marbles_note_on(track_t *t, uint32_t note, uint32_t vel)
+{
+    note_ownership_t *o = &note_owners[(uint32_t)(t - trk)];
+    if (t->p[P_MUTE]) return;
+    if (note_ownership_acquire(o, NOTE_OWNER_MARBLES, note))
+        trk_note_on_raw(t, note, vel);                  /* one gate per Marbles pitch */
+}
+static void trk_marbles_note_off(track_t *t, uint32_t note)
+{
+    note_ownership_t *o = &note_owners[(uint32_t)(t - trk)];
+    if (!note_ownership_release(o, NOTE_OWNER_MARBLES, note)) return;
+    if (!note_ownership_other_has(o, NOTE_OWNER_MARBLES, note))
+        trk_note_off_raw(t, note);
 }
 
 /* engine switch, at each block start (events_block), before any note of the block. The UI writes
@@ -496,6 +531,7 @@ static void engine_block(track_t *t)
     uint32_t i, any = 0;
     if (t->xf_on || t->eng_req != t->engine) {
         if (!t->xf_on) {
+            note_ownership_clear(&note_owners[(uint32_t)(t - trk)]); /* old-engine notes fade; new pending notes survive */
             for (i = 0; i < NVOICE; i++)
                 any |= t->v[i].active;
             if (any) {
@@ -521,7 +557,7 @@ static void engine_block(track_t *t)
             uint32_t n = t->xp_n;
             t->xp_n = 0;
             for (i = 0; i < n; i++)
-                trk_note_on(t, t->xp_note[i], t->xp_vel[i]);
+                trk_note_on_raw(t, t->xp_note[i], t->xp_vel[i]);
         }
     }
     eng_mem_claim(t);                                   /* (an engine set directly: power-on, a test) */
