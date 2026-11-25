@@ -23,9 +23,10 @@
  *              none yet, the keys dark)
  *   SEQ  SET   (1.2, on every page; up to 1.1.5 SEQ held opened SONG) TOOLS: the white keys from F3 the sequence tools
  *              (ui_tools.c: CLEAR, REVERSE, SHIFT < >, RANDOM, COOK, 1.5.5 EUCLID (F4) DOUBLE HALF (D5 E5); on a DRUM track BEAT and the
- *              lane's CLEAR REVERSE FILL RANDOM), black keys 1..8 the lane (DRUM); KNOB 1..4 LEN DIV SWING GATE (the
- *              PATTERN page's up to 1.1.5: the page is gone, they are here; EUCLID open: HITS STEPS ROT, OCT+ applies,
- *              OCT- cancels). Each action one undo (SAVE held), OCT- the track as the layer opened (tl_open)
+ *              lane's CLEAR REVERSE FILL RANDOM), black keys 1..8 the lane (DRUM); on synth tracks black key 1 toggles
+ *              STANDARD / MARBLES and black key 2 freezes Marbles. KNOB 1..4 LEN DIV SWING GATE in STANDARD, DENS RANGE
+ *              DEJA GATE in MARBLES (the PATTERN page's up to 1.1.5: the page is gone, they are here; EUCLID open:
+ *              HITS STEPS ROT, OCT+ applies, OCT- cancels). Each action one undo (SAVE held), OCT- the track as the layer opened (tl_open)
  *   REC  SET   (1.1.5, on every page; REC's tap still arms / disarms) the white keys from F3: CLEAR (the selected
  *              track's steps and automation, no dialog: one undo, SAVE held), CLICK (OFF REC ON), COUNT-IN (OFF 1 BAR
  *              2 BARS), CLICK LEVEL (LOW MID HIGH), each press the next value; KNOB 1..3 the same three. The settings
@@ -71,7 +72,8 @@ static const uint8_t LY_KC[LAYER_N] = {0, KC_FX, KC_GLO, KC_SCL, KC_EDIT, KC_SEQ
 static const page_t LY_SCL = {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_CHRD, P_VOIC}};
 /* SEQ TOOLS' knobs: LEN DIV SWING GATE (the length the tools work in; up to 1.1.5 the PATTERN page's) */
 static const page_t LY_SEQ = {"PATTERN", FAM_SEQ, SC_TRACK, GR_STEPS, {P_SLEN, P_SDIV, P_SSWING, P_SGATE}};
-static const page_t *ly_page(uint32_t l) { return l == LAYER_SCL ? &LY_SCL : l == LAYER_SEQ ? &LY_SEQ : 0; }
+static const page_t LY_MARBLES = {"MARBLES", FAM_SEQ, SC_TRACK, GR_STEPS, {P_APROB, P_AOCT, P_ASWING, P_AGATE}};
+static const page_t *ly_page(uint32_t l) { return l == LAYER_SCL ? &LY_SCL : l == LAYER_SEQ ? (TSEL->p[P_SEQMODE] ? &LY_MARBLES : &LY_SEQ) : 0; }
 #define LY_OPEN 2u                     /* ui.ly_t0: the map opened (no tap any more) */
 #define LY_COMBO 4u                    /* .. by a combo */
 #define LY_DEAD 8u                     /* .. pressed where there is no layer: does nothing */
@@ -100,6 +102,7 @@ static struct {
     uint32_t eqh;                      /* EDIT: the keys (bits 0..26) of the HOLD quick actions held */
     int16_t v[9];                      /* the values when it opened: GLO mutes, levels, BPM; SCL ROOT..TRN, CHRD VOIC;
                                         * SEQ LEN DIV SWING GATE; REC the settings (ui_rec_prefs) */
+    int16_t seq[6];                    /* SEQ: mode, Marbles DENS / RANGE / DEJA / GATE / FREEZE for OCT- */
     uint32_t solo;                     /* GLO: the keys held that solo */
     uint32_t fill;                     /* GLO: the keys held that FILL (E4; 1.5.5) */
     uint32_t tap[4];                   /* GLO TAP: the last taps (fm1_ms) */
@@ -260,6 +263,14 @@ static void layer_opened(uint32_t l)
             lys.v[k] = TSEL->p[P_ROOT + k];
             lys.v[4u + k] = k < 2u ? TSEL->p[P_CHRD + k] : 0;
         }
+    if (l == LAYER_SEQ) {
+        lys.seq[0] = TSEL->p[P_SEQMODE];
+        lys.seq[1] = TSEL->p[P_APROB];
+        lys.seq[2] = TSEL->p[P_AOCT];
+        lys.seq[3] = TSEL->p[P_ASWING];
+        lys.seq[4] = TSEL->p[P_AGATE];
+        lys.seq[5] = TSEL->p[P_AHOLD];
+    }
     lys.v[8] = song.g[G_BPM];
     memcpy(lys.mute, drum_mute, sizeof lys.mute);
     if (l == LAYER_REC)
@@ -682,6 +693,12 @@ static void layer_key(uint32_t l, uint32_t k)
         else if (p < NLANE && drum_track(TSEL)) {
             ui.lane = (uint8_t)p;                       /* (black keys 1..8: the lane, as on the grid) */
             eu_lane(TSEL);                              /* (EUCLID open: on that lane now) */
+        } else if (!drum_track(TSEL) && p == 0u) {
+            TSEL->p[P_SEQMODE] = (int16_t)!TSEL->p[P_SEQMODE];
+            ui.force = 1;
+        } else if (!drum_track(TSEL) && p == 1u && TSEL->p[P_SEQMODE]) {
+            TSEL->p[P_AHOLD] = (int16_t)!TSEL->p[P_AHOLD];
+            ui.force = 1;
         }
     }
 }
@@ -813,6 +830,12 @@ static uint32_t layer_oct(uint32_t pressed, uint32_t oct)
                 } else {
                     for (k = 0; k < 4u; k++)
                         t->p[P_SLEN + k] = lys.v[k];
+                    t->p[P_SEQMODE] = lys.seq[0];
+                    t->p[P_APROB] = lys.seq[1];
+                    t->p[P_AOCT] = lys.seq[2];
+                    t->p[P_ASWING] = lys.seq[3];
+                    t->p[P_AGATE] = lys.seq[4];
+                    t->p[P_AHOLD] = lys.seq[5];
                 }
                 lys.loaded = 0;
                 lys.cook = 0;
