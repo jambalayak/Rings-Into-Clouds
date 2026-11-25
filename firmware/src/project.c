@@ -661,7 +661,17 @@ static int proj_pack(project_store_t *out, const project_t *q)
     }
     if (pos + sizeof q->chain + sizeof q->motion > PROJ_MIDI_OFF) return 0;
     memcpy(b + pos, &q->chain, sizeof q->chain); pos += sizeof q->chain;
-    memcpy(b + pos, &q->motion, sizeof q->motion);
+    {
+        motion_store_t stored_motion = q->motion;
+        /* Keep FUN10 motion IDs in the pre-selector (P_E0 = 106) namespace so 1.8 firmware can read them.
+         * The byte-65 marker tells this firmware to apply the ordinary count migration on import. */
+        for (i = 0; i < stored_motion.count; i++) {
+            uint32_t id = MOTION_ID(&stored_motion.event[i]);
+            if (id >= P_E0)
+                stored_motion.event[i].param = (uint8_t)((stored_motion.event[i].param & MOTION_LOCK) | (id - 1u));
+        }
+        memcpy(b + pos, &stored_motion, sizeof stored_motion);
+    }
     proj_midi_pack(b, q);
     memcpy(b + PROJ_FM6_OFF, q->fm6, sizeof q->fm6);
     {   /* the name (0-padded; stops at the first 0) */
@@ -763,8 +773,7 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         memcpy(&q->motion, b + pos, sizeof q->motion);
     else if (!proj_motion_v9(&q->motion, b + pos))
         return 0;
-    if (!proj_motion_ids(&q->motion, v10 && (b[65] & PROJ_SEQMODE_MARK) ? P_COUNT : np) ||
-        !chain_valid(&q->chain) || !motion_valid(&q->motion)) return 0;
+    if (!proj_motion_ids(&q->motion, np) || !chain_valid(&q->chain) || !motion_valid(&q->motion)) return 0;
     if (v10)
         proj_midi_unpack(q, b);                         /* (1.5.5: 0 in every FUN10 before, FUN9..FUN7 have none) */
     for (t = 0; t < NTRK; t++) {
