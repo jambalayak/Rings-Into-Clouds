@@ -809,7 +809,7 @@ static uint32_t foot_rename(void)
  * patch of the track's preset (an edited factory patch keeps the preset's name) */
 static void sound_name(const track_t *t, char *b)
 {
-    const engine_t *e = ENGINES[t->eng_req % NENGINES];
+    const engine_t *e = ENGINES[eng_idx(t->eng_req)];
     b[0] = 0;
     if (user_of(t) < UP_SLOTS) {
         up_name(user_of(t), b);
@@ -839,7 +839,7 @@ static void draw_foot(void)
     const track_t *t = TSEL;
     uint32_t sig;
     const page_t *pg = cur_page();
-    const engine_t *e = ENGINES[TSEL->eng_req % NENGINES];
+    const engine_t *e = ENGINES[eng_idx(TSEL->eng_req)];
     const char *ename = e->name, *help;
     int32_t x;
     sound_name(t, pn);
@@ -965,7 +965,7 @@ static void draw_foot(void)
 /* the EDIT layer's cards (ui_layer.c): ENG (the engine), No. (its sounds: KNOB 2's list), FAV, an empty card */
 static void engine_columns(void)
 {
-    uint32_t total, cur = eng_list_pos(&total), e = TSEL->eng_req % NENGINES;
+    uint32_t total, cur = eng_list_pos(&total), e = eng_idx(TSEL->eng_req);
     char val[8], u[8];
     fmt_int(val, (int32_t)cur + 1);
     str_cpy(u, "/", 8);
@@ -1136,7 +1136,7 @@ static void draw_columns(void)
         str_cpy(u, "/", 8);
         fmt_int(u + 1, (int32_t)total);
         draw_column(0, "No.", val, u, VAL(0u), -1, ICON_NONE);
-        draw_column(1, "ENG", ENGINES[TSEL->eng_req]->name, "", VAL(1u), -1, engine_icon(ENGINES[TSEL->eng_req]->name));
+        draw_column(1, "ENG", ENGINES[eng_idx(TSEL->eng_req)]->name, "", VAL(1u), -1, engine_icon(ENGINES[eng_idx(TSEL->eng_req)]->name));
         draw_column(2, "FAV", preset_favorite() ? "ON" : "OFF", "", VAL(2u), -1, ICON_X_STAR);
         draw_column(3, "LIST", list_name(list_mode()), "", VAL(3u), -1, ICON_X_FOLDER);
         return;
