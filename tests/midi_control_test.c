@@ -612,8 +612,10 @@ static int cc_map_test(void)
     bad += check("CC71 on FM6 (no resonance): ignored", !memcmp(before, trk[1].p, sizeof before));
     queued(0xB3, 74, 10, 1);
     bad += check("CC74 on DRUM (channel 4): TONE", trk[3].p[P_E2] == 10);
-    for (e = 0, ok = 1; e < NENGINES; e++) {   /* the table names a continuous EDIT value of every engine */
-        uint32_t m = MIDI_CC_ENG[e], k;
+    for (e = 0, ok = 1; e < NENGINES; e++) {   /* every selectable engine's CC target is a continuous EDIT value */
+        uint32_t m, k;
+        if (!eng_ok(e)) continue;
+        m = MIDI_CC_ENG[e];
         for (k = 0; k < 2u; k++) {
             uint32_t n = (m >> (k ? 0 : 4)) & 15u;
             const param_desc_t *d = n ? &ENGINES[e]->edit[n - 1u] : 0;
