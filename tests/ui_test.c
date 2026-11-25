@@ -10075,6 +10075,7 @@ static int test_seq_layer_modes(void)
     ok &= t->p[P_SEQMODE] == 0 && t->p[P_AHOLD] == 0 && t->p[P_APROB] == 127 &&
           t->p[P_AOCT] == 1 && t->p[P_ASWING] == 0 && t->p[P_AGATE] == 64;
     fm1_in.buttons = 0;
+    layer_oct(0, 0);
     ui.ly = ui.ly_t0 = 0;
     return check("SEQ quick layer: black keys select STANDARD / MARBLES and FREEZE; OCT- restores the opened settings", ok);
 }
