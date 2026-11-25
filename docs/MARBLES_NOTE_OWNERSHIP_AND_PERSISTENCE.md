@@ -150,9 +150,9 @@ The actual packed cursor is:
 
 - Per track: `114 + 2 + 64 * 9 = 692` bytes.
 - Track region: `68 + 4 * 692 = 2836`.
-- Chain and motion: `84 + 400 = 484` bytes (the motion store is 400 bytes including its header and alignment).
-- End cursor: `2836 + 484 = 3320`.
-- FM6 patch block begins at 3312; the existing test's four-byte spare assertion must be rechecked against the actual compiled structure before changing the layout.
+- Chain and motion: `84 + 388 = 472` bytes (`sizeof(motion_store_t) == 388`, asserted in `core.h`).
+- End cursor: `2836 + 472 = 3308`.
+- FM6 patch block begins at 3312, leaving four bytes; `PROJ_MIDI_OFF` is 3309, leaving only one byte before the three-byte MIDI extension.
 
 The definitive guard is the real `proj_pack()` cursor check and the `midi_track_fmt()` regression assertion, not an estimate based on stale format notes. The new selector must not be added as an ordinary fourth byte per track without a separately verified encoding.
 
