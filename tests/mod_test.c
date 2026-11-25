@@ -88,6 +88,8 @@ static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails
     lim_env = LIM_T;
     memset(trk, 0, sizeof trk);
     MOD_W_CLEAR();
+    for (k = 0; k < NPART; k++)
+        marbles_mod_clear(&trk[k]);
     host_tracks_init();
     for (k = 0; k < NPART; k++)
         host_preset(&trk[k], k ? 0u : e, k ? 0u : pi);
