@@ -32,9 +32,21 @@ static int32_t lfo_wave(track_t *t, uint32_t ph)
  * own xorshift, so the shared sequence, which also seeds the engines' noise (PHYS, VOICE, ..), does not
  * depend on part 4's LFO (the golden renders rely on it) */
 #define LFO_SHARED_RNG 3u
+#ifdef FELUCCA_HOSTSIM
+/* union_test only: isolate one part's LFO S&H from the shared RNG stream. */
+uint32_t host_lfo_rng_isolate_part = UINT32_MAX;
+#endif
 static uint32_t lfo_rand(track_t *t)
 {
     uint32_t s = t->lfo_rnd ? t->lfo_rnd : 0x9E3779B9u;
+#ifdef FELUCCA_HOSTSIM
+    if ((uint32_t)(t - trk) == host_lfo_rng_isolate_part) {
+        s ^= s << 13;
+        s ^= s >> 17;
+        s ^= s << 5;
+        return s;
+    }
+#endif
     if ((uint32_t)(t - trk) < LFO_SHARED_RNG)
         return rng();
     s ^= s << 13;
