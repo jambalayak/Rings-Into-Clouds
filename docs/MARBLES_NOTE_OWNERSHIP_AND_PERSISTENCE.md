@@ -61,7 +61,7 @@ Do not store volatile PRNG history in project bytes by assumption. The first per
 
 ## 6. Current status
 
-The per-track mode parameter, backward-compatible project/preset persistence, and a two-owner voice-boundary bridge are now committed. The Marbles scheduler is still not connected to `seq_tick()`, so no generated Marbles notes play yet. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
+The per-track mode parameter, backward-compatible project/preset persistence, two-owner voice-boundary bridge, and per-track MARBLES dispatch are now committed. Generated Marbles notes use the shared voice allocator and the same transport clock as STANDARD. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
 
 
 ## 7. Implemented two-owner bridge
@@ -75,7 +75,7 @@ The first source-safe voice-boundary implementation is now committed:
 - `trk_all_off()` clears both ledgers. At the start of an engine switch, old-engine ownership is cleared with the old voices; notes arriving during the fade acquire fresh ownership bits, remain in the existing bounded pending-note queue, and are replayed through the raw note-on path after the switch.
 - The pure helper has tests for both release orders, duplicate acquire/release, distinct pitches, MIDI bounds and reset. `tests/fun10_test.c` also exercises the real voice wrappers for same-pitch overlap, MONO fallback, panic clearing and pending engine-switch notes.
 
-This deliberately preserves the existing aggregate semantics among keyboard, MIDI, arp and STANDARD; it does not try to split those legacy sources from one another. Voice stealing and the existing four-note pending-queue replacement policy are unchanged. The MARBLES scheduler is not yet wired to these entry points, and the full C suite / target build has not been run.
+This deliberately preserves the existing aggregate semantics among keyboard, MIDI, arp and STANDARD; it does not try to split those legacy sources from one another. Voice stealing and the existing four-note pending-queue replacement policy are unchanged. `seq_tick()` now calls these MARBLES entry points, but the integrated suite and target build have not been run.
 
 
 ## 8. Verified FUN10 spare-byte correction
@@ -102,7 +102,7 @@ The focused source inspection confirms the ownership boundary and adds several c
 - In `seq.c`, the arpeggiator has its own note-on/off calls (around lines 299, 307, 315, 454), live input has note-on/off calls (around 682 and 699), and the Standard sequencer releases its tracked notes and starts new notes (around 926, 1058 and 1064). Track panic/reset calls `trk_all_off()` (around 1433).
 - The arpeggiator also has `arp_forget()`, which ends its currently sounding notes through the ordinary note-off API. The Standard sequencer has its own `seq_notes[]` list. These are separate lifecycle owners in the callers even though the voice layer currently merges them.
 - `trk_note_off_raw()` removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. The public legacy and Marbles wrappers first release their own ledger bit and call this raw path only when the other owner no longer holds the pitch. `trk_all_off()` clears both ledgers; engine-switch start clears old ownership before the fade, while new pending notes keep their fresh bits.
-- `voice.c` now includes `note_ownership.h` and defines the MARBLES note wrappers. `felucca.c` still does not include a Marbles scheduler, and `seq_tick()` remains STANDARD-only.
+- `voice.c` includes `note_ownership.h` and defines the MARBLES note wrappers. `seq.c` includes `marbles_runtime.h` and dispatches per-track MARBLES mode from `seq_tick()`; the firmware translation unit includes it through the existing `seq.c` include.
 
 ### Helper consolidation warning
 
@@ -117,7 +117,7 @@ The host test script contains separate test invocations for both helpers. Neithe
 
 The voice-boundary bridge no longer requires per-slot source metadata in the pending queue: the fixed per-track ledgers retain which owner holds each pitch, and the queue continues to store one pending voice per pitch.
 
-The remaining work is to connect the MARBLES scheduler to `trk_marbles_note_on/off()`, then test mode changes, transport stop/restart, external-clock loss, mute, engine switching, voice stealing and simultaneous STANDARD / MARBLES tracks. The legacy keyboard, MIDI, arp and STANDARD sources intentionally remain one aggregate owner to avoid changing their established same-pitch behavior.
+The remaining work is to run the integrated regression suite and test mode changes, transport stop/restart, external-clock loss, mute, engine switching, voice stealing and simultaneous STANDARD / MARBLES tracks on the target. Marbles-generated notes are not yet recorded back into the Standard step pattern. The legacy keyboard, MIDI, arp and STANDARD sources intentionally remain one aggregate owner to avoid changing their established same-pitch behavior.
 
 ## 10. Canonical generator helper selected
 
