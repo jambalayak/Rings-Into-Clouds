@@ -63,10 +63,10 @@
  * 68 + 4 x (104 + 2 + 576) + chain + motion = 3268; the patches at PROJ_FM6_OFF (3312): 44 spare, room for 11 more
  * track parameters. 1.5 took seven of them (no format change, FUN10 as it was): the INSERT (P_ITYPE .. P_IMIX, 96..100),
  * ANALOG's filter TYPE (P_FTYPE, 101) and ENV SYNC (P_ESYNC, 102), before the engine values (P_COUNT 111, P_E0 103; 16
- * spare, room for 4). RINGS INTO CLOUDS adds P_SEQMODE before the engine values (P_COUNT 112, P_E0 104):
- * STANDARD is the default for older projects; the per-track selector consumes four of those 13 remaining bytes.
- * A FUN10 of 1.2 .. 1.4 (104) loads by count: the INSERT OFF, TYPE LP, ENV SYNC OFF (as they played),
- * its engine values and their motion moved up by eight.
+ * spare, room for 4). RINGS INTO CLOUDS adds P_SEQMODE before the engine values (P_COUNT 115, P_E0 107),
+ * but keeps FUN10's per-track parameter count at 114: the four one-bit mode values are packed into reserved header
+ * byte 65. Older firmware ignores that byte and loads STANDARD. A FUN10 of 1.2 .. 1.4 (104) loads by count:
+ * the INSERT OFF, TYPE LP, ENV SYNC OFF (as they played), its engine values and their motion moved up by eleven.
  * Firmware 1.2 .. 1.4 refuses a FUN10 of more parameters than its own (np > P_COUNT): a 1.5 project shows EMPTY there. FUN9 / FUN8 / FUN7 load as before (their 64 records of 4 bytes read by proj_motion_v9, every
  * step's nudge 0: the timing they always had; parameters mapped by count, the four new ones at their defaults:
  * SYNC OFF, TRIG NOTE, POL BI, QUANTIZE ON, SPREAD 0, which play as before 1.2), and so do FUN6..FUN1. Firmware before 1.2
@@ -96,7 +96,7 @@
  *
  * Built on the Mac too (tests/project_test.c, -DPROJ_HOST): the part above the #ifndef
  * PROJ_HOST needs core.h, params.c (TP) and engines.c. */
-#define PROJ_MAGIC 0x46554E41u                 /* "FUNA" (FUN10): 112 (1.8: 111, 1.5: 104) parameters, 128 motion records, nudges */
+#define PROJ_MAGIC 0x46554E41u                 /* "FUNA" (FUN10): 114 stored params; current P_COUNT 115 includes P_SEQMODE in byte 65 */
 #define PROJ_MAGIC_V9 0x46554E39u              /* "FUN9": FUN8, 64 bytes longer (the DRUM lane levels, 99 parameters) */
 #define PROJ_MAGIC_V8 0x46554E38u              /* "FUN8": FUN7 + the tracks' FM6 patches */
 #define PROJ_MAGIC_V7 0x46554E37u              /* "FUN7": serialized (byte params, packed steps), chain, motion */
@@ -167,8 +167,10 @@ _Static_assert(sizeof(project_v5_t) == 3352u && sizeof(project_v6_t) == 3388u, "
  * channels make, else CH1-4), which is all a firmware before 1.5.5 reads (these bytes it never did): a TRACK project plays
  * there as that block. Every project before has them 0: channels 1..4, MIDI IN as its G_ROUTE says */
 #define PROJ_MIDI_OFF (PROJ_FM6_OFF - 3u)
-_Static_assert(68u + NTRK * (P_COUNT + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t) <= PROJ_MIDI_OFF,
-               "FUN10 per-track parameters, steps, chain and motion fit before MIDI routing extension");
+#define PROJ_SEQMODE_MARK 0x80u                /* byte 65: four low bits are per-track STANDARD / MARBLES selectors */
+_Static_assert(NTRK == 4u, "FUN10 byte 65 stores one sequencer mode bit per track");
+_Static_assert(68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t) <= PROJ_MIDI_OFF,
+               "FUN10 per-track data with out-of-line sequencer mode fits before MIDI routing extension");
 typedef union { uint32_t align; uint8_t raw[PROJ_STORE_SIZE]; } project_store_t;
 _Static_assert(G_COUNT == 27u, "FUN7 globals retain original IDs");
 _Static_assert(sizeof(project_store_t) == 3840u && PROJ_STORE_V7 == sizeof(project_v6_t), "FUN10 / FUN7 sizes");
@@ -629,11 +631,17 @@ static int proj_pack(project_store_t *out, const project_t *q)
             if (q->fm6[t][i] > 127u) return 0;
     if (!chain_valid(&q->chain) || !motion_valid(&q->motion) || P_COUNT > 127u) return 0;
     memset(out, 0, sizeof *out); memcpy(b, &magic, 4); memcpy(b + 4, &size, 4);
-    memcpy(b + 8, q->g, sizeof q->g); b[62] = q->sel; b[63] = q->parts; b[64] = q->phys; b[66] = P_COUNT;
+    memcpy(b + 8, q->g, sizeof q->g); b[62] = q->sel; b[63] = q->parts; b[64] = q->phys; b[65] = PROJ_SEQMODE_MARK; b[66] = P_COUNT - 1u;
     for (t = 0; t < NTRK; t++) {
         for (i = 0; i < P_COUNT; i++) {
-            if (q->t[t].p[i] < -64 || q->t[t].p[i] > 127) return 0;
-            b[pos++] = (uint8_t)(q->t[t].p[i] + 64);
+            int32_t value = q->t[t].p[i];
+            if (value < -64 || value > 127) return 0;
+            if (i == P_SEQMODE) {
+                if (value > 1) return 0;
+                if (value) b[65] |= (uint8_t)(1u << t);
+            } else {
+                b[pos++] = (uint8_t)(value + 64);
+            }
         }
         b[pos++] = q->t[t].engine; b[pos++] = q->t[t].preset;
         for (i = 0; i < NSTEP; i++) {
@@ -709,7 +717,7 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
     uint32_t mot = v10 ? sizeof q->motion : PROJ_MOTION_V9, chn = v10 ? sizeof q->chain : sizeof(chain_v9_t);
     memcpy(&magic, b, 4); memcpy(&size, b + 4, 4); memcpy(&sum, b + st - 4u, 4);
     if (magic != (v7 ? PROJ_MAGIC_V7 : st == PROJ_STORE_V8 ? PROJ_MAGIC_V8 : st == PROJ_STORE_V9 ? PROJ_MAGIC_V9 : PROJ_MAGIC) ||
-        size != st || sum != proj_hash(b, st - 4u) ||
+        size != st || sum != proj_hash(b, st - 4u) || (v10 && (b[65] & PROJ_SEQMODE_MARK) && (b[65] & 0x70u)) ||
         np < 8u || np > P_COUNT || 68u + NTRK * (np + 2u + NSTEP * 9u) + chn + mot > end)
         return 0;
     memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q;
@@ -723,6 +731,8 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
         if (q->t[t].engine >= NENGINES) return 0;
         for (i = 0; i < P_COUNT; i++) def[i] = param_desc_of(q->t[t].engine, i)->def;
         params_by_count(q->t[t].p, values, np, def);
+        if (v10 && (b[65] & PROJ_SEQMODE_MARK))
+            q->t[t].p[P_SEQMODE] = (int16_t)((b[65] >> t) & 1u);
         for (i = 0; i < NSTEP; i++) {
             step_t *s = &q->t[t].step[i]; uint32_t meta, nd = 0;
             for (uint32_t j = 0; j < 4u; j++) {         /* (FUN10: bit 7 of note j is bit j of the nudge) */
