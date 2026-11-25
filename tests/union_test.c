@@ -12,6 +12,8 @@
  * sequences that play SAMPLE's PIANO (SAMPLE presets 0 / 1, GRAIN's FROZEN / SHIMMER) were rewritten in 1.5, when
  * PIANO went back to the full piano of 1.1.5; the other 340 are 1.4's.
  * env: GOLDEN_UPDATE=1 rewrites GOLDEN_FILE (only with a reason: a switch is to sound as it did). */
+/* Enable a test-only LFO RNG isolation hook; firmware builds never define it. */
+#define FELUCCA_HOSTSIM 1
 #define main hostsim_main
 #include "hostsim.c"
 #undef main
@@ -86,7 +88,9 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
     if (!(pid = fork())) {
         uint32_t k;
         host_tracks_init();
-        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
+        if (mode == 8u)
+            host_lfo_rng_isolate_part = 2u; /* companion keeps rendering but uses its own LFO S&H stream */
+        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u || mode == 8u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
         /* mode 7 switches the companion engine without sending any note events. */
         if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
@@ -94,7 +98,7 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
             if (mode != 2u)
                 uplay(&trk[0], e[k], pi + k, 60, wait_ms, 0);
             if (mode != 1u) {
-                if (mode == 7u)
+                if (mode == 7u || mode == 8u)
                     uswitch(&trk[2], UE[(k + 3u) % UNE], pi, 10);
                 else
                     uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10, mode == 5u);
@@ -128,7 +132,7 @@ static void ufeed(uint64_t *h, uint64_t x)
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hswitch = hp, hpe = hp, hpme = hp;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hswitch = hp, hswitch_iso = hp, hpe = hp, hpme = hp;
     uint32_t a, b, pi, w, n = 0, nm = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -146,6 +150,7 @@ static int union_diag(void)
                         ufeed(&hpme, useq(s2, 2, pi, wait, 3u));
                         ufeed(&hmono, useq(s2, 2, pi, wait, 5u));
                         ufeed(&hswitch, useq(s2, 2, pi, wait, 7u));
+                        ufeed(&hswitch_iso, useq(s2, 2, pi, wait, 8u));
                         nm++;
                     }
                     n++;
@@ -160,6 +165,7 @@ static int union_diag(void)
                             ufeed(&hpme, useq(s3, 3, pi, wait, 3u));
                             ufeed(&hmono, useq(s3, 3, pi, wait, 5u));
                             ufeed(&hswitch, useq(s3, 3, pi, wait, 7u));
+                            ufeed(&hswitch_iso, useq(s3, 3, pi, wait, 8u));
                             nm++;
                         }
                         n++;
@@ -169,6 +175,7 @@ static int union_diag(void)
            n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb,
            (unsigned long long)hpm, (unsigned long long)hcm, nm, (unsigned long long)hmono,
            (unsigned long long)hswitch, (unsigned long long)hpe, (unsigned long long)hpme);
+    printf("union_diag: RNG-isolated engine-switch companion %016llx\\n", (unsigned long long)hswitch_iso);
     return 0;
 }
 
