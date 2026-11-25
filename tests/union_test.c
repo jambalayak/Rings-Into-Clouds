@@ -93,8 +93,12 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
         for (k = 0; k < n; k++) {
             if (mode != 2u)
                 uplay(&trk[0], e[k], pi + k, 60, wait_ms, 0);
-            if (mode != 1u)
-                uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10, mode == 5u);   /* another part busy alongside */
+            if (mode != 1u) {
+                if (mode == 7u)
+                    uswitch(&trk[2], UE[(k + 3u) % UNE], pi, 10);
+                else
+                    uplay(&trk[2], UE[(k + 3u) % UNE], pi, 55, 10, mode == 5u);
+            } /* another part busy alongside */
         }
         urun(1000);
         if (write(fd[1], &uh, 8) != 8)
