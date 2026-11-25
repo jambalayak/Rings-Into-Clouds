@@ -430,20 +430,20 @@ static uint32_t layer_btn(void);
 static int page_visible(uint32_t i)
 {
     if (PAGES[i].scope == SC_TRACK && PAGES[i].id[0] >= P_LN0 && PAGES[i].id[0] <= P_LN7)
-        return TSEL->eng_req % NENGINES == ENGI_DRUM;
+        return eng_idx(TSEL->eng_req) == ENGI_DRUM;
     if (PAGES[i].id[0] == P_FTYPE)                    /* FILTER (1.5, #104): ANALOG's */
-        return ENGINES[TSEL->eng_req % NENGINES] == &ENG_ANALOG;
+        return ENGINES[eng_idx(TSEL->eng_req)] == &ENG_ANALOG;
     if (PAGES[i].graph >= GR_FMOP && PAGES[i].graph <= GR_FMENV)
-        return TSEL->eng_req % NENGINES == ENGI_FM6;
+        return eng_idx(TSEL->eng_req) == ENGI_FM6;
 #if FELUCCA_SLICE
     if (PAGES[i].graph == GR_SLICES)
-        return ENGINES[TSEL->eng_req % NENGINES] == &ENG_SLICE;
+        return ENGINES[eng_idx(TSEL->eng_req)] == &ENG_SLICE;
 #else
     if (PAGES[i].graph == GR_SLICES)
         return 0;
 #endif
     return !(PAGES[i].fam == FAM_EDIT && PAGES[i].id[0] >= P_FM1_ATK &&
-             PAGES[i].id[0] <= P_FM4_LEVEL) || (FELUCCA_FM4 && TSEL->eng_req % NENGINES == ENGI_DIGITAL);
+             PAGES[i].id[0] <= P_FM4_LEVEL) || (FELUCCA_FM4 && eng_idx(TSEL->eng_req) == ENGI_DIGITAL);
 }
 
 static uint32_t page_first(uint32_t fam)
@@ -515,7 +515,7 @@ static int lock_page_ok(uint32_t i)
 static uint32_t lock_id(uint32_t k)
 {
     uint32_t id = ui.plk_src && lock_page_ok(ui.plk_src - 1u) ? PAGES[ui.plk_src - 1u].id[k & 3u]
-                                                               : ENGINES[TSEL->eng_req % NENGINES]->knob[k & 3u];
+                                                               : ENGINES[eng_idx(TSEL->eng_req)]->knob[k & 3u];
     return id < P_COUNT && motion_param(id) ? id : 0xFFu;
 }
 
@@ -1343,15 +1343,15 @@ static void set_engine_of(track_t *t, uint32_t ei);
 /* preset pi of the engine the track asked for: the sound only (not the steps, not param_kept) */
 static void apply_preset_to(track_t *t, uint32_t pi)
 {
-    const engine_t *e = ENGINES[t->eng_req % NENGINES];
+    const engine_t *e = ENGINES[eng_idx(t->eng_req)];
     uint32_t i;
 #if !FELUCCA_FM4
-    if (t->eng_req % NENGINES == ENGI_DIGITAL) {
+    if (eng_idx(t->eng_req) == ENGI_DIGITAL) {
         fm4_load_preset(t, pi);
         return;
     }
 #endif
-    if (t->eng_req % NENGINES == ENGI_SAMPLE && pi == SMP_SET_PERC) {   /* SAMPLE preset 4 was PERC (retired, a stored */
+    if (eng_idx(t->eng_req) == ENGI_SAMPLE && pi == SMP_SET_PERC) {   /* SAMPLE preset 4 was PERC (retired, a stored */
         set_engine_of(t, ENGI_DRUM);                  /* number: the editor's PRESET, a favourite): DRUM's kit */
         return;                                       /* (core.h drum_from_perc) */
     }
@@ -1391,17 +1391,19 @@ static void apply_preset_to(track_t *t, uint32_t pi)
  * its values or the new one with its own (voice.c engine_block), never one with the other's */
 static void set_engine_of(track_t *t, uint32_t ei)
 {
-    const engine_t *e = ENGINES[ei % NENGINES];
-    uint32_t i;
+    uint32_t idx = ei < NENGINES ? ei : ENGI_FM6, i;
 #if !FELUCCA_FM4
-    if (ei % NENGINES == ENGI_DIGITAL) {             /* DIGITAL (retired): its first preset, as FM6 */
+    if (idx == ENGI_DIGITAL) {                       /* DIGITAL (retired): its first preset, as FM6 */
         fm4_load_preset(t, 0);
         return;
     }
 #endif
+    if (!eng_ok(idx))
+        idx = ENGI_FM6;                              /* absent optional slots are never selectable */
+    const engine_t *e = ENGINES[idx];
     load_begin(t, UNDO_SOUND);
     fm1_irq_off();
-    t->eng_req = (uint8_t)(ei % NENGINES);
+    t->eng_req = (uint8_t)idx;
     for (i = 0; i < 8u; i++)
         t->p[P_E0 + i] = e->edit[i].def;
     apply_preset_to(t, 0);
@@ -1421,7 +1423,7 @@ static void set_engine(uint32_t ei) { set_engine_of(TSEL, ei); }
 #define CLEAN_REL 40                                   /* ~18 ms */
 static void clean_engine_of(track_t *t)
 {
-    uint32_t ei = t->eng_req % NENGINES, i;
+    uint32_t ei = eng_idx(t->eng_req), i;
     const engine_t *e = ENGINES[ei];
 #if !FELUCCA_FM4
     if (ei == ENGI_DIGITAL) {                         /* (retired: it becomes FM6, fm4_track) */
@@ -1466,7 +1468,7 @@ static void clean_engine(void) { clean_engine_of(TSEL); }
 static volatile uint8_t *const mpc_io = ui.mpc;
 static void midi_pc_load(track_t *t, uint32_t n)
 {
-    uint32_t e = t->eng_req % NENGINES, k;
+    uint32_t e = eng_idx(t->eng_req), k;
     if (e == ENGI_DRUM) {
         const param_desc_t *d = param_desc_of(e, P_E0);
         for (k = (uint32_t)d->min; k <= (uint32_t)d->max && (enum_orig(d, (int32_t)k) != (int32_t)k || n--); k++)
@@ -1512,7 +1514,7 @@ static void track_defaults(track_t *t)
 static void select_engine(uint32_t e)
 {
     set_engine(e);
-    ui_say("ENGINE ", ENGINES[TSEL->eng_req]->name);
+    ui_say("ENGINE ", ENGINES[eng_idx(TSEL->eng_req)]->name);
     ui.force = 1;
 }
 
@@ -1574,7 +1576,7 @@ static int list_keep(uint32_t e, uint32_t k)
 static uint32_t track_cat(const track_t *t)
 {
     uint32_t u = user_of(t);
-    return u < UP_SLOTS ? up_cat(u) : preset_cat(t->eng_req % NENGINES, t->preset);
+    return u < UP_SLOTS ? up_cat(u) : preset_cat(eng_idx(t->eng_req), t->preset);
 }
 
 static uint32_t preset_pos(uint32_t *total)
@@ -1643,7 +1645,7 @@ static void preset_mark(int on)
  * preset's PAT(n); a user preset that holds a pattern: that one ("U07") */
 static int32_t preset_pat_hint(void)
 {
-    const engine_t *e = ENGINES[TSEL->eng_req % NENGINES];
+    const engine_t *e = ENGINES[eng_idx(TSEL->eng_req)];
     uint32_t u = user_of(TSEL);
     if (u < UP_SLOTS)
         return up_has_pat(u) ? (int32_t)(NPATTERNS + up_pat_rank(u)) : -1;
@@ -1678,8 +1680,8 @@ static void preset_go(uint32_t n)                    /* load list index n into t
  * made with it (slot order). List index of the current sound; *total the length */
 static uint32_t eng_list_pos(uint32_t *total)
 {
-    const engine_t *en = ENGINES[TSEL->eng_req % NENGINES];
-    uint32_t e = TSEL->eng_req % NENGINES, np = preset_shown(e), u = user_of(TSEL), k, n = 0;
+    const engine_t *en = ENGINES[eng_idx(TSEL->eng_req)];
+    uint32_t e = eng_idx(TSEL->eng_req), np = preset_shown(e), u = user_of(TSEL), k, n = 0;
     uint32_t cur = np ? preset_rank(en, preset_orig(en, TSEL->preset % en->npresets)) : 0u;   /* (#124: the aliases
                                         * skipped, as on PRESETS: SAMPLE 1 loads as 0, so counting it stuck KNOB 2) */
     for (k = 0; k < UP_SLOTS; k++)
@@ -1694,7 +1696,7 @@ static uint32_t eng_list_pos(uint32_t *total)
 
 static void eng_list_step(int32_t direction)         /* the next / previous sound of the engine (wraps) */
 {
-    uint32_t total, cur = eng_list_pos(&total), e = TSEL->eng_req % NENGINES, np = preset_shown(e), k, n;
+    uint32_t total, cur = eng_list_pos(&total), e = eng_idx(TSEL->eng_req), np = preset_shown(e), k, n;
     if (total < 2u)
         return;
     n = (cur + (direction > 0 ? 1u : total - 1u)) % total;
@@ -1740,7 +1742,7 @@ static uint32_t preset_visible(uint32_t cur, uint32_t total, uint32_t row)
 static track_t *home_trk(uint32_t k) { return home_levels() ? &trk[k & 3u] : TSEL; }
 static const param_desc_t *home_param(uint32_t k, int16_t **vp)
 {
-    uint32_t id = home_levels() ? (uint32_t)P_LEVEL : ENGINES[TSEL->eng_req % NENGINES]->knob[k & 3u];
+    uint32_t id = home_levels() ? (uint32_t)P_LEVEL : ENGINES[eng_idx(TSEL->eng_req)]->knob[k & 3u];
     *vp = &home_trk(k)->p[id];
     return track_desc(home_trk(k), id);
 }
