@@ -2,7 +2,7 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Keyboard, scale, arpeggiator, sequencer and transport.
  * Everything here runs in the audio ISR, once per CTL-sample block, and
- * ends in trk_note_on / trk_note_off: engines never see where a note came from.
+ * legacy inputs end in trk_note_on / trk_note_off; Marbles uses its source-aware voice API.
  * Four tracks, one transport: every track's pattern loops on its own LEN / DIV /
  * SWING / GATE (polymeter). The keys play the selected track; MIDI IN by MENU > MIDI > MIDI IN (G_ROUTE):
  * CH1-4 (0) channels 1..4 play parts 1..4, channels 5..16 are ignored (midi_control.c midi_event); SEL (1)
@@ -968,6 +968,7 @@ static void seq_start(void)
         t->rskip_n = 0;
         t->rh_n = 0;
         t->rat_left = 0;
+        t->rh_n = t->rskip_n = 0;
         t->nd_late = t->nd_early = ND_NONE;
         t->nd_fired = 0;
         marbles_reset(t);
