@@ -74,7 +74,7 @@ static inline uint8_t marbles_quantize_note(int32_t degree, uint32_t root, uint1
             if (index-- == 0) { semitone = (int32_t)pc; break; }
         }
     }
-    n = 60 + octave * 12 + semitone;
+    n = 60 + (int32_t)root + octave * 12 + semitone;
     return (uint8_t)(n < 0 ? 0 : (n > 127 ? 127 : n));
 }
 
