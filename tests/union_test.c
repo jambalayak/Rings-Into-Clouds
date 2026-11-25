@@ -74,7 +74,8 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
     if (!(pid = fork())) {
         uint32_t k;
         host_tracks_init();
-        if (mode == 3u || mode == 5u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders/uses voices */
+        if (mode == 3u || mode == 5u || mode == 6u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
+        if (mode == 6u) trk[2].p[P_MUTE] = 1; /* keep engine switches; prevent companion note allocation */
         if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
         for (k = 0; k < n; k++) {
@@ -111,7 +112,7 @@ static void ufeed(uint64_t *h, uint64_t x)
  * UNION_DIAG=1 runs this after the ordinary golden test; it never changes the legacy references. */
 static int union_diag(void)
 {
-    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hpe = hp, hpme = hp;
+    uint64_t hp = 0xcbf29ce484222325ull, hc = hp, hb = hp, hpm = hp, hcm = hp, hmono = hp, hnoalloc = hp, hpe = hp, hpme = hp;
     uint32_t a, b, pi, w, n = 0, nm = 0;
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
@@ -128,6 +129,7 @@ static int union_diag(void)
                         ufeed(&hpe, useq(s2, 2, pi, wait, 1u));
                         ufeed(&hpme, useq(s2, 2, pi, wait, 3u));
                         ufeed(&hmono, useq(s2, 2, pi, wait, 5u));
+                        ufeed(&hnoalloc, useq(s2, 2, pi, wait, 6u));
                         nm++;
                     }
                     n++;
@@ -141,15 +143,16 @@ static int union_diag(void)
                             ufeed(&hpe, useq(s3, 3, pi, wait, 1u));
                             ufeed(&hpme, useq(s3, 3, pi, wait, 3u));
                             ufeed(&hmono, useq(s3, 3, pi, wait, 5u));
+                            ufeed(&hnoalloc, useq(s3, 3, pi, wait, 6u));
                             nm++;
                         }
                         n++;
                     }
                 }
-    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx; primary+muted-companion %016llx; companion+muted-primary %016llx; primary+mono-companion %u eligible sequences %016llx; matched primary-only %016llx; matched primary+muted %016llx\\n",
+    printf("union_diag: %u sequences; primary-only %016llx; companion-only %016llx; combined %016llx; primary+muted-companion %016llx; companion+muted-primary %016llx; primary+mono-companion %u eligible sequences %016llx; primary+no-note-companion %016llx; matched primary-only %016llx; matched primary+muted %016llx\\n",
            n, (unsigned long long)hp, (unsigned long long)hc, (unsigned long long)hb,
            (unsigned long long)hpm, (unsigned long long)hcm, nm, (unsigned long long)hmono,
-           (unsigned long long)hpe, (unsigned long long)hpme);
+           (unsigned long long)hnoalloc, (unsigned long long)hpe, (unsigned long long)hpme);
     return 0;
 }
 
