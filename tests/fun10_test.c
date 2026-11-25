@@ -548,8 +548,14 @@ static int formats(void)
     }
     {   /* an unmarked 1.8 FUN10: the same 114 parameter bytes, no selector marker, all tracks STANDARD */
         static project_store_t old18;
+        uint32_t m0 = 68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u) + sizeof(chain_config_t);
         memcpy(old18.raw, st.raw, sizeof old18.raw);
         old18.raw[65] = 0;
+        for (i = 0; i < old18.raw[m0]; i++) {
+            uint8_t *id = &old18.raw[m0 + 4u + 3u * i + 1u];
+            if ((*id & 0x7Fu) >= P_E0)
+                *id = (uint8_t)((*id & MOTION_LOCK) | ((*id & 0x7Fu) - 1u));
+        }
         i = proj_hash(old18.raw, PROJ_STORE_SIZE - 4u);
         memcpy(old18.raw + PROJ_STORE_SIZE - 4u, &i, 4);
         ok = old18.raw[66] == 114u && proj_import(&b, &old18, sizeof old18) && !memcmp(&a, &b, sizeof a) &&
