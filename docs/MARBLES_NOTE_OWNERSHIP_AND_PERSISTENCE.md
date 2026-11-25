@@ -84,3 +84,19 @@ A less invasive first implementation may be possible without redesigning every e
 - Clear both ledgers in `trk_all_off()` and on every path that invalidates a track's voices (preset/project panic, track silence, and any equivalent reset).
 
 This two-owner bridge preserves the current aggregate semantics among keyboard, MIDI, arp and Standard sequencing, while preventing Marbles from releasing their pitch. It is a candidate, not an approved implementation: it still needs tests for note-on ordering, mono priority, poly allocation, unison, engine-switch pending notes, mute, panic and track reset. In particular, every call path that can bypass `trk_note_on/off()` or invalidate voices must be accounted for. Use fixed-size per-track bitsets (128 MIDI pitches) rather than dynamic allocation, and keep the ledger out of `track_t` unless its alignment / memory budget is re-audited.
+
+
+## 8. Verified FUN10 spare-byte correction
+
+A closer read of the current serializer's actual offset comments corrects the preliminary budget in section 4 above.
+
+- FUN10 has 16 spare bytes between the variable per-track parameter/step/chain/motion region and the FM6 patch block.
+- The existing MIDI IN TRACK routing extension consumes the final 3 bytes of that gap at `PROJ_MIDI_OFF`.
+- Therefore 13 bytes remain before the FM6 block, not four.
+- A single additional per-track byte parameter is serialized as four bytes total (one per track), so it appears to fit with nine bytes remaining, subject to the exact `proj_pack()` cursor check and compile-time bounds.
+
+The safe compatibility approach remains append-only common parameter insertion immediately before `P_E0`, with the default selector value meaning STANDARD. `params_by_count()` then maps older project and preset parameter counts into the new layout and supplies the new parameter's descriptor default. The project and user-preset migrations, motion parameter IDs, editor protocol and learned MIDI CC mapping must all be tested because `P_E0` shifts when a common parameter is inserted.
+
+Do not change FUN10's magic or size merely to add this selector if the exact pack/unpack cursor and checksum tests prove the reserved byte budget is sufficient. Older firmware already rejects FUN10 records whose parameter count is greater than its own, so document that expected downgrade behavior.
+
+This correction supersedes the "exactly four bytes" budget sentence in section 4. No serializer code has been changed yet.
