@@ -45,16 +45,9 @@ Do not create a second clock or mutate Standard pattern memory to store Marbles 
 
 The current project format is FUN10, 3840 bytes. The project serializer stores each track's parameter array as one biased byte per parameter, then engine/preset bytes and 64 packed 9-byte steps. It separately stores chain, motion, MIDI-track routing, FM6 patches and project name. Project hashing covers the serialized bytes.
 
-The current FUN10 layout has exactly four bytes of space before the FM6 patch block after accounting for the chain and motion blocks. One additional per-track parameter consumes exactly four bytes across four tracks. Therefore a single appended global track parameter (for example, an append-only sequencer source selector) appears to fit the existing FUN10 reserved budget without moving the chain, motion, MIDI routing, patches or name.
+The current 1.8 FUN10 layout has four bytes between the packed track/chain/motion region and the FM6 patch block. The final three bytes are occupied by MIDI IN TRACK, leaving only one byte before `PROJ_MIDI_OFF`; a normal four-byte per-track parameter would not fit. The committed implementation therefore stores `P_SEQMODE` out of line in the reserved header byte 65, while keeping the old 114-byte per-track parameter stream intact. The exact encoding and motion-ID compatibility rules are recorded in section 12.
 
-This is a layout calculation, not yet a code change. Before using it:
-- verify the current `P_COUNT`, `P_E0`, parameter insertion/migration rules and all user-preset/editor protocol mappings;
-- verify `proj_pack()` still lands at or before `PROJ_MIDI_OFF` for the new count;
-- add round-trip and corruption/hash tests for the new selector;
-- confirm older FUN10 records load with STANDARD as the default;
-- document that older firmware may reject a newer FUN10 whose parameter count exceeds its own, consistent with the existing version behavior.
-
-Do not store volatile PRNG history in unused project bytes by assumption. Decide separately whether Marbles restarts from a deterministic project seed, a saved seed, or a fresh session seed. The selector must default to STANDARD for all older projects and presets.
+Do not store volatile PRNG history in project bytes by assumption. The first persistence milestone stores only the mode selector; Marbles seed/history persistence remains a separate decision. All older projects and presets default to STANDARD.
 
 ## 5. Test-first sequence
 
@@ -68,7 +61,7 @@ Do not store volatile PRNG history in unused project bytes by assumption. Decide
 
 ## 6. Current status
 
-No runtime sequencer or voice code is changed by this decision. The existing note-off API is insufficient for safe independent Marbles note ownership, and the next implementation step is a focused source-ownership design plus host tests. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
+No runtime sequencer or voice code is changed yet. The per-track mode parameter and backward-compatible project/preset persistence groundwork are now committed, but the existing pitch-only note-off API is still insufficient for safe independent Marbles playback. The next runtime gate is source-safe note ownership. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
 
 
 ## 7. Narrow ownership bridge candidate
@@ -90,8 +83,8 @@ This two-owner bridge preserves the current aggregate semantics among keyboard, 
 
 A closer read of the current serializer's actual offset comments corrects the preliminary budget in section 4 above.
 
-- FUN10 has 16 spare bytes between the variable per-track parameter/step/chain/motion region and the FM6 patch block.
-- The existing MIDI IN TRACK routing extension consumes the final 3 bytes of that gap at `PROJ_MIDI_OFF`.
+- In the current 1.8 layout, the complete packed track/chain/motion region ends at byte 3308; the FM6 patch block begins at 3312, leaving four bytes.
+- The MIDI IN TRACK extension starts at byte 3309 and consumes the final three bytes of that gap, leaving only one byte before `PROJ_MIDI_OFF`.
 - The earlier 13-byte estimate omitted the three common AFTERTOUCH parameters added after the 1.5 layout. In the current source, the complete packed region leaves four bytes before FM6 and only one byte before `PROJ_MIDI_OFF`.
 - A four-byte per-track selector cannot be inserted into the ordinary parameter stream without overlapping the MIDI extension or failing `proj_pack()`.
 
@@ -99,7 +92,7 @@ The safe compatibility approach remains append-only common parameter insertion i
 
 Do not change FUN10's magic or size merely to add this selector if the exact pack/unpack cursor and checksum tests prove the reserved byte budget is sufficient. Older firmware already rejects FUN10 records whose parameter count is greater than its own, so document that expected downgrade behavior.
 
-This correction supersedes the "exactly four bytes" budget sentence in section 4. No serializer code has been changed yet.
+This correction supersedes the earlier estimates in sections 4 and 8. The serializer now uses the reserved header byte as described in section 12.
 
 ## 9. Runtime call-site audit (2026-11-25)
 
