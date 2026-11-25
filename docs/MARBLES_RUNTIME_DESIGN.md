@@ -108,7 +108,7 @@ For the first runtime prototype, keep Marbles settings at safe defaults and do n
 
 The first isolated, host-testable primitives now exist:
 
-- `firmware/src/marbles_core.h`: per-state xorshift32 PRNG, unbiased bounded draws, probability endpoints that do not consume random state, and scale-mask snapping with MIDI-range bounds.
+- `firmware/src/marbles_core.h`: per-state xorshift32 PRNG, constant-time bounded draws (with a tiny modulo bias, avoiding a rejection loop in the audio ISR), probability endpoints that do not consume random state, and scale-mask snapping with MIDI-range bounds.
 - `tests/marbles_core_test.c`: deterministic replay, seed behavior, bounded output, probability endpoints, scale snapping and range checks.
 - `tests/run_tests.sh`: compiles and runs the new test alongside the existing host tests.
 
