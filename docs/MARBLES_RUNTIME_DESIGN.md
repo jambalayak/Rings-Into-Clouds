@@ -119,3 +119,14 @@ These helpers are intentionally not wired into `seq_tick()` yet. The confirmed p
 The duplicate `marbles_core.h` helper API and its standalone test have been removed. The canonical implementation is `firmware/src/marbles_gen.h`, exercised by `tests/marbles_gen_test.c` and invoked from `tests/run_tests.sh`.
 
 The generator's scale quantizer now treats the 12-bit scale mask as ROOT-relative, matching the existing `seq.c` convention: bit 0 is the root, bit 2 the major second, and so on. Tests explicitly cover a non-C root so the scale mask cannot accidentally be interpreted as absolute pitch classes. The helper remains isolated from the firmware runtime; no Marbles scheduler is connected yet.
+
+## Sequencer mode parameter and FUN10 persistence (2026-11-25)
+
+The per-track selector groundwork is now committed:
+
+- `P_SEQMODE` is a common parameter immediately before `P_E0`; its values are STANDARD (0, default) and MARBLES (1).
+- FUN10 byte 65 carries a marker and one bit per track. Byte 66 remains 114, so the ordinary parameter stream stays compatible with the previous 1.8 layout. Older firmware ignores the reserved byte and therefore safely plays STANDARD.
+- The project writer keeps motion event IDs in the old 1.8 namespace on disk; the importer applies the existing parameter-count migration so current firmware restores engine automation IDs correctly.
+- Project, user-preset and FUN10 tests were updated for the new selector and old-file defaults. The compile-time pack-size guard accounts for the omitted selector byte.
+
+This is persistence and parameter groundwork only. `seq_tick()` still runs the existing Standard sequencer for every track; Marbles mode dispatch, source-safe note ownership and the UI selector are not yet implemented. The C test suite and target build have not been run here.
