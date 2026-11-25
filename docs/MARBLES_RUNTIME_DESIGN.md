@@ -112,13 +112,13 @@ The first isolated, host-testable primitives now exist:
 - `tests/marbles_gen_test.c`: deterministic replay, bounded output, probability endpoints, degree range, root-relative scale mapping and MIDI bounds.
 - `tests/run_tests.sh`: compiles and runs the new test alongside the existing host tests.
 
-These helpers are intentionally not wired into `seq_tick()` yet. The pitch-only note-off collision has been addressed at the voice boundary with a two-owner legacy / Marbles ledger and regression tests, but the full suite and target build have not been run in this environment; no build or test pass is claimed.
+The helper is now used by the per-track MARBLES branch in `seq_tick()`. The pitch-only note-off collision is addressed at the voice boundary with a two-owner legacy / Marbles ledger and regression tests. The integrated suite and target build have not been run in this environment; no full build or test pass is claimed.
 
 ## Canonical helper implementation (2026-11-25)
 
 The duplicate `marbles_core.h` helper API and its standalone test have been removed. The canonical implementation is `firmware/src/marbles_gen.h`, exercised by `tests/marbles_gen_test.c` and invoked from `tests/run_tests.sh`.
 
-The generator's scale quantizer now treats the 12-bit scale mask as ROOT-relative, matching the existing `seq.c` convention: bit 0 is the root, bit 2 the major second, and so on. Tests explicitly cover a non-C root so the scale mask cannot accidentally be interpreted as absolute pitch classes. The helper remains isolated from the firmware runtime; no Marbles scheduler is connected yet.
+The generator's scale quantizer treats the 12-bit scale mask as ROOT-relative, matching the existing `seq.c` convention: bit 0 is the root, bit 2 the major second, and so on. Tests cover a non-C root and all built-in scale masks. The helper is included by `marbles_runtime.h`, which is called from the live per-track `seq_tick()` branch.
 
 ## Sequencer mode parameter and FUN10 persistence (2026-11-25)
 
@@ -129,7 +129,7 @@ The per-track selector groundwork is now committed:
 - The project writer keeps motion event IDs in the old 1.8 namespace on disk; the importer applies the existing parameter-count migration so current firmware restores engine automation IDs correctly.
 - Project, user-preset and FUN10 tests were updated for the new selector and old-file defaults. The compile-time pack-size guard accounts for the omitted selector byte.
 
-This is persistence and parameter groundwork only. `seq_tick()` still runs the existing Standard sequencer for every track; Marbles mode dispatch, source-safe note ownership and the UI selector are not yet implemented. The C test suite and target build have not been run here.
+The selector and FUN10 persistence are implemented, `seq_tick()` dispatches STANDARD or MARBLES per track, the voice boundary has source-safe ownership, and the SEQ quick layer exposes the mode and Marbles controls. The C test suite and target build have not been run here.
 
 ## Voice-boundary note ownership (2026-11-25)
 
@@ -140,7 +140,7 @@ The pitch collision is now handled by a fixed two-owner ledger:
 - Panic/all-off clears both owners. Engine-switch start clears old-engine ownership; new notes during the fade acquire fresh bits and remain represented while the existing pending-note queue is replayed through the raw allocator.
 - `tests/note_ownership_test.c` covers the pure ledger, and `tests/fun10_test.c` now exercises same-pitch release ordering, MONO fallback, panic and pending engine-switch behavior.
 
-The standalone ownership helper test was compiled and passed locally with C11, `-Wall -Wextra -Werror`. The integrated FUN10 test, full host suite, target CPU budget and FM-1 build remain unrun. Marbles event generation is still not wired into `seq_tick()`.
+The standalone ownership helper test was compiled and passed locally with C11, `-Wall -Wextra -Werror`. The standalone Marbles runtime helper and scale-quantizer checks also passed local host checks. The integrated FUN10/UI/modulation tests, full host suite, target CPU budget and FM-1 build remain unrun.
 
 ## Per-track runtime dispatch and FM-1 controls (2026-11-25)
 
