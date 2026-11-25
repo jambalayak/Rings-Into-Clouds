@@ -477,7 +477,8 @@ static int formats(void)
     static project_store_t st;
     static uint8_t v9[3648], v8[3584], v7[3388];
     track_t *t = seq1(1);
-    t->p[P_LSYNC] = 8; t->p[P_LTRIG] = 1; t->p[P_LPOL] = 1; t->p[P_SQNT] = 0;
+    t->p[P_LSYNC] = 8; t->p[P_LTRIG] = 1; t->p[P_LPOL] = 1; t->p[P_SQNT] = 0; t->p[P_SEQMODE] = 1;
+    trk[2].p[P_SEQMODE] = 1;
     trk[2].p[P_E0 + 3] = 5;
     note_step(t, 0, 60, -8);
     note_step(t, 1, 61, 7);
@@ -490,13 +491,20 @@ static int formats(void)
     motion_set_lock(&trk[2], 9, P_E0 + 3, 7);
     project_capture(&a);
     ok = motion.count == MOTION_MAX && proj_pack(&st, &a) && ((uint32_t *)st.raw)[0] == 0x46554E41u &&
-         ((uint32_t *)st.raw)[1] == 3840u && st.raw[66] == P_COUNT && proj_import(&b, &st, sizeof st) && !memcmp(&a, &b, sizeof a);
+         ((uint32_t *)st.raw)[1] == 3840u && st.raw[66] == P_COUNT - 1u &&
+         st.raw[65] == (PROJ_SEQMODE_MARK | 0x05u) && proj_import(&b, &st, sizeof st) && !memcmp(&a, &b, sizeof a);
     ok &= step_nudge(&b.t[0].step[0]) == -8 && step_nudge(&b.t[0].step[1]) == 7 && step_nudge(&b.t[0].step[2]) == -1 &&
           step_ratchet(&b.t[0].step[3]) == 4u && step_nudge(&b.t[0].step[3]) == 1 && step_chance(&b.t[0].step[3]) == 33u;
-    ok &= b.t[0].p[P_LSYNC] == 8 && b.t[0].p[P_LTRIG] == 1 && b.t[0].p[P_LPOL] == 1 && b.t[0].p[P_SQNT] == 0;
-    ok &= !(st.raw[68u + P_COUNT + 2u] & 0x80u) && (st.raw[68u + P_COUNT + 2u + 3u] & 0x80u) &&   /* -8: bit 3 only */
-          (st.raw[68u + P_COUNT + 2u + 9u] & 0x80u) && !(st.raw[68u + P_COUNT + 2u + 12u] & 0x80u);   /* +7: bits 0..2 */
-    bad += check("FUN10 round trip: 3840 bytes, nudges (bit 7 of the note bytes), 128 records, LFO 2, QUANTIZE", ok);
+    ok &= b.t[0].p[P_LSYNC] == 8 && b.t[0].p[P_LTRIG] == 1 && b.t[0].p[P_LPOL] == 1 && b.t[0].p[P_SQNT] == 0 &&
+          b.t[0].p[P_SEQMODE] == 1 && b.t[2].p[P_SEQMODE] == 1 && !b.t[1].p[P_SEQMODE] && !b.t[3].p[P_SEQMODE];
+    ok &= !(st.raw[68u + (P_COUNT - 1u) + 2u] & 0x80u) &&
+          (st.raw[68u + (P_COUNT - 1u) + 2u + 3u] & 0x80u) &&   /* -8: bit 3 only */
+          (st.raw[68u + (P_COUNT - 1u) + 2u + 9u] & 0x80u) &&
+          !(st.raw[68u + (P_COUNT - 1u) + 2u + 12u] & 0x80u);   /* +7: bits 0..2 */
+    bad += check("FUN10 round trip: 3840 bytes, nudges, 128 records, LFO 2, QUANTIZE and per-track STANDARD / MARBLES", ok);
+    /* Legacy FUN10 records keep the old 114-parameter layout; the selector is in reserved byte 65 only. */
+    a.t[0].p[P_SEQMODE] = a.t[2].p[P_SEQMODE] = 0;
+    a.sum = proj_sum(&a);
     /* a FUN10 of a 1.2 build before SPREAD (#148): 103 parameters (no P_SPRD, nor 1.5's); one of 1.2 .. 1.4: 104 (no
      * INSERT, filter TYPE, ENV SYNC: 1.5). Their engine values and their motion (the lock on E3) as many ids lower. They
      * load by count: SPREAD 0, the INSERT OFF (its defaults), TYPE LP, ENV SYNC OFF, the rest as written */
@@ -506,11 +514,15 @@ static int formats(void)
         memset(&so, 0, sizeof so);
         ok = proj_pack(&st, &a) && !a.t[0].p[P_SPRD] && !a.t[0].p[P_ITYPE] && !a.t[0].p[P_FTYPE] && !a.t[0].p[P_ESYNC];
         memcpy(so.raw, st.raw, 68u);
+        so.raw[65] = 0;                               /* older firmware reserved byte: no sequencer mode */
         so.raw[66] = (uint8_t)(P_COUNT - drop);
         for (tr = 0; tr < NTRK; tr++) {
-            for (i = 0; i < P_COUNT; i++, pi++)
+            for (i = 0; i < P_COUNT; i++) {
+                if (i == P_SEQMODE) continue;          /* not in the packed parameter stream */
                 if (i < from || i >= P_E0)
                     so.raw[po++] = st.raw[pi];
+                pi++;
+            }
             memcpy(so.raw + po, st.raw + pi, 2u + NSTEP * 9u);
             pi += 2u + NSTEP * 9u;
             po += 2u + NSTEP * 9u;
@@ -636,7 +648,7 @@ static int formats(void)
         up_rec_t r;
         int16_t v[P_COUNT], def[P_COUNT];
         t = seq1(1);
-        t->p[P_LSYNC] = 4; t->p[P_LPOL] = 1;
+        t->p[P_LSYNC] = 4; t->p[P_LPOL] = 1; t->p[P_SEQMODE] = 1;
         note_step(t, 0, 60, -8);                     /* (bit 4 of the flags set) */
         note_step(t, 1, 62, 3);
         memset(&r, 0, sizeof r);
@@ -644,7 +656,7 @@ static int formats(void)
         for (i = 0; i < P_COUNT; i++) { up_set_value(&r, i, t->p[i]); def[i] = TP[i].def; }
         up_pat_from(&r, t->step);
         up_params(&r, v, def);
-        ok = v[P_LSYNC] == 4 && v[P_LPOL] == 1 && r.flags[0] == 0 && r.note[0] == 60 && r.flags[1] == 0 && r.note[1] == 62;
+        ok = v[P_LSYNC] == 4 && v[P_LPOL] == 1 && v[P_SEQMODE] == 1 && r.flags[0] == 0 && r.note[0] == 60 && r.flags[1] == 0 && r.note[1] == 62;
         r.np = 99;                                    /* as 1.1 stored it: the engine's 8 after its 91 */
         for (i = 0; i < 8u; i++) up_set_value(&r, 91u + i, (int16_t)(10 + i));
         up_params(&r, v, def);
@@ -654,6 +666,11 @@ static int formats(void)
         for (i = 0; i < 8u; i++) up_set_value(&r, 95u + i, (int16_t)(20 + i));
         up_params(&r, v, def);
         ok &= v[P_LSYNC] == 4 && v[P_LPOL] == 1 && v[P_SPRD] == 0 && v[P_E0] == 20 && v[P_E7] == 27;
+        r.np = 114;                                   /* 1.8: 106 common values, then the engine's 8; selector absent */
+        for (i = 0; i < 106u; i++) up_set_value(&r, i, t->p[i]);
+        for (i = 0; i < 8u; i++) up_set_value(&r, 106u + i, (int16_t)(40 + i));
+        up_params(&r, v, def);
+        ok &= v[P_SEQMODE] == 0 && v[P_E0] == 40 && v[P_E7] == 47;
         r.np = 104;                                   /* 1.2 .. 1.4: its 96, then the engine's 8 */
         t->p[P_SPRD] = 33;
         for (i = 0; i < 96u; i++) up_set_value(&r, i, t->p[i]);
@@ -674,7 +691,7 @@ static int formats(void)
 static int midi_track_fmt(void)
 {
     int bad = 0, ok;
-    uint32_t i, end = 68u + NTRK * (P_COUNT + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t);
+    uint32_t i, end = 68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t);
     project_t a, b;
     static project_store_t st, old;
     int16_t r;
