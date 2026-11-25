@@ -64,19 +64,18 @@ Do not store volatile PRNG history in project bytes by assumption. The first per
 No runtime sequencer or voice code is changed yet. The per-track mode parameter and backward-compatible project/preset persistence groundwork are now committed, but the existing pitch-only note-off API is still insufficient for safe independent Marbles playback. The next runtime gate is source-safe note ownership. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
 
 
-## 7. Narrow ownership bridge candidate
+## 7. Implemented two-owner bridge
 
-A less invasive first implementation may be possible without redesigning every existing input source. Keep all existing callers on the current legacy note API and add a dedicated Marbles note API:
+The first source-safe voice-boundary implementation is now committed:
 
-- Rename the current voice operations internally to raw track-note operations.
-- Keep `trk_note_on/off()` as the legacy path, tracking whether the legacy path currently owns each pitch.
-- Add `trk_marbles_note_on/off()`, tracking Marbles ownership separately per track and pitch.
-- A raw note-off is issued only when the releasing owner was active and no other owner still holds that pitch.
-- If Marbles starts a pitch already owned by the legacy path, record its ownership but do not issue a second raw note-on. This avoids duplicate entries collapsing in the mono stack.
-- If the legacy path starts a pitch already owned by Marbles, it may retrigger normally; Marbles' later release is suppressed while legacy ownership remains.
-- Clear both ledgers in `trk_all_off()` and on every path that invalidates a track's voices (preset/project panic, track silence, and any equivalent reset).
+- `firmware/src/note_ownership.h` provides fixed-size, constant-time 128-pitch bitsets for two owners: the existing aggregate legacy path and MARBLES.
+- Existing keyboard, MIDI, arpeggiator and STANDARD callers remain grouped behind `trk_note_on/off()`. The legacy note-on still calls the original raw allocator on every event, preserving its retrigger behavior.
+- `trk_marbles_note_on/off()` are dedicated MARBLES entry points. A duplicate acquire from MARBLES is idempotent; a source releases the raw pitch only when it actually owned that pitch and the other owner no longer does.
+- The raw allocator still owns the single voice / mono stack. The two owner ledgers only decide whether a source is allowed to issue the shared pitch's final note-off; no duplicate voice or second mono stack is introduced.
+- `trk_all_off()` clears both ledgers. At the start of an engine switch, old-engine ownership is cleared with the old voices; notes arriving during the fade acquire fresh ownership bits, remain in the existing bounded pending-note queue, and are replayed through the raw note-on path after the switch.
+- The pure helper has tests for both release orders, duplicate acquire/release, distinct pitches, MIDI bounds and reset. `tests/fun10_test.c` also exercises the real voice wrappers for same-pitch overlap, MONO fallback, panic clearing and pending engine-switch notes.
 
-This two-owner bridge preserves the current aggregate semantics among keyboard, MIDI, arp and Standard sequencing, while preventing Marbles from releasing their pitch. It is a candidate, not an approved implementation: it still needs tests for note-on ordering, mono priority, poly allocation, unison, engine-switch pending notes, mute, panic and track reset. In particular, every call path that can bypass `trk_note_on/off()` or invalidate voices must be accounted for. Use fixed-size per-track bitsets (128 MIDI pitches) rather than dynamic allocation, and keep the ledger out of `track_t` unless its alignment / memory budget is re-audited.
+This deliberately preserves the existing aggregate semantics among keyboard, MIDI, arp and STANDARD; it does not try to split those legacy sources from one another. Voice stealing and the existing four-note pending-queue replacement policy are unchanged. The MARBLES scheduler is not yet wired to these entry points, and the full C suite / target build has not been run.
 
 
 ## 8. Verified FUN10 spare-byte correction
@@ -98,12 +97,12 @@ This correction supersedes the earlier estimates in sections 4 and 8. The serial
 
 The focused source inspection confirms the ownership boundary and adds several concrete constraints:
 
-- The only definitions of `trk_note_on()`, `trk_note_off()` and `trk_all_off()` are in `firmware/src/voice.c` (around lines 395, 442 and 475 in the audited revision).
+- The raw pitch allocator operations and the source-aware wrappers are all in `firmware/src/voice.c`: `trk_note_on_raw/off_raw()`, the legacy `trk_note_on/off()`, `trk_marbles_note_on/off()`, and `trk_all_off()`.
 - The engine-switch completion path in `voice.c` replays the pending `xp_note[] / xp_vel[]` queue by calling `trk_note_on()` directly. A Marbles-specific pending note must therefore retain its owner across the four-block engine fade; replaying all pending notes as legacy would lose ownership.
 - In `seq.c`, the arpeggiator has its own note-on/off calls (around lines 299, 307, 315, 454), live input has note-on/off calls (around 682 and 699), and the Standard sequencer releases its tracked notes and starts new notes (around 926, 1058 and 1064). Track panic/reset calls `trk_all_off()` (around 1433).
 - The arpeggiator also has `arp_forget()`, which ends its currently sounding notes through the ordinary note-off API. The Standard sequencer has its own `seq_notes[]` list. These are separate lifecycle owners in the callers even though the voice layer currently merges them.
 - `trk_note_off()` first removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. It has no note-instance token. `trk_all_off()` releases all voices and clears mono and pending-note state. Engine-switch completion independently hard-clears all old voices before replaying queued notes. Those invalidation paths must clear any new ledger consistently.
-- The audited `felucca.c` does not include either Marbles helper header, and no Marbles runtime scheduler is currently wired into the firmware translation unit.
+- `voice.c` now includes `note_ownership.h` and defines the MARBLES note wrappers. `felucca.c` still does not include a Marbles scheduler, and `seq_tick()` remains STANDARD-only.
 
 ### Helper consolidation warning
 
