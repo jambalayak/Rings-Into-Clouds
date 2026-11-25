@@ -66,3 +66,30 @@ The host regression suite's UI test reports 15 distinct failing assertions in th
 ## Status
 
 The original 1.4 golden files remain unchanged. Run 134 passed target ABI and pinned Rings/Clouds DSP compile-only checks, compact delay-line host comparison, normal FM-1 firmware build, engine-switch diagnostic execution, and lean memory-diagnostic build. It failed the host regression suite. No production Rings-to-Clouds audio integration exists yet; that remains a separate unfinished milestone.
+
+
+
+## Run 139 — note-free engine-switch counterfactual (2026-11-25)
+
+Run 139 (commit `273663cb8b544503d367ec6af8dd0762a430988c`) completed with **failure**. Target ABI smoke, pinned Rings/Clouds compile-only checks, compact Rings delay-line host comparison, and the normal FM-1 firmware regression build passed. The host regression suite failed; the tested development build artifact was therefore not a release candidate.
+
+The corrected mode-7 diagnostic now uses `uswitch()` for the companion: it changes the companion engine and preserves the wait/render schedule without sending note-on or note-off events. The companion is also muted at the mixer. Across the matched eligible sequences the output was:
+- Primary + note-free engine-switching companion: `8293e8d6902f8147`
+- Matched primary-only: `4f2f3dfb4780a7c1`
+- Matched primary + muted rendering companion: `11cbfc7fd013575a`
+
+The note-free engine-switching companion still changes the aggregate fingerprint. This rules out companion note allocation as a necessary condition for this particular observed difference, but does not by itself identify the cause. Hashes remain fingerprints, not distance measurements.
+
+### Newly identified shared-RNG path
+
+Source inspection identifies a specific and testable global-state mechanism. In `firmware/src/voice.c`, `track_lfo_tick()` advances every rendered track's LFO. When its phase wraps, it calls `lfo_rand()`; for parts 1–3 this calls the shared `rng()` generator (`LFO_SHARED_RNG == 3`). The fourth part uses its own xorshift. The source comment explicitly notes that the shared sequence also seeds engine noise in PHYS/VOICE and other engines.
+
+The note-free companion still passes through `track_render()`, and therefore still advances its LFO. Engine preset changes can change the companion's LFO rate/sync parameters. That can change when its LFO wraps and how many values it consumes from the shared RNG, shifting later random values observed by the primary part and its engines. This is a strong candidate explanation for why a muted companion that receives no notes can alter the primary mix.
+
+This is source-level evidence for a plausible causal path, **not yet a confirmed root cause**. Next add a diagnostic counterfactual that keeps the companion engine-switch/render schedule identical but prevents that companion from consuming the shared RNG (without disabling its rendering or changing the primary's random stream). Compare it with the same matched primary-only and mode-7 sequences. If the primary fingerprint is restored, isolate the least invasive fix: per-part deterministic LFO random streams or a narrowly scoped RNG stream for LFO sample-and-hold, with golden-render coverage. Do not simply freeze the companion LFO or reseed the global generator in production.
+
+The existing shared voice allocator remains a separate possible contributor in the ordinary note-playing modes, but it cannot explain the note-free mode-7 difference through companion note allocation.
+
+## Current regression summary — Run 139
+
+The 91-render audio golden suite reports 90 changed renders and zero missing renders. The 720 engine-switch golden sequences differ from the 1.4 references. Health, voice/routing, CPU-budget and crash checks report zero failures. UI tests report 15 failing assertions in each tested configuration, covering preset-list handling, SONG, FX keys/LEDs/knobs, sequencer tools/ARP division, and HELP layout. Do not regenerate golden hashes or weaken the assertions.
