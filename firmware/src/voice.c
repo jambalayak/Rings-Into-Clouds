@@ -35,6 +35,11 @@ static int32_t lfo_wave(track_t *t, uint32_t ph)
 #ifdef FELUCCA_HOSTSIM
 /* union_test only: isolate one part's LFO S&H from the shared RNG stream. */
 uint32_t host_lfo_rng_isolate_part = UINT32_MAX;
+uint32_t host_lfo_freeze_part = UINT32_MAX;
+static int host_lfo_frozen(const track_t *t)
+{
+    return (uint32_t)(t - trk) == host_lfo_freeze_part;
+}
 #endif
 static uint32_t lfo_rand(track_t *t)
 {
@@ -77,12 +82,18 @@ static __attribute__((noinline)) uint32_t lfo_sync_inc(const track_t *t)   /* (n
  * in the same order on one core or two). Nothing reads the LFO between the two */
 static void track_lfo_adv(track_t *t)
 {
+#ifdef FELUCCA_HOSTSIM
+    if (host_lfo_frozen(t)) return;
+#endif
     uint32_t old = t->lfo_ph;
     t->lfo_ph += t->p[P_LSYNC] ? lfo_sync_inc(t) : LFO_INC[t->p[P_LRATE] & 127];
     t->lfo_wrap = t->lfo_ph < old;
 }
 static void track_lfo_end(track_t *t)
 {
+#ifdef FELUCCA_HOSTSIM
+    if (host_lfo_frozen(t)) return;
+#endif
     if (t->lfo_wrap) {
         t->lfo_wrap = 0;
         t->lfo_prev = (int16_t)mod_sh(t);               /* mod.c SLEW: it glides on from there */
@@ -104,6 +115,9 @@ static void track_lfo_tick(track_t *t)                  /* (both at once: the te
 #else
 static void track_lfo_tick(track_t *t)                  /* (one core: the whole block in track_render, as up to 1.6) */
 {
+#ifdef FELUCCA_HOSTSIM
+    if (host_lfo_frozen(t)) return;
+#endif
     uint32_t old = t->lfo_ph;
     t->lfo_ph += t->p[P_LSYNC] ? lfo_sync_inc(t) : LFO_INC[t->p[P_LRATE] & 127];
     if (t->lfo_ph < old) {
