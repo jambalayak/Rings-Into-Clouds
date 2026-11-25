@@ -140,3 +140,17 @@ The duplicate helper API has now been consolidated:
 - The canonical quantizer is explicitly ROOT-relative, matching `seq.c`'s `scale_snap()` mask convention. A non-zero-root major-scale regression case is included in the generator test.
 
 This is source consolidation only. The test suite has not been executed here, and the helper is still not included by `felucca.c`. The note-ownership and engine-switch queue gates remain open.
+
+## 11. Exact FUN10 selector budget calculation
+
+The audited source gives a more concrete bound for one per-track mode parameter:
+
+- Current `P_COUNT = 111`, `P_E0 = 103`; the packed per-track region is `P_COUNT + 2 + NSTEP * 9 = 111 + 2 + 576 = 689` bytes per track.
+- Current packed track region ends at `68 + 4 * 689 = 2824`.
+- FUN10 chain and motion blocks occupy `sizeof(chain_config_t) = 84` and `sizeof(motion_t) = 388` bytes, so the end cursor is `2824 + 84 + 388 = 3296`.
+- `PROJ_FM6_OFF = 3312` and `PROJ_MIDI_OFF = PROJ_FM6_OFF - 3 = 3309`; the existing 13-byte gap is checked by `proj_pack()` using `pos + sizeof chain + sizeof motion > PROJ_MIDI_OFF`.
+- Inserting one common byte parameter before `P_E0` raises `P_COUNT` to 112 and moves the end cursor to 3300, leaving 9 bytes before `PROJ_MIDI_OFF`. It remains below the existing `P_COUNT < 128` constraint used by project motion IDs and `P_COUNT <= UP_PMAX * 2` user-preset capacity.
+
+This supports a single selector parameter in FUN10 without changing the format size, provided the exact compile-time layout and pack/unpack tests are added. The proposed parameter should be named `P_SEQMODE`, with `STANDARD = 0` and `MARBLES = 1`, so older projects and presets map to STANDARD through `params_by_count()`.
+
+This is still a design calculation, not a serializer or parameter-table change. Before committing the parameter, audit motion ID migration, editor protocol parameter IDs, learned MIDI CC mappings, preset import/export, UI descriptor exposure and all existing tests that assume `P_E0` / `P_COUNT`.
