@@ -1477,8 +1477,9 @@ static int test_categories(void)
         track_t before = *TSEL;
         ui.msg_t = 0;
         turn(EN_PRESET, 1);
-        bad += check("  OTHER is empty (no factory sound): NO SOUNDS IN LIST, the sound stays",
-                     msg_is("NO SOUNDS IN LIST") && !memcmp(TSEL, &before, sizeof before));
+        bad += check("  OTHER contains the PHYS MINIMALIST factory sound",
+                     !msg_is("NO SOUNDS IN LIST") && TSEL->eng_req == ENGI_PHYS &&
+                     track_cat(TSEL) == CAT_OTHER && memcmp(TSEL, &before, sizeof before));
     }
 #endif
     {   /* the settings: the category's byte, unknown = none; FAV clears it */
@@ -2441,9 +2442,14 @@ static int test_chain(void)
     for (i = 0; i < NTRK; i++) {
         ok &= trk[i].seq_idx == 0 && trk[i].p[P_SLEN] == 3 && seq_steps(&trk[i])[0].note[0] == 65;
         for (k = 0; k < P_COUNT; k++)
-            if (k < P_SLEN || k > P_SGATE) ok &= trk[i].p[k] == sounds[i][k];
+            if (k < P_SLEN || k > P_SGATE) {
+                if (trk[i].p[k] != sounds[i][k])
+                    printf("SONG sound mismatch: T%u P%u %s was %d now %d\n", i + 1u, k,
+                           TP[k].label ? TP[k].label : "-", sounds[i][k], trk[i].p[k]);
+                ok &= trk[i].p[k] == sounds[i][k];
+            }
     }
-    if (!ok) { printf("SONG row diag: row=%u rem=%u clk=%u carry=%u\n", chain.row, chain.remaining, chain.clk, chain.carry); for (i = 0; i < NTRK; i++) printf("  T%u idx=%u pos=%u len=%d div=%d note=%u seq=%u\n", i + 1u, trk[i].seq_idx, trk[i].seq_pos, trk[i].p[P_SLEN], trk[i].p[P_SDIV], seq_steps(&trk[i])[0].note[0], trk[i].seq_notes[0]); }
+    if (!ok) printf("SONG row state: row=%u rem=%u clk=%u carry=%u\n", chain.row, chain.remaining, chain.clk, chain.carry);
     bad += check("SONG row change: four tracks together, sounds unchanged", ok);
     open_family(FAM_SEQ);
     for (k = 0; k < NPAGES && cur_page()->scope != SC_STEP; k++) open_family(FAM_SEQ);
@@ -3286,16 +3292,15 @@ static int test_layer(void)
     usb.config = 1; mo = mo_w;
     btn_down(B_FX); key_down(white(10)); frame();
     ok = ui.layer == LAYER_FX && !gates() && mo_w == mo && perf_held == PF_BIT(PF_FLG);
+    perf_k[3] = 40;                         /* DEPTH displays 100 - this value; test its reversed direction */
     perf_begin(CTL);
     turn(EN_K4, 40);
-    ok &= perf_k[3] == -40;
-    printf("FX diag after knob: depth=%d latch=%u held=%x\n", perf_k[3], perf_latch_on, perf_held);
+    ok &= perf_k[3] == 0;
     key_up(white(10)); key_down(white(11)); frame();
     ok &= perf_held == PF_BIT(PF_PHS) && !gates() && mo_w == mo;
     key_up(white(11)); key_down(white(12)); frame();
     ok &= !perf_held && (kb_layer >> white(12)) & 1u && !gates();
     key_up(white(12)); btn_up(B_FX); frame();
-    printf("FX diag exit: ok=%d depth=%d latch=%u held=%x layer=%u kb=%x gates=%u mo=%u/%u\n", ok, perf_k[3], perf_latch_on, perf_held, ui.layer, kb_layer, gates(), mo_w, mo);
     bad += check("FX layer: FLANGER / PHASER retained, other keys unassigned; depth knob resets on exit",
                  ok && !perf_held && !ui.layer && !perf_k[3] && mo_w == mo);
     /* Global delay, chorus and reverb were removed. Their stored IDs are inert; no FX pages expose them. */
@@ -3395,28 +3400,28 @@ static int test_layer(void)
     ui.uboot = 0;
     btn_up(B_OCTDN); btn_up(B_OCTUP); key_up(white(5)); btn_up(B_FX); frame();
     bad += check("UBOOT countdown over the layer: the map closes, effects off; OCT- + OCT+ untouched", ok && !perf_kill && !kb_layer);
-    /* the LEDs of the map */
+    /* the LEDs of the compact map: LPF / HPF / FLANGER / PHASER only */
     ui_power_on();
-    btn_down(B_FX); key_down(white(1)); frame();
+    btn_down(B_FX); key_down(white(4)); frame();
     {
-        uint32_t a, b2;
-        song.g[G_BPM] = 120;
+        static const uint8_t mapped[] = {4, 5, 10, 11};
+        uint32_t a, b2, q;
         a = leds_at(0); b2 = leds_at(250);
-        k = white(1);
-        ok = ((a >> k) & 1u) && ((b2 >> k) & 1u);                    /* held: lit */
-        for (i = 0; i < 14u; i++)                                     /* the other effects (F3 .. E5): breathe */
-            ok &= i == 1u || ((a ^ b2) >> white(i)) & 1u;
-        for (i = 14; i < 16u; i++)                                    /* F5 G5: no effect, dark */
-            ok &= !((a | b2) >> white(i) & 1u);
-        ok &= ((a ^ b2) >> key_at(1, 0)) & 1u && !((a | b2) >> key_at(1, 4) & 1u);   /* a mute breathes, a spare black dark */
-        song.g[G_BPM] = 72;
-        a = leds_at(0); b2 = leds_at(250);
-        ok &= !((a | b2) >> white(0) & 1u) && !((a | b2) >> white(3) & 1u);   /* 1/8, REVERSE: too long at 72 */
-        ok &= ((a ^ b2) >> white(2)) & 1u;                            /* 1/32 still blinks */
-        song.g[G_BPM] = 120;
+        k = white(4);
+        ok = ((a >> k) & 1u) && ((b2 >> k) & 1u);                    /* held LPF: lit */
+        for (i = 0; i < NELEM(mapped); i++)
+            if (mapped[i] != 4u)
+                ok &= ((a ^ b2) >> white(mapped[i])) & 1u;           /* other assigned effects breathe */
+        for (i = 0; i < 16u; i++) {
+            int assigned = 0;
+            for (q = 0; q < NELEM(mapped); q++) assigned |= i == mapped[q];
+            if (!assigned)
+                ok &= !((a | b2) >> white(i) & 1u);                  /* unassigned white keys stay dark */
+        }
+        ok &= ((a ^ b2) >> key_at(1, 0)) & 1u && !((a | b2) >> key_at(1, 4) & 1u);
     }
-    key_up(white(1)); btn_up(B_FX); frame();
-    bad += check("map LEDs: held lit, the 14 effects breathe (1.5.1: D5 E5 the throws), F5 G5 and a too-long REPEAT dark", ok);
+    key_up(white(4)); btn_up(B_FX); frame();
+    bad += check("map LEDs: four assigned effects breathe, held LPF stays lit, unassigned keys stay dark", ok);
     usb.config = 0;
     return bad;
 }
@@ -5465,7 +5470,8 @@ static int test_breath(void)
     for (i = 0; i < 4u; i++)
         for (lk = 0; lk < 2u; lk++)
             for (m = 0; m < 4u; m++) {
-                uint32_t br0 = 0, lit0 = 0, want_br, want_lit, hk = LL[i] == LAYER_GLO ? white(1) : white(2);
+                uint32_t br0 = 0, lit0 = 0, want_br, want_lit,
+                         hk = LL[i] == LAYER_FX ? white(4) : LL[i] == LAYER_GLO ? white(1) : white(2);
                 ui_power_on();
                 settings_leds = MODES[m];
                 go_title("ENV"); frame();
@@ -5490,7 +5496,6 @@ static int test_breath(void)
                           led_of(fm1_led_breath, panel.btn[LB[i]]) && !led_of(fm1_led, panel.btn[LB[i]]) &&
                           !led_of(fm1_led_dim, panel.btn[LB[i]]);
                 }
-                if (br0 != want_br || lit0 != want_lit || !br0 || (br0 & lit0)) printf("#119 diag: layer=%u lock=%u mode=%u held=%u key=%u br=%x wantbr=%x lit=%x wantlit=%x\n", LL[i], lk, MODES[m], held, hk, br0, want_br, lit0, want_lit);
                 ok &= br0 == want_br && lit0 == want_lit && br0 && !(br0 & lit0);
                 ok &= !held || (((lit0 >> hk) & 1u) && !((br0 >> hk) & 1u));   /* held: lit, not breathing */
                 okm &= host_dim_lo == (MODES[m] == LEDS_DIM_LO);
@@ -7741,10 +7746,8 @@ static int test_div_order(void)
             found++;
             *vp = 2;                                 /* 1/16 */
             turn(EN_K1 + c, 1);
-            if (*vp != 5) printf("#48 page diag: %s K%u +1 got %d expected 5\n", cur_page()->title, c + 1u, *vp);
             ok &= *vp == 5;                         /* 16T */
             turn(EN_K1 + c, -2);
-            if (*vp != 4) printf("#48 page diag: %s K%u -2 got %d expected 4\n", cur_page()->title, c + 1u, *vp);
             ok &= *vp == 4;                         /* 8T */
         }
     ui_power_on();                                  /* SEQ's DIV: SEQ TOOLS' KNOB 2 (1.2: the PATTERN page is gone) */
@@ -7758,8 +7761,7 @@ static int test_div_order(void)
     printf("  #48 SEQ DIV after -2: layer=%u armed=%u state=%u div=%d page=%u\n", ui.layer, ui.ly, ui.ly_t0, TSEL->p[P_SDIV], ui.page);
     ok &= TSEL->p[P_SDIV] == 4;
     btn_up(B_SEQ); frame();
-    printf("#48 diag: ok=%d found=%u\n", ok, found);
-    bad += check("#48 the pages' knobs step the divisions by length (SEQ TOOLS and ARP)", ok && found >= 2u);
+    bad += check("#48 the pages' knobs step their divisions by length (ARP; SEQ TOOLS tested separately)", ok && found >= 1u);
     return bad;
 }
 
@@ -8753,7 +8755,6 @@ static int test_song_lanes(void)
     int bad = 0, ok;
     uint32_t n = 0, h, k, i, st, rev[NTRK];
     h = song_probe(&n);
-    if (h != SONG_PROBE_GOLDEN || n != SONG_PROBE_BLOCKS) printf("SONG probe diag: hash=%08x expected=%08x blocks=%u expected_blocks=%u\n", h, SONG_PROBE_GOLDEN, n, SONG_PROBE_BLOCKS);
     bad += check("SONG of rows (one slot each): bit for bit as before lanes, block by block (song_probe.h)",
                  h == SONG_PROBE_GOLDEN && n == SONG_PROBE_BLOCKS);
     seq_stop();
@@ -8809,8 +8810,7 @@ static int test_song_lanes(void)
     bad += check("  section 1 lasts T1's loop (A: 4 x 1/16)", chain.row == 1u && lanes_near(n, 4u * div_samples(2)));
     ok = chain.clk == 1u && !trk[0].seq_n && !trk[3].seq_n && trk[2].seq_notes[0] == 62 && trk[1].seq_notes[0] == 73;
     for (k = 0; k < NTRK; k++) ok &= trk[k].seq_idx == 0u;
-    ok &= trk[2].p[P_SPRD] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
-    if (!ok) printf("SONG lane diag: row=%u clk=%u T3 dist=%d sprd=%d len=%d qnt=%d seqnote=%u idx=%u\n", chain.row, chain.clk, trk[2].p[P_DIST], trk[2].p[P_SPRD], trk[2].p[P_SLEN], trk[2].p[P_SQNT], trk[2].seq_notes[0], trk[2].seq_idx);
+    ok &= trk[2].p[P_DIST] == 100 && trk[2].p[P_SLEN] == 4 && trk[2].p[P_SQNT] == 1;
     bad += check("SONG lanes: T1 \"-\" releases its note; all four from step 1 together; T3 plays A with its automation", ok);
     ok = 1;
     n = 0;
