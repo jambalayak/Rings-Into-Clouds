@@ -47,6 +47,21 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #if FELUCCA_ADPCM
 #include "eng_adpcm.c"           /* ADPCM: BRR waves and an FIR echo, its DSP ported from snes_spc (adpcm_dsp.c, LGPL-2.1+) */
 #endif
+#include "eng_rings.c"           /* RINGS: one original exciter / modal-resonator instrument */
+
+/* Stable reserved slots for optional engines. eng_idx() maps an unavailable slot to ANALOG;
+ * these descriptors exist only so the editor's engine-name table remains a fixed 16 entries. */
+static void eng_unbuilt_note_on(struct track *t, voice_t *v) { (void)t; (void)v; }
+static void eng_unbuilt_render(struct track *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
+{ (void)t; (void)v; (void)out; (void)n; (void)m; }
+static const engine_t ENG_SLICE_GONE = {
+    .name = "NO SLICE", .page_title = {"-", "-"},
+    .note_on = eng_unbuilt_note_on, .render = eng_unbuilt_render
+};
+static const engine_t ENG_ADPCM_GONE = {
+    .name = "NO ADPCM", .page_title = {"-", "-"},
+    .note_on = eng_unbuilt_note_on, .render = eng_unbuilt_render
+};
 
 /* the editor protocol, user presets and projects store these indices: append, never reorder */
 static const engine_t *const ENGINES[NENGINES] = {
@@ -68,15 +83,20 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_NOISE,                  /* 11 */
     &ENG_FM6,                    /* 12 (ENGI_FM6) */
 #if FELUCCA_SLICE
-    &ENG_SLICE,                  /* 13 (FELUCCA_SLICE=0 builds without it) */
+    &ENG_SLICE,                  /* 13 */
+#else
+    &ENG_SLICE_GONE,             /* 13: reserved */
 #endif
 #if FELUCCA_ADPCM
-    &ENG_ADPCM,                  /* 14 (ENGI_ADPCM; FELUCCA_ADPCM=0 builds without it) */
+    &ENG_ADPCM,                  /* 14 */
+#else
+    &ENG_ADPCM_GONE,             /* 14: reserved */
 #endif
+    &ENG_RINGS,                  /* 15 (ENGI_RINGS): the single Rings-style engine */
 };
 
 /* a track's engine number as an index (the audio paths: a compare, cheaper than % NENGINES; a bad number: 0) */
-static inline uint32_t eng_idx(uint32_t e) { return e < NENGINES ? e : 0u; }
+static inline uint32_t eng_idx(uint32_t e) { return e < NENGINES && (e != ENGI_SLICE || FELUCCA_SLICE) && (e != ENGI_ADPCM || FELUCCA_ADPCM) ? e : 0u; }
 
 /* part t's engine memory goes to its engine (t->engine; voice.c engine_block, once a block: on a switch, after
  * the old engine's fade, before any note on the new one): zeroed (its engine_t.mem bytes) when another
@@ -134,13 +154,14 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
 #endif
     10,                          /* DRUM */
 #if FELUCCA_ADPCM
-    14,                          /* ADPCM (1.8): last, so the EDIT layer's white keys keep the 13 above (ui_layer.c LY_ENG_KEYS) */
+    14,                          /* ADPCM (1.8): last optional engine */
 #endif
+    ENGI_RINGS,                  /* RINGS: the single new resonator engine */
 };
 
 /* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them
  * eng_vis(n), e's place among them eng_rank(e), the next / previous one eng_step(e, dir) (wraps) */
-static int eng_ok(uint32_t e) { return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL); }
+static int eng_ok(uint32_t e) { return e < NENGINES && (FELUCCA_FM4 || e != ENGI_DIGITAL) && (FELUCCA_SLICE || e != ENGI_SLICE) && (FELUCCA_ADPCM || e != ENGI_ADPCM); }
 static uint32_t eng_vis(uint32_t n) { return ENGINE_ORDER[n % NENG_SHOWN]; }
 static uint32_t eng_rank(uint32_t e)
 {
