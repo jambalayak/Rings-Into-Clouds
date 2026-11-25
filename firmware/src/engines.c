@@ -153,10 +153,10 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
     13,                          /* SLICE */
 #endif
     10,                          /* DRUM */
+    ENGI_RINGS,                  /* RINGS: included in the EDIT layer's engine keys */
 #if FELUCCA_ADPCM
-    14,                          /* ADPCM (1.8): last optional engine */
+    14,                          /* ADPCM: last, excluded from the EDIT layer's fixed key bank */
 #endif
-    ENGI_RINGS,                  /* RINGS: the single new resonator engine */
 };
 
 /* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them
