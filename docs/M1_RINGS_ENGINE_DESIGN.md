@@ -1,6 +1,6 @@
 # RINGS INTO CLOUDS — M1 Rings Engine Integration
 
-Status: architecture decision; implementation not yet started.
+Status: initial single-engine implementation committed; full host suite and target validation pending.
 Branch: `rings-into-clouds-dev`
 
 ## Product decision
@@ -38,21 +38,23 @@ Working engine name: `RINGS`.
 - Start with conservative polyphony and fixed-point arithmetic. Measure worst-case CPU before increasing it.
 - Keep the design independent of a Clouds/granular engine. The later granular processor should be a separate post-voice/part effect stage, not another Rings engine.
 
-Suggested eight EDIT macros (labels are provisional and must be checked against the display constraints):
-1. EXCITE — strike/pluck intensity and character.
-2. STRUCT — harmonic-to-inharmonic partial distribution.
-3. BRIGHT — excitation and resonator brightness.
-4. DAMP — decay time.
-5. POS — excitation position / spectral nulls.
-6. SPACE — resonator/body spread.
-7. MOTION — subtle modulation of resonant partials.
-8. LEVEL — resonator output balance.
+Implemented eight EDIT controls:
+1. EXC — crossfades a one-shot pluck impulse toward continuous noisy excitation.
+2. STR — shifts the second and third modal ratios from harmonic toward inharmonic relationships.
+3. BRT — weights the upper resonant modes.
+4. DMP — controls the decay radius of all three modes.
+5. POS — changes the balance of the second and third modes.
+6. BODY — shapes the third mode's ratio and level.
+7. TONE — controls a fixed-point output low-pass stage.
+8. AIR — adds noise to the exciter.
+
+The engine ships with eight factory presets: PLUCK, BELL, BOW, WOOD, GLASS, STRING, DRONE and METAL. These are presets of the same engine, not separate Rings models.
 
 ## Integration constraints and unresolved engineering work
 
 1. Inspect all engine dispatch sites, including `voice.c`, preset serialization, editor protocol, engine browsing, factory preset enumeration, and tests.
-2. Resolve stable engine numbering. Current optional engines occupy IDs 13 (SLICE) and 14 (ADPCM); a new append-only ID must not collide when either optional build flag is off. Do not simply append an array item and assume the ID is stable. Use explicit reserved slots or a documented fixed-ID mapping, and test all supported build-flag combinations.
-3. Confirm whether the resonator is per voice, shared per part, or a hybrid. A shared part resonator may better reflect Rings' resonant-body interaction, but note allocation and multi-note behavior must be deterministic.
+2. Stable engine numbering is now fixed: SLICE 13, ADPCM 14, RINGS 15. NENGINES is 16 in every build; absent optional engines keep reserved descriptor slots and eng_idx() maps those unavailable IDs safely. RINGS is placed before ADPCM in display order so it is available in the EDIT engine-key bank while ADPCM remains last. Compile/test all supported build-flag combinations.
+3. The first implementation uses a deterministic per-voice three-mode resonator. It uses the host voice's eight signed state words and adds no per-part ENG_MEM allocation. This is a deliberate first milestone; shared sympathetic interaction is not implemented.
 4. Calculate actual state size with target compiler types and add `ENG_MEM_FITS`. Do not increase the global per-part memory pool without a measured RAM budget.
 5. Avoid floating point in the target audio loop unless the toolchain and benchmark demonstrate it is safe.
 6. Add deterministic host tests for impulse response, pitch tracking, decay, clipping bounds, note retrigger, voice stealing, and silence/tail behavior.
@@ -65,3 +67,21 @@ Suggested eight EDIT macros (labels are provisional and must be checked against 
 - One coherent resonator voice with expressive macros and playable MIDI/keyboard input.
 - No unbounded audio-loop work, dynamic allocation, or unmeasured state growth.
 - Tests and target build results are recorded honestly; no claim of hardware validation until an FM-1 is available.
+
+## Initial implementation snapshot (2026-11-25)
+
+- Added `firmware/src/eng_rings.c`, included once by `engines.c`, as the single `ENG_RINGS` engine at stable ID 15.
+- The resonator is three damped second-order modal recurrences per voice. Coefficients are calculated once per render block from the host pitch increment and the STR / DMP controls; the audio loop uses bounded fixed-point arithmetic, a bounded xorshift exciter, and saturating state updates.
+- Voice state uses `voice_t.s[0..7]`: six modal delay states, one output low-pass state and one DC-blocker history value. `voice_t.ph[0..1]` hold the exciter PRNG and the one-shot impulse flag. No dynamic allocation, floating point, or extra part memory is used.
+- The engine follows the host pitch increment and amp ramp and receives the host shape / cutoff modulation values. Its resonator state continues through the host release envelope rather than being abruptly cleared at note-off.
+- The engine table now has 16 stable slots. IDs 13 and 14 remain reserved for optional SLICE and ADPCM builds; ID 15 is RINGS in every build. The engine browser's selectable order includes RINGS and keeps ADPCM last.
+- Added Rings preset categories and a favorites mapping in previously unused settings byte `favorites.factory[15][14]`; the existing ADPCM favorite byte `[15][13]` remains unchanged.
+- Added `tests/rings_engine_test.c` to the host runner for deterministic output, non-silence, bounded state at parameter extremes, and audible response changes from resonator controls.
+- An isolated local C harness compiled the engine callback source against stub host types and confirmed a non-silent pluck response. This is only a syntax / callback smoke check, not a firmware build or a run of the repository's integrated tests.
+
+### Still required before calling M1 validated
+
+1. Run `tests/run_tests.sh`, including the new Rings test, the expanded engine/preset golden renders, editor/UI tests, and project/user-preset migration tests.
+2. Regenerate and review `tests/golden.txt`, `tests/cpu_baseline.txt`, and target instruction budget entries from actual host/target runs; do not invent baseline values.
+3. Build with the actual JieLi / AC79 toolchain and verify the FM-1 package, audio CPU headroom, polyphonic voice stealing, release tails, MIDI, project save/load and editor protocol.
+4. Check all supported combinations of `FELUCCA_SLICE`, `FELUCCA_ADPCM` and `FELUCCA_FM4` so the fixed engine IDs and editor list remain stable.
