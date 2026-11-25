@@ -891,6 +891,29 @@ static int marbles_sequencer_runtime(void)
     seq_stop();
     if (!ok) return check("sequencer dispatch: per-track MARBLES note, X/Y outputs and safe switch back to STANDARD", 0);
 
+    /* A note born during the engine fade must still sound after the new engine is installed. */
+    t->p[P_SEQMODE] = 1;
+    t->p[P_APROB] = 127;
+    t->eng_req = t->engine;
+    t->xf_on = 0;
+    t->xf = 0;
+    t->xp_n = 0;
+    seq_start();
+    trk_note_on(t, 55u, 100u);                        /* old-engine voice makes the switch fade */
+    t->eng_req = ENGI_PHYS;
+    engine_block(t);                                  /* starts the four-block fade, clears old ownership */
+    seq_tick(t, CTL);                                 /* Marbles note queues with fresh ownership */
+    note = marbles_gate_note[0];
+    ok = t->xf_on && t->xp_n == 1u && t->xp_note[0] == note &&
+         note_ownership_any(&note_owners[0], note);
+    t->xf = 0;
+    engine_block(t);                                  /* finish fade and replay the queued Marbles note */
+    seq_tick(t, CTL);                                 /* observe the new engine without cancelling the note */
+    ok &= !t->xf_on && t->engine == ENGI_PHYS && marbles_gate_on[0] &&
+          test_gated_pitch(t, note) && note_ownership_any(&note_owners[0], note);
+    seq_stop();
+    if (!ok) return check("sequencer dispatch: Marbles notes queued during an engine fade survive replay", 0);
+
     t->p[P_SEQMODE] = 1;
     t->p[P_APROB] = 0;                                /* no T gates at zero density */
     seq_start();
