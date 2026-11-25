@@ -37,6 +37,9 @@ int main(void)
     assert(marbles_quantize_note(0, 0, 0u) == 60u);
     assert(marbles_quantize_note(0, 0, (1u << 0) | (1u << 4) | (1u << 7)) == 60u);
     assert(marbles_quantize_note(1, 0, (1u << 0) | (1u << 4) | (1u << 7)) == 64u);
+    /* Scale masks are ROOT-relative, matching seq.c's scale_snap(). */
+    assert(marbles_quantize_note(0, 2, (1u << 0) | (1u << 2) | (1u << 4) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 11)) == 62u);
+    assert(marbles_quantize_note(1, 2, (1u << 0) | (1u << 2) | (1u << 4) | (1u << 5) | (1u << 7) | (1u << 9) | (1u << 11)) == 64u);
     assert(marbles_quantize_note(-1, 0, (1u << 0) | (1u << 4) | (1u << 7)) == 55u);
     assert(marbles_quantize_note(1000, 0, 0x0FFFu) == 127u);
     assert(marbles_quantize_note(-1000, 0, 0x0FFFu) == 0u);
