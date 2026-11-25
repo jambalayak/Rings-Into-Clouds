@@ -55,7 +55,8 @@ static inline int32_t marbles_degree(marbles_rng_t *r, int32_t bias, uint32_t sp
     return value + bias;
 }
 
-/* Map a signed scale degree to MIDI note using a 12-bit pitch-class mask.
+/* Map a signed scale degree to MIDI note using the same ROOT-relative 12-bit
+ * scale mask as seq.c: bit 0 is the root, bit 2 is the major second, etc.
  * root is 0..11; empty masks fall back to chromatic. Result clamps 0..127. */
 static inline uint8_t marbles_quantize_note(int32_t degree, uint32_t root, uint16_t mask)
 {
@@ -69,8 +70,7 @@ static inline uint8_t marbles_quantize_note(int32_t degree, uint32_t root, uint1
     index = degree % count;
     if (index < 0) { index += count; octave--; }
     for (pc = 0; pc < 12u; pc++) {
-        uint32_t candidate = (root + pc) % 12u;
-        if (mask & (1u << candidate)) {
+        if (mask & (1u << pc)) {
             if (index-- == 0) { semitone = (int32_t)pc; break; }
         }
     }
