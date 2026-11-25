@@ -1680,21 +1680,21 @@ static void ui_draw_page(uint32_t counting)
         draw_frame();
     felucca_dbg.stage = 3;
 #ifdef UI_TEST_NO_MAIN
-    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_draw: count=%u:  head begin\n");
+    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_empty_draw: head begin\n");
 #endif
     draw_head();
 #ifdef UI_TEST_NO_MAIN
-    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_draw: count=%u:  head done\n");
+    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_empty_draw: head done\n");
 #endif
     felucca_dbg.stage = 4;
     draw_columns();
 #ifdef UI_TEST_NO_MAIN
-    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_draw: count=%u:  columns done\n");
+    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_empty_draw: columns done\n");
 #endif
     felucca_dbg.stage = 5;
     draw_graph();
 #ifdef UI_TEST_NO_MAIN
-    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_draw: count=%u:  graph done\n");
+    if (!ui.home && cur_page()->graph == GR_SONG) fprintf(stderr, "song_empty_draw: graph done\n");
 #endif
     if (ui.msg_t && !--ui.msg_t && ui.msg2[0]) {     /* the second message (ui_notices) */
         str_cpy(ui.msg, ui.msg2, sizeof ui.msg);
