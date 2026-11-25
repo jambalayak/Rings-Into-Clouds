@@ -93,7 +93,7 @@ static uint64_t useq(const uint32_t *e, uint32_t n, uint32_t pi, uint32_t wait_m
             host_lfo_rng_isolate_part = 2u;
         if (mode == 10u || mode == 11u)
             host_lfo_freeze_part = 2u; /* companion keeps rendering but uses its own LFO S&H stream */
-        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u || mode == 8u || mode == 9u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
+        if (mode == 3u || mode == 5u || mode == 6u || mode == 7u || mode == 8u || mode == 9u || mode == 10u || mode == 11u || mode == 10u || mode == 11u) trk[2].p[P_LEVEL] = 0; /* muted companion still renders */
         /* mode 7 switches the companion engine without sending any note events. */
         if (mode == 4u) trk[0].p[P_LEVEL] = 0; /* primary still renders/uses voices, but is silent in the mix */
         uh = 0xcbf29ce484222325ull;
