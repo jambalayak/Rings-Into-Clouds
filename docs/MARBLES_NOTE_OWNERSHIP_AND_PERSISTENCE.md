@@ -61,7 +61,7 @@ Do not store volatile PRNG history in project bytes by assumption. The first per
 
 ## 6. Current status
 
-No runtime sequencer or voice code is changed yet. The per-track mode parameter and backward-compatible project/preset persistence groundwork are now committed, but the existing pitch-only note-off API is still insufficient for safe independent Marbles playback. The next runtime gate is source-safe note ownership. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
+The per-track mode parameter, backward-compatible project/preset persistence, and a two-owner voice-boundary bridge are now committed. The Marbles scheduler is still not connected to `seq_tick()`, so no generated Marbles notes play yet. The one-Rings-engine requirement remains unchanged; Marbles and Standard are sequencer modes, not synth engines.
 
 
 ## 7. Implemented two-owner bridge
