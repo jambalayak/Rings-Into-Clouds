@@ -144,7 +144,7 @@ This is source consolidation only. The test suite has not been executed here, an
 
 ## 11. Corrected current FUN10 budget
 
-The earlier arithmetic in this document used the 1.5-era parameter count and omitted the three AFTERTOUCH parameters introduced later. The current source before the selector has `P_COUNT = 114` and `P_E0 = 106), not 111 / 103.
+The earlier arithmetic in this document used the 1.5-era parameter count and omitted the three AFTERTOUCH parameters introduced later. The current source before the selector has `P_COUNT = 114` and `P_E0 = 106`, not 111 / 103.
 
 The actual packed cursor is:
 
