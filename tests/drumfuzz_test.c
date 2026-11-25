@@ -280,7 +280,7 @@ int main(int argc, char **argv)
     }
 #endif
     for (s = s0; s < s0 + ns; s++) {
-        uint32_t synth = s % NENGINES;
+        uint32_t synth = eng_vis(s % NENG_SHOWN);
         if (synth == ENGI_DIGITAL) synth = ENGI_FM6;
         if (synth == ENGI_DRUM) synth = ENGI_PHYS;
         fz_seed = s;
