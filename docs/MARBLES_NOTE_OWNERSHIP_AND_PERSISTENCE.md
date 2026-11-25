@@ -104,14 +104,9 @@ The focused source inspection confirms the ownership boundary and adds several c
 - `trk_note_off_raw()` removes a pitch from the mono stack and pending engine-switch queue, then releases every matching gated voice. The public legacy and Marbles wrappers first release their own ledger bit and call this raw path only when the other owner no longer holds the pitch. `trk_all_off()` clears both ledgers; engine-switch start clears old ownership before the fade, while new pending notes keep their fresh bits.
 - `voice.c` includes `note_ownership.h` and defines the MARBLES note wrappers. `seq.c` includes `marbles_runtime.h` and dispatches per-track MARBLES mode from `seq_tick()`; the firmware translation unit includes it through the existing `seq.c` include.
 
-### Helper consolidation warning
+### Canonical helper selection (resolved)
 
-Two different pure Marbles helper headers currently exist:
-
-- `firmware/src/marbles_gen.h` defines `marbles_rng_t`, seeded xorshift, multiply-high bounded draws, `marbles_chance()`, scale-degree displacement and degree-to-note quantisation. `tests/marbles_gen_test.c` exercises this API.
-- `firmware/src/marbles_core.h` defines a pointer-state RNG API, modulo bounded draws, probability, and note-based scale snapping. `tests/marbles_core_test.c` exercises this different API.
-
-The host test script contains separate test invocations for both helpers. Neither header is included by `felucca.c` in the audited revision. These are not interchangeable APIs: the bounded-draw algorithms and quantisation semantics differ. Before runtime wiring, select one canonical implementation, reconcile its tests and design notes, and remove or explicitly retain the other as a compatibility/test fixture. Do not include both and accidentally create divergent random streams or scale behavior.
+`firmware/src/marbles_gen.h` is the canonical pure helper. It provides the seeded xorshift PRNG, multiply-high bounded draws, probability decisions, signed scale-degree selection and ROOT-relative note quantisation. `firmware/src/marbles_runtime.h` builds the bounded eight-note history, Deja Vu, freeze and X/Y outputs on that API. The duplicate `marbles_core.h` implementation and its test were removed; the runtime and test runner now use one consistent generator and quantizer.
 
 ### Remaining runtime integration gate
 
@@ -127,7 +122,7 @@ The duplicate helper API has now been consolidated:
 - Remove `firmware/src/marbles_core.h` and `tests/marbles_core_test.c`; remove the latter's invocation from `tests/run_tests.sh`.
 - The canonical quantizer is explicitly ROOT-relative, matching `seq.c`'s `scale_snap()` mask convention. A non-zero-root major-scale regression case is included in the generator test.
 
-This is source consolidation only. The test suite has not been executed here, and the helper is still not included by `felucca.c`. The note-ownership and engine-switch queue gates remain open.
+The canonical generator is now included by `seq.c` through `marbles_runtime.h`; the per-track scheduler and source-aware voice bridge are implemented. The full test suite and target build have not been executed here.
 
 
 ## 11. Corrected current FUN10 budget
