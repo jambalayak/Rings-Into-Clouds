@@ -20,17 +20,14 @@ static inline uint32_t marbles_rng_next(uint32_t *state)
     return x;
 }
 
-/* Unbiased bounded draw. A zero bound is defined as zero, avoiding division by zero. */
+/* Fixed-time bounded draw. Modulo bias is at most (bound - 1) outcomes per 2^32
+ * draws; the fixed execution time is preferable to rejection loops in the audio ISR.
+ * A zero bound is defined as zero, avoiding division by zero. */
 static inline uint32_t marbles_rng_bounded(uint32_t *state, uint32_t bound)
 {
-    uint32_t x, threshold;
     if (!bound)
         return 0;
-    threshold = (uint32_t)(-bound) % bound;
-    do {
-        x = marbles_rng_next(state);
-    } while (x < threshold);
-    return x % bound;
+    return marbles_rng_next(state) % bound;
 }
 
 /* Probability in percent. Endpoints consume no random number, which keeps deterministic
