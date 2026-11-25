@@ -1305,11 +1305,8 @@ static void seq_tick(track_t *t, uint32_t n)
     uint32_t period, len, top, ti = trk_index(t), mode = t->p[P_SEQMODE] != 0;
     if (song.g[G_CLOCK])
         n = midi_grid_advance(&midi_seq_grid[trk_index(t)], n, (uint32_t)t->p[P_SDIV]);
-    if (marbles_engine_seen[ti] != t->engine) {
-        marbles_gate_off(t);
-        marbles_reset(t);
-        marbles_engine_seen[ti] = t->engine;
-    }
+    if (marbles_engine_seen[ti] != t->engine)
+        marbles_engine_seen[ti] = t->engine; /* engine_block has already faded old voices and replayed pending notes */
     if (mode != marbles_mode_on[ti]) {
         if (marbles_mode_on[ti])
             marbles_gate_off(t);
