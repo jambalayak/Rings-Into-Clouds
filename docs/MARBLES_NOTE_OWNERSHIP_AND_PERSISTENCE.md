@@ -92,8 +92,8 @@ A closer read of the current serializer's actual offset comments corrects the pr
 
 - FUN10 has 16 spare bytes between the variable per-track parameter/step/chain/motion region and the FM6 patch block.
 - The existing MIDI IN TRACK routing extension consumes the final 3 bytes of that gap at `PROJ_MIDI_OFF`.
-- Therefore 13 bytes remain before the FM6 block, not four.
-- A single additional per-track byte parameter is serialized as four bytes total (one per track), so it appears to fit with nine bytes remaining, subject to the exact `proj_pack()` cursor check and compile-time bounds.
+- The earlier 13-byte estimate omitted the three common AFTERTOUCH parameters added after the 1.5 layout. In the current source, the complete packed region leaves four bytes before FM6 and only one byte before `PROJ_MIDI_OFF`.
+- A four-byte per-track selector cannot be inserted into the ordinary parameter stream without overlapping the MIDI extension or failing `proj_pack()`.
 
 The safe compatibility approach remains append-only common parameter insertion immediately before `P_E0`, with the default selector value meaning STANDARD. `params_by_count()` then maps older project and preset parameter counts into the new layout and supplies the new parameter's descriptor default. The project and user-preset migrations, motion parameter IDs, editor protocol and learned MIDI CC mapping must all be tested because `P_E0` shifts when a common parameter is inserted.
 
@@ -141,16 +141,29 @@ The duplicate helper API has now been consolidated:
 
 This is source consolidation only. The test suite has not been executed here, and the helper is still not included by `felucca.c`. The note-ownership and engine-switch queue gates remain open.
 
-## 11. Exact FUN10 selector budget calculation
 
-The audited source gives a more concrete bound for one per-track mode parameter:
+## 11. Corrected current FUN10 budget
 
-- Current `P_COUNT = 111`, `P_E0 = 103`; the packed per-track region is `P_COUNT + 2 + NSTEP * 9 = 111 + 2 + 576 = 689` bytes per track.
-- Current packed track region ends at `68 + 4 * 689 = 2824`.
-- FUN10 chain and motion blocks occupy `sizeof(chain_config_t) = 84` and `sizeof(motion_t) = 388` bytes, so the end cursor is `2824 + 84 + 388 = 3296`.
-- `PROJ_FM6_OFF = 3312` and `PROJ_MIDI_OFF = PROJ_FM6_OFF - 3 = 3309`; the existing 13-byte gap is checked by `proj_pack()` using `pos + sizeof chain + sizeof motion > PROJ_MIDI_OFF`.
-- Inserting one common byte parameter before `P_E0` raises `P_COUNT` to 112 and moves the end cursor to 3300, leaving 9 bytes before `PROJ_MIDI_OFF`. It remains below the existing `P_COUNT < 128` constraint used by project motion IDs and `P_COUNT <= UP_PMAX * 2` user-preset capacity.
+The earlier arithmetic in this document used the 1.5-era parameter count and omitted the three AFTERTOUCH parameters introduced later. The current source before the selector has `P_COUNT = 114` and `P_E0 = 106), not 111 / 103.
 
-This supports a single selector parameter in FUN10 without changing the format size, provided the exact compile-time layout and pack/unpack tests are added. The proposed parameter should be named `P_SEQMODE`, with `STANDARD = 0` and `MARBLES = 1`, so older projects and presets map to STANDARD through `params_by_count()`.
+The actual packed cursor is:
 
-This is still a design calculation, not a serializer or parameter-table change. Before committing the parameter, audit motion ID migration, editor protocol parameter IDs, learned MIDI CC mappings, preset import/export, UI descriptor exposure and all existing tests that assume `P_E0` / `P_COUNT`.
+- Per track: `114 + 2 + 64 * 9 = 692` bytes.
+- Track region: `68 + 4 * 692 = 2836`.
+- Chain and motion: `84 + 400 = 484` bytes (the motion store is 400 bytes including its header and alignment).
+- End cursor: `2836 + 484 = 3320`.
+- FM6 patch block begins at 3312; the existing test's four-byte spare assertion must be rechecked against the actual compiled structure before changing the layout.
+
+The definitive guard is the real `proj_pack()` cursor check and the `midi_track_fmt()` regression assertion, not an estimate based on stale format notes. The new selector must not be added as an ordinary fourth byte per track without a separately verified encoding.
+
+## 12. Per-track selector persistence implementation
+
+The selector is now represented by `P_SEQMODE` before `P_E0`, with `STANDARD = 0` as its descriptor default and `MARBLES = 1`. The regular parameter stream deliberately omits this one value:
+
+- FUN10 byte 65 carries a marker in bit 7 and one selector bit per track in bits 0..3.
+- Byte 66 remains 114, the previous firmware's common-plus-engine parameter count. The regular parameter bytes are therefore still the exact old 1.8 layout, so older firmware can load the project and safely ignore the new reserved-byte selector (it will play STANDARD).
+- New firmware unpacks the regular 114 values through `params_by_count()`, then restores each track's selector from byte 65. Older FUN10 projects have byte 65 clear and therefore default to STANDARD.
+- The compile-time size guard uses `P_COUNT - 1` in the packed track formula, ensuring the out-of-line selector does not consume the existing MIDI IN TRACK extension or move the FM6 patches.
+- Project tests now cover per-track mode round-trip, the legacy 114-parameter FUN10 default, and the earlier 103/104-parameter FUN10 migrations. User-preset parameter mapping retains the selector in its full parameter stream and defaults it for older records.
+
+This is a compact backward-compatible encoding in the existing reserved header byte, not a new FUN11 format. The test suite has been updated but has not yet been run in this environment.
