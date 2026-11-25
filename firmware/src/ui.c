@@ -1607,7 +1607,7 @@ static uint32_t preset_at(uint32_t n, uint32_t *k)
 static int preset_favorite(void)
 {
     uint32_t k = user_of(TSEL);
-    return favorite_has(k < UP_SLOTS ? NENGINES : TSEL->eng_req,
+    return favorite_has(k < UP_SLOTS ? NENGINES : eng_idx(TSEL->eng_req),
                                         k < UP_SLOTS ? k : TSEL->preset);
 }
 /* #197: a settings change made by a knob (PRESETS > LIST, the FAV mark on PRESETS and in the EDIT layer) is written
