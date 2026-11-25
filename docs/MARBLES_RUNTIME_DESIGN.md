@@ -102,3 +102,14 @@ For the first runtime prototype, keep Marbles settings at safe defaults and do n
 - Stop/mode switching cannot leave stuck notes or terminate notes owned by another input source.
 - All generator work is bounded and deterministic; no heap allocation in the audio ISR.
 - No build/test success is claimed until the target toolchain or host test suite has actually run.
+
+
+## Implementation checkpoint (2026-11-25)
+
+The first isolated, host-testable primitives now exist:
+
+- `firmware/src/marbles_core.h`: per-state xorshift32 PRNG, unbiased bounded draws, probability endpoints that do not consume random state, and scale-mask snapping with MIDI-range bounds.
+- `tests/marbles_core_test.c`: deterministic replay, seed behavior, bounded output, probability endpoints, scale snapping and range checks.
+- `tests/run_tests.sh`: compiles and runs the new test alongside the existing host tests.
+
+These helpers are intentionally not wired into `seq_tick()` yet. The confirmed pitch-only `trk_note_off()` collision must be addressed first with a source-aware ownership design. The new test has been added to the suite but has not been executed in this environment; no build or test pass is claimed.
