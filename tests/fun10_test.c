@@ -908,7 +908,7 @@ static int marbles_sequencer_runtime(void)
          note_ownership_any(&note_owners[0], note);
     t->xf = 0;
     engine_block(t);                                  /* finish fade and replay the queued Marbles note */
-    seq_tick(t, CTL);                                 /* observe the new engine without cancelling the note */
+    seq_tick(t, 0);                                   /* observe the new engine without advancing the Marbles gate */
     ok &= !t->xf_on && t->engine == ENGI_PHYS && marbles_gate_on[0] &&
           test_gated_pitch(t, note) && note_ownership_any(&note_owners[0], note);
     seq_stop();
