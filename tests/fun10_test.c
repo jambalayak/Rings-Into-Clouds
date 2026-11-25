@@ -786,9 +786,81 @@ static int midi_track_fmt(void)
     return bad;
 }
 
+static int test_gated_pitch(const track_t *t, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < NVOICE; i++)
+        if (t->v[i].active && t->v[i].gate && t->v[i].note == note)
+            return 1;
+    return 0;
+}
+
+/* Exercise the real voice-boundary wrappers, not just the pure bitset helper. */
+static int note_ownership_runtime(void)
+{
+    int ok;
+    track_t *t;
+    ui_power_on();
+    t = &trk[0];
+    t->p[P_MUTE] = 0;
+    t->p[P_VOICE] = V_POLY;
+    trk_all_off(t);
+
+    trk_note_on(t, 60, 100);
+    trk_marbles_note_on(t, 60, 90);
+    trk_note_off(t, 60);                              /* legacy releases first */
+    ok = test_gated_pitch(t, 60);
+    trk_marbles_note_off(t, 60);
+    ok &= !test_gated_pitch(t, 60);
+
+    trk_marbles_note_on(t, 62, 90);
+    trk_note_on(t, 62, 100);
+    trk_marbles_note_off(t, 62);                      /* Marbles releases first */
+    ok &= test_gated_pitch(t, 62);
+    trk_note_off(t, 62);
+    ok &= !test_gated_pitch(t, 62);
+    if (!ok) return check("voice ownership: same-pitch overlaps survive either release order", 0);
+
+    t->p[P_VOICE] = V_MONO;
+    trk_all_off(t);
+    trk_note_on(t, 50, 100);
+    trk_marbles_note_on(t, 60, 90);
+    ok = t->mono_note == 60u;
+    trk_marbles_note_off(t, 60);
+    ok &= t->mono_note == 50u;                        /* the legacy note regains mono priority */
+    trk_note_off(t, 50);
+    ok &= t->mono_note == 0u;
+    if (!ok) return check("voice ownership: mono stack falls back to the still-owned source note", 0);
+
+    trk_all_off(t);
+    trk_marbles_note_on(t, 67, 90);
+    trk_all_off(t);                                   /* panic clears both owner ledgers */
+    trk_note_on(t, 67, 100);
+    trk_marbles_note_off(t, 67);                      /* stale Marbles release cannot kill the new legacy note */
+    ok = test_gated_pitch(t, 67);
+    trk_note_off(t, 67);
+    ok &= !test_gated_pitch(t, 67);
+    if (!ok) return check("voice ownership: panic clears stale source ownership", 0);
+
+    t->p[P_VOICE] = V_POLY;
+    trk_all_off(t);
+    t->xf_on = 1;                                     /* simulate the engine-switch pending-note window */
+    trk_note_on(t, 72, 100);
+    trk_marbles_note_on(t, 72, 90);
+    ok = t->xp_n == 1u && t->xp_note[0] == 72u;
+    trk_note_off(t, 72);
+    ok &= t->xp_n == 1u;                              /* still owned by Marbles */
+    trk_marbles_note_off(t, 72);
+    ok &= t->xp_n == 0u;                              /* final owner removes the queued pitch */
+    t->xf_on = 0;
+    trk_all_off(t);
+    return check("voice ownership: pending engine-switch notes survive until their final owner releases", ok);
+}
+
 int main(void)
 {
     int bad = 0;
+    bad += note_ownership_runtime();
     bad += lfo();
     bad += nudge();
     bad += motion128();
