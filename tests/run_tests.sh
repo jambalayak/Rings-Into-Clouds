@@ -567,6 +567,9 @@ fi
 $SCC -o "$A/marbles_gen_test" tests/marbles_gen_test.c
 run "Marbles generator: deterministic PRNG, bounds, probability and scale quantisation" "$A/marbles_gen_test"
 
+$SCC -o "$A/note_ownership_test" tests/note_ownership_test.c
+run "note ownership: legacy and Marbles overlapping pitches, both release orders, bounds and reset" "$A/note_ownership_test"
+
 run "target budget: parser, cost and CLI fixtures" python3 tests/target_budget_test.py
 
 run "regression: target cost of the render loops (pi32v2 disassembly)" python3 tests/target_budget.py \
