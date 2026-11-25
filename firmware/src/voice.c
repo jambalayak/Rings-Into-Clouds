@@ -486,6 +486,7 @@ static void trk_all_off(track_t *t)
     t->mono_note = 0;
     t->xp_n = 0;
     note_ownership_clear(&note_owners[(uint32_t)(t - trk)]);
+    marbles_mod_clear(t);
 }
 
 /* The legacy API remains one aggregate owner for keys, MIDI, ARP and STANDARD.
@@ -532,6 +533,7 @@ static void engine_block(track_t *t)
     if (t->xf_on || t->eng_req != t->engine) {
         if (!t->xf_on) {
             note_ownership_clear(&note_owners[(uint32_t)(t - trk)]); /* old-engine notes fade; new pending notes survive */
+            marbles_mod_clear(t);
             for (i = 0; i < NVOICE; i++)
                 any |= t->v[i].active;
             if (any) {
