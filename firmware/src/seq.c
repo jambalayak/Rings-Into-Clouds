@@ -971,6 +971,7 @@ static void seq_start(void)
         t->rh_n = t->rskip_n = 0;
         t->nd_late = t->nd_early = ND_NONE;
         t->nd_fired = 0;
+        marbles_gate_off(t);
         marbles_reset(t);
         marbles_mode_on[i] = (uint8_t)(t->p[P_SEQMODE] != 0);
         marbles_engine_seen[i] = t->engine;
