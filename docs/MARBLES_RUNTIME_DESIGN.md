@@ -141,3 +141,15 @@ The pitch collision is now handled by a fixed two-owner ledger:
 - `tests/note_ownership_test.c` covers the pure ledger, and `tests/fun10_test.c` now exercises same-pitch release ordering, MONO fallback, panic and pending engine-switch behavior.
 
 The standalone ownership helper test was compiled and passed locally with C11, `-Wall -Wextra -Werror`. The integrated FUN10 test, full host suite, target CPU budget and FM-1 build remain unrun. Marbles event generation is still not wired into `seq_tick()`.
+
+## Per-track runtime dispatch and FM-1 controls (2026-11-25)
+
+The selector is now connected to the existing `seq_tick()` clock path:
+
+- Each track independently chooses STANDARD or MARBLES. STANDARD continues through the existing step, ratchet, tie, condition and note-release path. MARBLES uses the same transport, MIDI clock advancement, division, length and swing timing; it does not create a second clock.
+- MARBLES has a bounded per-track PRNG and eight-note Deja Vu history. Density, pitch range, memory/repeat probability, freeze and gate length are driven by existing persisted per-track controls in the Marbles mode: `P_APROB` (density), `P_AOCT` (range), `P_ASWING` (Deja Vu), `P_AHOLD` (freeze), and `P_AGATE` (gate). Root, scale and transpose use the existing track pitch settings.
+- Marbles X and Y are exposed as append-only bipolar modulation sources `MX` and `MY`, so they can be routed through the existing four-slot modulation matrix.
+- The SEQ quick layer now changes its four knobs by mode: STANDARD keeps LEN / DIV / SWING / GATE; MARBLES shows DENS / RANGE / DEJA / GATE. On synth tracks, black key 1 toggles STANDARD / MARBLES and black key 2 toggles FREEZE. The existing DRUM black-key lane selection is unchanged. OCT- restores both mode and Marbles settings captured when the layer opened.
+- Mode changes release the outgoing source and restart the selected sequencer phase at its next tick. Transport stop releases Marbles gates and clears X/Y outputs. Engine changes reset the Marbles state after the switch completes.
+
+Generated Marbles notes currently play through the shared voice allocator but are not yet written back into the Standard step pattern by REC. The integrated sequencer, modulation and UI regression tests have been added, but have not been run; the FM-1 target build and CPU budget remain outstanding.
