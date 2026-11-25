@@ -113,3 +113,9 @@ The first isolated, host-testable primitives now exist:
 - `tests/run_tests.sh`: compiles and runs the new test alongside the existing host tests.
 
 These helpers are intentionally not wired into `seq_tick()` yet. The confirmed pitch-only `trk_note_off()` collision must be addressed first with a source-aware ownership design. The new test has been added to the suite but has not been executed in this environment; no build or test pass is claimed.
+
+## Canonical helper implementation (2026-11-25)
+
+The duplicate `marbles_core.h` helper API and its standalone test have been removed. The canonical implementation is `firmware/src/marbles_gen.h`, exercised by `tests/marbles_gen_test.c` and invoked from `tests/run_tests.sh`.
+
+The generator's scale quantizer now treats the 12-bit scale mask as ROOT-relative, matching the existing `seq.c` convention: bit 0 is the root, bit 2 the major second, and so on. Tests explicitly cover a non-C root so the scale mask cannot accidentally be interpreted as absolute pitch classes. The helper remains isolated from the firmware runtime; no Marbles scheduler is connected yet.
