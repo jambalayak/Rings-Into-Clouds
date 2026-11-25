@@ -169,6 +169,7 @@ _Static_assert(sizeof(project_v5_t) == 3352u && sizeof(project_v6_t) == 3388u, "
 #define PROJ_MIDI_OFF (PROJ_FM6_OFF - 3u)
 #define PROJ_SEQMODE_MARK 0x80u                /* byte 65: four low bits are per-track STANDARD / MARBLES selectors */
 _Static_assert(NTRK == 4u, "FUN10 byte 65 stores one sequencer mode bit per track");
+_Static_assert(P_COUNT == 115u && P_E0 == 107u, "FUN10 selector schema: update byte 65 / parameter migration if IDs change");
 _Static_assert(68u + NTRK * (P_COUNT - 1u + 2u + NSTEP * 9u) + sizeof(chain_config_t) + sizeof(motion_store_t) <= PROJ_MIDI_OFF,
                "FUN10 per-track data with out-of-line sequencer mode fits before MIDI routing extension");
 typedef union { uint32_t align; uint8_t raw[PROJ_STORE_SIZE]; } project_store_t;
@@ -727,7 +728,8 @@ static int proj_unpack(project_t *q, const uint8_t *b, uint32_t st)
     uint32_t mot = v10 ? sizeof q->motion : PROJ_MOTION_V9, chn = v10 ? sizeof q->chain : sizeof(chain_v9_t);
     memcpy(&magic, b, 4); memcpy(&size, b + 4, 4); memcpy(&sum, b + st - 4u, 4);
     if (magic != (v7 ? PROJ_MAGIC_V7 : st == PROJ_STORE_V8 ? PROJ_MAGIC_V8 : st == PROJ_STORE_V9 ? PROJ_MAGIC_V9 : PROJ_MAGIC) ||
-        size != st || sum != proj_hash(b, st - 4u) || (v10 && (b[65] & PROJ_SEQMODE_MARK) && (b[65] & 0x70u)) ||
+        size != st || sum != proj_hash(b, st - 4u) ||
+        (v10 && (b[65] & PROJ_SEQMODE_MARK) && ((b[65] & 0x70u) || np != P_COUNT - 1u)) ||
         np < 8u || np > P_COUNT || 68u + NTRK * (np + 2u + NSTEP * 9u) + chn + mot > end)
         return 0;
     memset(q, 0, sizeof *q); q->magic = PROJ_MAGIC; q->size = sizeof *q;
