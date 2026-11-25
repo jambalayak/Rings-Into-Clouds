@@ -71,8 +71,10 @@ static inline marbles_step_t marbles_runtime_step(marbles_runtime_t *s,
         } else {
             degree = marbles_degree(&s->rng, 0, spread);
             i = marbles_quantize_note(degree, root, scale);
-            i = (uint32_t)clamp(i + transpose, 0, 127);
-            s->last_note = (uint8_t)i;
+            {
+                int32_t note = (int32_t)i + transpose;
+                s->last_note = (uint8_t)(note < 0 ? 0 : note > 127 ? 127 : note);
+            }
             s->history[s->history_pos] = s->last_note;
             s->history_pos = (uint8_t)((s->history_pos + 1u) % MARBLES_HISTORY);
             if (s->history_count < MARBLES_HISTORY)
