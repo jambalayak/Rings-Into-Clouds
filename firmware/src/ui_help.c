@@ -21,6 +21,7 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"LFO DEST", "[K1-4]LFO AMOUNTS[LFO]MOD"},
     {"MOD", "[K1]SLOT[K2]SOURCE[K3]DEST"},
     {"FX", "[K1-4]SENDS[FX]HOLD: PERFORM"},
+    {"DRIVE", "[K1]DRIVE[K2]TONE[K3]LEVEL"},
     {"SLICER", "[K1]ON[K2]PATTERN[FX]INSERT"},
     {"INSERT", "[K1]TYPE[FX]DRY / WET"},
     {"INSERT 2", "[K1]DRY / WET[FX]DLY"},
