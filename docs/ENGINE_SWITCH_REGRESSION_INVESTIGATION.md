@@ -186,3 +186,31 @@ A source review of `tests/union_test.c` after Run 148 found an important limitat
 The valid Run 142/144/148 comparison is narrower: modes 8/9 and 10/11 are equal under matched elapsed-time schedules, so companion engine switching and the LFO isolation/freeze hooks make no detectable difference relative to their respective no-switch controls. Since all four hashes are identical, the hook changes also do not measurably affect this test's aggregate output. This does not show that some other companion-render side effect is responsible.
 
 Next add a genuine elapsed-time-matched primary-only counterfactual: preserve the same total sequence and wait durations while test-only skipping the companion part's render/update work (without skipping the primary's normal blocks). Compare that with the existing muted companion schedule. Keep the legacy golden references intact. Only after that control separates primary elapsed-time evolution from companion work should another shared-state hypothesis be promoted.
+
+
+## Run 151 — elapsed-time-matched skipped-companion control (2026-11-25)
+
+Run 151 (commit `4e4c802920549cb50f753640ffb5e832ce2a8889`) completed with **failure**. Target ABI smoke, pinned Rings/Clouds DSP compile-only check, compact Rings delay-line host comparison, normal FM-1 firmware build, engine-switch diagnostic, and lean memory-diagnostic build completed successfully. The host regression suite failed, so the tested development firmware artifact was skipped. A linker-diagnostics artifact was uploaded.
+
+The new mode-12 control keeps the same wait/render schedule and primary/master pipeline but test-only skips the companion part's rendering and modulation work. Its fingerprint is:
+- Primary + frozen-LFO engine-switch companion (mode 10): `ac341378dd96f829`
+- Matched primary + frozen-LFO no-switch companion (mode 11): `ac341378dd96f829`
+- Elapsed-time-matched primary with companion part skipped (mode 12): `ac341378dd96f829`
+
+All three fingerprints are exactly equal. This is the first valid elapsed-time-matched primary control: under this diagnostic, rendering the muted companion part (including its engine-switch or frozen-LFO conditions) produces no detectable change in the aggregate primary output relative to skipping that part entirely. The earlier difference from the mode-1 primary-only fingerprint was caused by a mismatched elapsed-time schedule and must not be attributed to companion processing. This result does not establish universal isolation or identify any issue outside the tested sequence/configuration. Hashes are equality fingerprints, not numerical distances.
+
+The skip hook is confined to `FELUCCA_HOSTSIM`; production firmware behavior is unchanged. Keep all historical golden references intact. The remaining 720 engine-switch sequences still differ from the 1.4 reference hashes, and the host UI suite continues to report its existing failures; those are separate regression issues and are not resolved by this diagnostic.
+
+### Run 151 lean linker checkpoint
+
+The lean FM-1 target build (Slicer excluded) passed its linker checks:
+- Image: 474,708 bytes
+- `.data + .bss`: 56,036 bytes of 73,728 bytes ordinary RAM
+- `.pool`: 145,720 bytes of 368,640 bytes
+- `.ram_text`: 932 instructions, no calls
+
+These are lean baseline figures only; they contain no live Rings/Clouds processor state or audio buffers and do not establish final memory fit. The linker artifact is `rings-into-clouds-linker-diagnostics-4e4c802920549cb50f753640ffb5e832ce2a8889`.
+
+## Current status after Run 151
+
+The elapsed-time confound has been controlled for the tested diagnostic: companion rendering does not measurably affect the primary aggregate fingerprint in this matched schedule. Do not pursue the previous shared-RNG/companion-render hypothesis as an established cause based on the earlier unmatched comparison. Production audio/RNG/LFO behavior remains unchanged. Rings/Clouds remain compile-tested only; there is no production Rings-to-Clouds audio path, final combined target memory-fit result, or physical FM-1 validation.
