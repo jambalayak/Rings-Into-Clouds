@@ -60,6 +60,7 @@ static volatile uint8_t midi_seen;       /* 1.5.5 (#208): bit per track, a MIDI 
                                           * ui.c scr_input: MENU > MIDI > SCREEN WAKE +MIDI) */
 
 static uint32_t trk_index(const track_t *t) { return (uint32_t)(t - trk); }
+static uint32_t scale_mask(const track_t *t);
 
 /* Per-track Marbles state; the Standard sequencer's pattern and clock fields remain authoritative in STANDARD mode. */
 static marbles_runtime_t marbles_rt[NTRK];
@@ -968,6 +969,9 @@ static void seq_start(void)
         t->rat_left = 0;
         t->nd_late = t->nd_early = ND_NONE;
         t->nd_fired = 0;
+        marbles_reset(t);
+        marbles_mode_on[i] = (uint8_t)(t->p[P_SEQMODE] != 0);
+        marbles_engine_seen[i] = t->engine;
         if (t->p[P_LTRIG] && t->p[P_LSYNC])        /* LFO 2 FREE + SYNC: in time with the bars from PLAY */
             t->lfo_ph = (uint32_t)t->p[P_LPHASE] << 25;
     }
@@ -992,6 +996,10 @@ static void seq_release(track_t *t)
 static void seq_stop(void)
 {
     uint32_t i;
+    for (i = 0; i < NTRK; i++) {
+        marbles_gate_off(&trk[i]);
+        marbles_mod_clear(&trk[i]);
+    }
     song.playing = 0;
     cin_left = 0;                                  /* (a count-in: cancelled, nothing recorded) */
     cin_flush = 0;
@@ -1535,7 +1543,10 @@ static void events_block(uint32_t n)
         track_t *t = &trk[i];
         if ((pr >> i) & 1u) {
             midi_forget_track(i);
+            marbles_gate_off(t);
             trk_all_off(t);
+            marbles_reset(t);
+            marbles_engine_seen[i] = t->engine;
             t->nheld = 0;
             t->arp_phys = 0;
             arp_forget(t);
