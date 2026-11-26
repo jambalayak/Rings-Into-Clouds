@@ -85,7 +85,7 @@ def tc(tool, *args, allow_memory_overflow=False):
     if r.returncode:
         output = r.stdout + r.stderr
         memory_only = allow_memory_overflow and re.search(
-            r"region ['\\"][^'\\"]+['\\"] overflowed by [0-9]+ bytes", output, re.I
+            r"""region ['"][^'"]+['"] overflowed by [0-9]+ bytes""", output, re.I
         ) and not re.search(r"undefined reference|cannot find|unrecognized option|file format not recognized", output, re.I)
         if not memory_only:
             sys.stderr.write(output)
