@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
   fclose(meta);
   FILE *stats = fopen("delay_stats.txt", "w");
   if (stats) {
-    fprintf(stats, "part_size_bytes=%zu\\nstring_size_bytes=%zu\\nq15_saturation_count=%llu\\nq15_max_abs=%.9g\\n",
+    fprintf(stats, "part_size_bytes=%zu\nstring_size_bytes=%zu\nq15_saturation_count=%llu\nq15_max_abs=%.9g\n",
       sizeof(rings::Part), sizeof(rings::String),
       static_cast<unsigned long long>(rings::q15_saturation_count), rings::q15_max_abs);
     fclose(stats);
