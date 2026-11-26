@@ -576,6 +576,14 @@ static void slice_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
     d.pred = v->s[0];
     d.idx = v->s[1];
     d.seg = (pk >> 3) & 15u;
+    /* A track can change engines while an old voice is fading. Its engine-specific ph/s words
+     * then belong to the previous engine; never interpret those stale words as a SLICE decoder
+     * position (or let a malformed checkpoint index a segment/data array). */
+    if (!s->nseg || s->nseg > SLC_SEGS || d.seg >= s->nseg || d.pos > s->len ||
+        v->ph[2] > s->len || d.idx < 0 || d.idx > 88) {
+        v->active = 0;
+        return;
+    }
     if (!v->s[6]) {                                     /* prime the interpolator */
         if (!(rev ? slc_rev(s, v, rb, 0, &x) : slc_fwd(s, v, &d, 0, &x))) {
             v->active = 0;
