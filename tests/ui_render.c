@@ -1008,8 +1008,10 @@ static void set_ins_ui(int32_t ty, int32_t a, int32_t b, int32_t c, int32_t mix)
 
 static void setup(int s)
 {
+    if (s == S_MOTION) fprintf(stderr, "ui_render: motion setup entry count=%u on=%u sel=%u\n", motion.count, motion.on, song.sel);
     memset(kb_chn, 0, sizeof kb_chn);               /* no key held (roll_playing holds one) */
     state();
+    if (s == S_MOTION) fprintf(stderr, "ui_render: motion state reset count=%u on=%u sel=%u\n", motion.count, motion.on, song.sel);
     memset(drum_mute, 0, sizeof drum_mute);          /* (1.4.1: no DRUM lane muted) */
     switch (s) {
     case S_HOME: song.octave = 2; song.rec = 1; usb.config = 1; break;
@@ -1043,8 +1045,15 @@ static void setup(int s)
         break;
     case S_AUTO_ADD_CHANCE: go_auto_add(EV_CHANCE, 3); break;
     case S_MOTION:
-        motion_set_event(TSEL, 1, P_SPRD, 40); motion_set_lock(TSEL, 2, P_SPRD, 100); step_set_chance(&TSEL->step[3], 50);
+        fprintf(stderr, "ui_render: motion before event count=%u sel=%u\n", motion.count, song.sel);
+        motion_set_event(TSEL, 1, P_SPRD, 40);
+        fprintf(stderr, "ui_render: motion after event count=%u\n", motion.count);
+        motion_set_lock(TSEL, 2, P_SPRD, 100);
+        fprintf(stderr, "ui_render: motion after lock count=%u\n", motion.count);
+        step_set_chance(&TSEL->step[3], 50);
+        fprintf(stderr, "ui_render: motion after chance\n");
         go_auto_top();
+        fprintf(stderr, "ui_render: motion after go_auto_top\n");
         break;
     /* 1.1.5, the REC layer (REC held): over HOME, the settings as they come (CLICK OFF, COUNT-IN OFF, LEVEL MID);
      * over STEP armed, CLICK REC, COUNT-IN 2 BARS, LEVEL HIGH (KNOB 2 just turned); a song playing on an empty
