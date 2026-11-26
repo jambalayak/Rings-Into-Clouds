@@ -9,6 +9,7 @@
 #define RINGS_DELAY_FRACTION_BITS 14
 #endif
 
+namespace rings {
 extern uint64_t qn_saturation_count;
 extern float qn_max_abs;
 
@@ -76,3 +77,4 @@ class QNDelayLine {
   size_t delay_;
   int16_t line_[N];
 };
+}  // namespace rings
