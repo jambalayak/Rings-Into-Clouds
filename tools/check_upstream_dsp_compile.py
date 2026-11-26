@@ -77,9 +77,9 @@ def main():
     stmlib_dsp_patched = patch_root / "stmlib" / "dsp" / "dsp.h"
     stmlib_dsp_patched.parent.mkdir(parents=True, exist_ok=True)
     stmlib_dsp = stmlib_dsp_original.read_text()
-    clip_start = stmlib_dsp.find("#ifdef TEST\\n  inline int32_t Clip16")
-    sqrt_start = stmlib_dsp.find("#ifdef TEST\\n  inline float Sqrt", clip_start)
-    end_marker = "\\n\\ninline int16_t SoftConvert"
+    clip_start = stmlib_dsp.find("#ifdef TEST\n  inline int32_t Clip16")
+    sqrt_start = stmlib_dsp.find("#ifdef TEST\n  inline float Sqrt", clip_start)
+    end_marker = "\n\ninline int16_t SoftConvert"
     block_end = stmlib_dsp.find(end_marker, sqrt_start)
     if clip_start < 0 or sqrt_start < 0 or block_end < 0:
         raise SystemExit("expected pinned stmlib Clip16/ClipU16/Sqrt implementations were not found")
