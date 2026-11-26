@@ -2333,26 +2333,24 @@ int main(int argc, char **argv)
                 continue;                           /* (DIGITAL's own screens: FELUCCA_FM4=1 only) */
             snprintf(name, sizeof name, "%s/%s", UI_PALETTES[p].name, S_NAME[s]);
             cur_name = name;
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty setup begin palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s setup begin palette=%u\n", S_NAME[s], p);
             setup((int)s);
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty setup done palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s setup done palette=%u\n", S_NAME[s], p);
             pal(p);
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty palette done palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s palette done palette=%u\n", S_NAME[s], p);
             if (p == UI_GREY_INDEX) aud = audf;
             draw((int)s);
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty draw done palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s draw done palette=%u\n", S_NAME[s], p);
             lint();
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty lint done palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s lint done palette=%u\n", S_NAME[s], p);
             if (p == UI_GREY_INDEX) {
-                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty audit begin\\n");
                 audit_scene(S_NAME[s]);
-                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty audit done\\n");
                 font_scene("FLAT", S_NAME[s]);
-                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty font done\\n");
                 aud = 0;
             }
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s audit done palette=%u\n", S_NAME[s], p);
             mono_check();
-            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty mono done palette=%u\\n", p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s mono done palette=%u\n", S_NAME[s], p);
             for (k = 0; k < sizeof SHOW / sizeof SHOW[0]; k++)
                 if (!strcmp(UI_PALETTES[p].name, SHOW[k])) write_ppm(out, SHOW[k], S_NAME[s]);
         }
