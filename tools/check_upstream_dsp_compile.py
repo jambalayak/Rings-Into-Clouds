@@ -224,7 +224,7 @@ def main():
                 str(bridge_src.relative_to(ROOT)), "-o", str(bridge_obj.relative_to(ROOT))])
         link_objects.append(bridge_obj)
         (link_build / "objects.txt").write_text(
-            "\\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\\n")
+            "\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\n")
         print(f"LINK OBJECTS: {len(link_objects)} pinned DSP and C ABI objects in build/rings-clouds-link/objects.txt")
     print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units for pi32v2.")
     print("Compile-only: no DSP objects are constructed, linked into firmware, or run.")
