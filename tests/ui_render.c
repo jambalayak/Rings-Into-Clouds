@@ -1006,6 +1006,12 @@ static void set_ins_ui(int32_t ty, int32_t a, int32_t b, int32_t c, int32_t mix)
     TSEL->p[P_IMIX] = (int16_t)mix;
 }
 
+/* The global delay, chorus and reverb pages were retired; do not invent screens for them. */
+static int screen_retired(uint32_t s)
+{
+    return s == S_DLY || s == S_REVERB || s == S_DLY_DOT || s == S_DLY_DOT16;
+}
+
 static void setup(int s)
 {
     if (s == S_MOTION) fprintf(stderr, "ui_render: motion setup entry count=%u on=%u sel=%u\n", motion.count, motion.on, song.sel);
@@ -1155,8 +1161,8 @@ static void setup(int s)
     case S_LFO: go_title("LFO"); break;
     case S_MOD: TSEL->p[P_M1SRC] = 1; TSEL->p[P_M1DST] = 2; TSEL->p[P_M1AMT] = 40; TSEL->p[P_M2SRC] = 6;
         TSEL->p[P_M2DST] = 14; TSEL->p[P_M2AMT] = -64; mod_ui_slot = 1; go_title("MOD"); break;
-    case S_FX: go_title("FX"); break;
-    case S_SLICER: TSEL->p[P_SLCR] = 1; go_title("SLICER"); break;
+    case S_FX: go_title("DRIVE"); break;
+    case S_SLICER: TSEL->p[P_SLCR] = 1; go_title("SLICES"); break;
     case S_DLY: go_title("DLY"); break;
     case S_SCL: TSEL->p[P_SCALE] = 2; go_title("SCL"); break;
     case S_CHORD:                                    /* A minor DIA7, the last chord on B: Bm7b5 */
@@ -2335,6 +2341,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "ui_render: entering screen sweep\n");
     for (p = 0; p < NPALETTES; p++)
         for (s = 0; s < S_COUNT; s++) {
+            if (screen_retired(s)) continue;
             if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: screen %u %u %s begin\n", p, s, S_NAME[s]);
             char name[64];
             uint32_t k;
@@ -2375,6 +2382,7 @@ int main(int argc, char **argv)
             for (p = 0; p < NPALETTES; p++) {
                 for (k = 0; k < sizeof ST_PAL / sizeof ST_PAL[0] && strcmp(UI_PALETTES[p].name, ST_PAL[k]); k++) ;
                 for (s = 0; s < S_COUNT; s++) {
+            if (screen_retired(s)) continue;
                     char name[64], tag[24];
                     if (!FELUCCA_FM4 && (s == S_OP_ENV || (s >= S_ALG1 && s <= S_OP_LEVEL)))
                         continue;
@@ -2405,6 +2413,7 @@ int main(int argc, char **argv)
         for (st = ST_FLAT; st <= ST_LINE; st++)
             for (p = 0; p < NPALETTES; p++)
                 for (s = 0; s < S_COUNT; s++) {
+            if (screen_retired(s)) continue;
                     char name[64], tag[24];
                     if (!FELUCCA_FM4 && (s == S_OP_ENV || (s >= S_ALG1 && s <= S_OP_LEVEL)))
                         continue;
