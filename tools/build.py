@@ -55,6 +55,7 @@ VERSION = None                      # FELUCCA_VERSION for release builds (defaul
 # stacks (firmware/bsp/chip/fm1_cpu1.S) linked and its waiting loop (.c1_text) checked; MENU > SYSTEM > 2ND CORE starts it
 # (OFF by default: one core, as 1.6). FELUCCA_CPU2=0: none of it is built (1.6's one-core code and RAM)
 CPU2 = os.environ.get("FELUCCA_CPU2") != "0"
+RIC_LINK = os.environ.get("FELUCCA_RIC") == "1"
 
 
 def toolchain():
@@ -70,7 +71,7 @@ def use_docker():
     return os.environ.get("JIELI_DOCKER", "0" if native else "1") == "1"
 
 
-def tc(tool, *args):
+def tc(tool, *args, allow_memory_overflow=False):
     """run a toolchain binary (pi32v2/bin/..., common/bin/...) with cwd SRC; paths relative to SRC"""
     rel = [str(Path(a).resolve().relative_to(SRC)) if isinstance(a, Path) else a for a in args]
     if tool == "cc":                # the toolchain's cc wrapper needs python3; call clang directly
@@ -82,8 +83,16 @@ def tc(tool, *args):
         cmd = [str(toolchain() / tool), *rel]
     r = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
     if r.returncode:
-        sys.stderr.write(r.stdout + r.stderr)
-        raise SystemExit(f"build: {tool} failed")
+        output = r.stdout + r.stderr
+        memory_only = allow_memory_overflow and re.search(
+            r"region ['\\"][^'\\"]+['\\"] overflowed by [0-9]+ bytes", output, re.I
+        ) and not re.search(r"undefined reference|cannot find|unrecognized option|file format not recognized", output, re.I)
+        if not memory_only:
+            sys.stderr.write(output)
+            raise SystemExit(f"build: {tool} failed")
+        print("RIC LINK DIAGNOSTIC: target linker reported SRAM region overflow; preserving map for exact accounting.")
+        if r.stdout.strip():
+            print(r.stdout, end="")
     if r.stderr.strip():
         sys.stderr.write(r.stderr)
     return r.stdout
@@ -205,7 +214,7 @@ def build_app():
     flags = [*CFLAGS, *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
     for flag in ("FELUCCA_FLASH", "FELUCCA_OTA", "FELUCCA_OTA_DRYRUN", "FELUCCA_OTA_RAMONLY", "FELUCCA_CDC",
                  "FELUCCA_UART", "FELUCCA_UAC", "FELUCCA_UAC_TONE", "FELUCCA_UAC_48K", "FELUCCA_ICONS", "FELUCCA_SLICE", "FELUCCA_FM4",
-                 "FELUCCA_CDC_DEFAULT", "FELUCCA_UAC_AS_FIRST", "FELUCCA_UAC_MIDI_LAST", "FELUCCA_CPU2", "FELUCCA_ADPCM"):
+                 "FELUCCA_CDC_DEFAULT", "FELUCCA_UAC_AS_FIRST", "FELUCCA_UAC_MIDI_LAST", "FELUCCA_CPU2", "FELUCCA_ADPCM", "FELUCCA_RIC"):
         v = os.environ.get(flag)    # unset: the default in firmware/src/felucca.c
         if v in ("0", "1"):
             flags.append(f"-D{flag}={v}")
@@ -232,9 +241,26 @@ def build_app():
                        check=True)
         tc("cc", *[f for f in flags if not f.startswith(("-I", "-D", "-W"))], "-c",
            OUT / "felucca_size.ll", "-o", OUT / "felucca.o")
+    dsp_objects = []
+    if RIC_LINK:
+        subprocess.run([sys.executable, SRC / "tools" / "check_upstream_dsp_compile.py", "--link-objects"],
+                       cwd=SRC, check=True)
+        object_list = OUT / "rings-clouds-link" / "objects.txt"
+        if not object_list.is_file():
+            raise SystemExit("Rings/Clouds link object manifest was not produced")
+        dsp_objects = [SRC / p for p in object_list.read_text().splitlines() if p.strip()]
+        if not dsp_objects:
+            raise SystemExit("Rings/Clouds link object manifest is empty")
+
     elf = OUT / "felucca.elf"
-    tc("pi32v2/bin/ld", "-T", FW / "app.ld", "-Map", OUT / "felucca.map", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
-       *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", "-o", elf)
+    link_args = ["-T", FW / "app.ld", "-Map", OUT / "felucca.map", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
+                 *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, "-o", elf]
+    if RIC_LINK:
+        # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM.
+        link_args.insert(0, "--noinhibit-exec")
+    tc("pi32v2/bin/ld", *link_args, allow_memory_overflow=RIC_LINK)
+    if RIC_LINK and (OUT / "felucca.map").is_file():
+        shutil.copy2(OUT / "felucca.map", OUT / "rings-clouds.felucca.map")
     for sect in ("text.bin", "data.bin", "ramtext.bin", "c1text.bin"):   # (c1text.bin: before the BSP, its own section)
         (OUT / sect).unlink(missing_ok=True)
     *_, syms, dis, rt, sections = tc_all(("common/bin/objcopy", "-O", "binary", "-j", ".text", elf, OUT / "text.bin"),
@@ -247,6 +273,9 @@ def build_app():
     (OUT / "felucca.dis").write_text(dis)
     (OUT / "felucca.symbols.txt").write_text(syms)
     (OUT / "felucca.sections.txt").write_text(sections)
+    if RIC_LINK:
+        shutil.copy2(OUT / "felucca.symbols.txt", OUT / "rings-clouds.felucca.symbols.txt")
+        shutil.copy2(OUT / "felucca.sections.txt", OUT / "rings-clouds.felucca.sections.txt")
 
     def symv(name):
         return int(re.search(r"^([0-9a-f]+) .*\s" + name + r"$", syms, re.M).group(1), 16)
@@ -332,7 +361,46 @@ def check(img, syms, dis, rt):
     pool_len = region["POOL"][1]
     bss = sym("_bss_end") - ram_org
     pool = sym("_pool_end") - sym("_pool_start")
-    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of {ram_len}; pool {pool} B of {pool_len}")
+    ram_free = ram_len - bss
+    pool_free = pool_len - pool
+    notes.append(f"image {len(img)} B; RAM .data+.bss {bss} B of {ram_len}; free {ram_free} B; POOL {pool} B of {pool_len}; free {pool_free} B")
+    if RIC_LINK:
+        required = (
+            "ric_dsp_link_anchor", "ric_dsp_construct", "ric_dsp_init",
+            "ric_rings_part_storage", "ric_rings_strummer_storage",
+            "ric_clouds_processor_storage", "ric_clouds_large_buffer",
+            "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
+        )
+        missing = [name for name in required if not symv_in(syms, name)]
+        if missing:
+            errors.append("Rings/Clouds C ABI link roots missing from final map: " + ", ".join(missing))
+        else:
+            def symbol_size(name):
+                for line in syms.splitlines():
+                    fields = line.split()
+                    if len(fields) >= 5 and fields[-1] == name:
+                        try:
+                            return int(fields[-2], 16)
+                        except ValueError:
+                            pass
+                return 0
+            measured = {
+                "Rings Part": symbol_size("ric_rings_part_storage"),
+                "Rings Strummer": symbol_size("ric_rings_strummer_storage"),
+                "Clouds processor": symbol_size("ric_clouds_processor_storage"),
+                "Clouds large buffer": symbol_size("ric_clouds_large_buffer"),
+                "Clouds small buffer": symbol_size("ric_clouds_small_buffer"),
+            }
+            notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
+            expected = {
+                "Rings Part": 110384, "Rings Strummer": 524, "Clouds processor": 8684,
+                "Clouds large buffer": 118784, "Clouds small buffer": 65408,
+            }
+            for name, size in expected.items():
+                if measured[name] != size:
+                    errors.append(f"{name} map size {measured[name]} B differs from target class/buffer size {size} B")
+            if not (OUT / "rings-clouds.felucca.map").is_file():
+                errors.append("Rings/Clouds diagnostic linker map was not preserved")
     if (OUT / "felucca.map").is_file():
         notes.append("linker map: build/felucca.map (symbol-level placement and section contributions)")
     if (OUT / "felucca.sections.txt").is_file():
