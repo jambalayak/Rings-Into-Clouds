@@ -37,13 +37,13 @@ include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
            "-I" + str(EUR), "-I" + str(STM)]
 common = ["g++", "-std=c++11", "-O2", "-D_GNU_SOURCE", "-DTEST", "-ffunction-sections", "-fdata-sections",
           "-Wno-unused-function", "-Wno-unused-variable", *include]
-variants = [("float", None), ("q214", 14), ("q313", 13)]
-for variant, bits in variants:
+variants = [("float", None), ("q214", 16384), ("q275", 11915), ("q300", 10922), ("q313", 8192)]
+for variant, scale in variants:
     build = WORK / variant
     build.mkdir(parents=True, exist_ok=True)
     objects = []
-    extra = [] if bits is None else [f"-DRINGS_DELAY_FRACTION_BITS={bits}"]
-    if bits is not None:
+    extra = [] if scale is None else [f"-DRINGS_DELAY_SCALE={scale}"]
+    if scale is not None:
         (PATCH / "rings/dsp/string.h").write_text(qn_string)
     else:
         (PATCH / "rings/dsp/string.h").write_text(orig_string)
@@ -75,7 +75,7 @@ summary["float_reference_host_sizes"] = {
     "host_string_size_bytes": int(float_stats["string_size_bytes"]),
     "note": "Host g++ -O2 object sizes only; not FM-1 target RAM measurements."
 }
-for variant in ("q214", "q313"):
+for variant, scale in variants[1:]:
     rendered = np.fromfile(WORK / variant / "audio.f32", dtype=np.float32).reshape(-1, 2)
     segments = list(csv.DictReader(open(WORK / variant / "segments.csv", newline="")))
     stats = json.loads((WORK / variant / "delay_stats.json").read_text())
@@ -100,11 +100,12 @@ for variant in ("q214", "q313"):
                           "max_abs_delay_value":max(r["max_abs_delay_value"] for r in rows),
                           "cases":rows})
     summary["variants"][variant] = {
-        "fraction_bits":14 if variant=="q214" else 13,
+        "quantizer_scale":int(scale),
+        "positive_full_scale":32767.0/scale,
+        "negative_full_scale":-32768.0/scale,
         "host_part_size_bytes":int(stats["part_size_bytes"]),
         "host_string_size_bytes":int(stats["string_size_bytes"]),
-        "range": "[-2, 1.9999389648]" if variant=="q214" else "[-4, 3.9998779297]",
-        "overall_snr_db":snr_db(reference,rendered),
+                "overall_snr_db":snr_db(reference,rendered),
         "overall_rms_error":rms(rendered-reference),
         "peak":float(np.max(np.abs(rendered))),
         "output_samples_over_full_scale":int(np.count_nonzero(np.abs(rendered)>1.0)),
