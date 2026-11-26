@@ -76,6 +76,27 @@ jobs:
       - name: Run host regression suite
         run: tests/run_tests.sh
 
+      # One-time review artifact: capture the intentional compact-effects render baseline
+      # without changing the checked-in golden file or making this run pass by itself.
+      - name: Export compact-effects golden renders for review
+        if: always()
+        run: |
+          if [ -x build/host/regress ]; then
+            GOLDEN_UPDATE=1 build/host/regress build/host/golden.review.txt tests/cpu_baseline.txt
+          else
+            echo "Host regression binary unavailable; no golden review artifact"
+            exit 1
+          fi
+
+      - name: Upload compact-effects golden review artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-into-clouds-golden-review-${{ github.sha }}
+          path: build/host/golden.review.txt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Diagnose engine-switch track contributions (host only)
         if: always()
         run: |
