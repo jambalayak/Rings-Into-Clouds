@@ -1,0 +1,41 @@
+name: Rings 16-bit delay audio comparison (test only)
+
+on:
+  push:
+    branches:
+      - rings-int16-audio-test
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rings-int16-audio-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository and pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade numpy
+      - name: Install JieLi target toolchain for the shared five-model overlay
+        run: tools/get_toolchain.sh
+      - name: Prepare target compiler environment
+        run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Generate approved five-model source overlay
+        run: python3 tools/check_upstream_dsp_compile.py
+      - name: Run float-versus-Q15 full Rings audio test
+        run: python3 tools/rings_delay_test.py
+      - name: Upload matching WAVs and measurements only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-float-vs-int16-delay-${{ github.sha }}
+          path: build/rings-delay-test/results/
+          if-no-files-found: warn
+          retention-days: 14
