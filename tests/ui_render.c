@@ -2343,8 +2343,16 @@ int main(int argc, char **argv)
             if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty draw done palette=%u\\n", p);
             lint();
             if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty lint done palette=%u\\n", p);
-            if (p == UI_GREY_INDEX) { audit_scene(S_NAME[s]); font_scene("FLAT", S_NAME[s]); aud = 0; }
+            if (p == UI_GREY_INDEX) {
+                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty audit begin\\n");
+                audit_scene(S_NAME[s]);
+                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty audit done\\n");
+                font_scene("FLAT", S_NAME[s]);
+                if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty font done\\n");
+                aud = 0;
+            }
             mono_check();
+            if (s == S_SONG_EMPTY) fprintf(stderr, "ui_render: song_empty mono done palette=%u\\n", p);
             for (k = 0; k < sizeof SHOW / sizeof SHOW[0]; k++)
                 if (!strcmp(UI_PALETTES[p].name, SHOW[k])) write_ppm(out, SHOW[k], S_NAME[s]);
         }
