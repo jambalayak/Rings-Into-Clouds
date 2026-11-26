@@ -39,6 +39,8 @@ int main(int argc, char **argv) {
   if (!audio || !meta) return 3;
   fprintf(meta, "start,frames,model,note,profile,damping,saturation_count,max_abs_delay_value\n");
   uint64_t cursor = 0;
+  uint64_t total_saturation_count = 0;
+  float global_max_abs = 0.0f;
   for (int model = 0; model < 5; ++model) {
     for (size_t ni = 0; ni < sizeof(kNotes)/sizeof(kNotes[0]); ++ni) {
       for (size_t ci = 0; ci < sizeof(kCases)/sizeof(kCases[0]); ++ci) {
@@ -60,9 +62,7 @@ int main(int argc, char **argv) {
         ps.chord = 0;
         stmlib::Random::Seed(0x51A7C0DEu + model * 101u + ni * 17u + ci);
         const uint64_t frames = static_cast<uint64_t>(tc.seconds * kRate);
-        fprintf(meta, "%llu,%llu,%d,%d,%s,%.6f\n",
-          static_cast<unsigned long long>(cursor),
-          static_cast<unsigned long long>(frames), model, kNotes[ni], tc.name, tc.damping);
+        const uint64_t segment_start = cursor;
         for (uint64_t offset = 0; offset < frames; offset += kBlock) {
           float in[kBlock] = {}, out[kBlock] = {}, aux[kBlock] = {};
           size_t n = static_cast<size_t>(std::min<uint64_t>(kBlock, frames - offset));
@@ -79,10 +79,12 @@ int main(int argc, char **argv) {
             if (fwrite(pair, sizeof(float), 2, audio) != 2) return 4;
           }
         }
-        fprintf(meta, "%llu,%llu,%d,%d,%s,%.6f,%llu,%.9g\\n",
+        fprintf(meta, "%llu,%llu,%d,%d,%s,%.6f,%llu,%.9g\n",
           static_cast<unsigned long long>(segment_start),
           static_cast<unsigned long long>(frames), model, kNotes[ni], tc.name, tc.damping,
           static_cast<unsigned long long>(rings::qn_saturation_count), rings::qn_max_abs);
+        total_saturation_count += rings::qn_saturation_count;
+        if (rings::qn_max_abs > global_max_abs) global_max_abs = rings::qn_max_abs;
         cursor += frames;
       }
     }
@@ -93,7 +95,7 @@ int main(int argc, char **argv) {
   if (stats) {
     fprintf(stats, "part_size_bytes=%zu\nstring_size_bytes=%zu\nqn_saturation_count=%llu\nqn_max_abs=%.9g\n",
       sizeof(rings::Part), sizeof(rings::String),
-      static_cast<unsigned long long>(rings::qn_saturation_count), rings::qn_max_abs);
+      static_cast<unsigned long long>(total_saturation_count), global_max_abs);
     fclose(stats);
   }
   return 0;
