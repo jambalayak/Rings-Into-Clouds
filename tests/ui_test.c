@@ -41,6 +41,8 @@
 #endif
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 static uint32_t host_slots[3u * 0x14000u / 4u];          /* USR1..3 (zero: empty), as the flash at 0xA0000 */
 #define SMP_USER_XIP(k) ((const uint8_t *)host_slots + (k) * SMP_USER_SIZE)
 #define main hostsim_main
@@ -992,6 +994,10 @@ static void go_title(const char *title)
     uint32_t i;
     for (i = 0; i < NPAGES && !str_eq(PAGES[i].title, title); i++)
         ;
+    if (i >= NPAGES) {
+        fprintf(stderr, "go_title: page '%s' does not exist\n", title);
+        abort();
+    }
     ui.home = 0;
     ui.page = (uint8_t)i;
     page_entered();
