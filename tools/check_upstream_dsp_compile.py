@@ -227,7 +227,10 @@ def main():
             "\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\n")
         print(f"LINK OBJECTS: {len(link_objects)} pinned DSP and C ABI objects in build/rings-clouds-link/objects.txt")
     print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units for pi32v2.")
-    print("Compile-only: no DSP objects are constructed, linked into firmware, or run.")
+    if "--link-objects" in sys.argv:
+        print("DSP link objects prepared for the FM-1 app link; no DSP objects are constructed or processed.")
+    else:
+        print("Compile-only: no DSP objects are constructed, linked into firmware, or run.")
     
 
 if __name__ == "__main__":
