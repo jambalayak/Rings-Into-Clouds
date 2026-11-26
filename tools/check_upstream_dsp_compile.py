@@ -69,6 +69,44 @@ def main():
         raise SystemExit("expected upstream Clouds debug-pin include was not found")
     clouds_patched.write_text("\n".join(line for line in clouds_text.splitlines() if line.strip() != debug_include) + "\n")
 
+    # The pinned stmlib header contains ARM/NEON inline assembly (ssat/usat/vsqrt),
+    # which is not valid for the FM-1 pi32v2 target. Use the same saturating C and
+    # sqrtf implementations already used by upstream's TEST branch; this preserves
+    # numerical semantics while making the production target translation units valid.
+    stmlib_dsp_original = ROOT / "third_party" / "stmlib" / "dsp" / "dsp.h"
+    stmlib_dsp_patched = patch_root / "stmlib" / "dsp" / "dsp.h"
+    stmlib_dsp_patched.parent.mkdir(parents=True, exist_ok=True)
+    stmlib_dsp = stmlib_dsp_original.read_text()
+    clip_start = stmlib_dsp.find("#ifdef TEST\\n  inline int32_t Clip16")
+    sqrt_start = stmlib_dsp.find("#ifdef TEST\\n  inline float Sqrt", clip_start)
+    end_marker = "\\n\\ninline int16_t SoftConvert"
+    block_end = stmlib_dsp.find(end_marker, sqrt_start)
+    if clip_start < 0 or sqrt_start < 0 or block_end < 0:
+        raise SystemExit("expected pinned stmlib Clip16/ClipU16/Sqrt implementations were not found")
+    portable_clip_sqrt = """  inline int32_t Clip16(int32_t x) {
+    if (x < -32768) {
+      return -32768;
+    } else if (x > 32767) {
+      return 32767;
+    } else {
+      return x;
+    }
+  }
+  inline uint32_t ClipU16(int32_t x) {
+    if (x < 0) {
+      return 0;
+    } else if (x > 65535) {
+      return 65535;
+    } else {
+      return static_cast<uint32_t>(x);
+    }
+  }
+  inline float Sqrt(float x) {
+    return sqrtf(x);
+  }"""
+    stmlib_dsp = stmlib_dsp[:clip_start] + portable_clip_sqrt + stmlib_dsp[block_end:]
+    stmlib_dsp_patched.write_text(stmlib_dsp)
+
     # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
     # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
     part_h_original = eur / "rings/dsp/part.h"
