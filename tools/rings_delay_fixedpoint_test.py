@@ -23,7 +23,7 @@ replacement = '#include "rings/dsp/qn_delay_line.h"\ntypedef QNDelayLine<kDelayL
 qn_string = orig_string.replace(needle, replacement)
 if qn_string == orig_string:
     raise SystemExit("Could not apply signed-16 delay typedef overlay")
-(PATCH / "rings/dsp/string.h").write_text(qn_string if bits is not None else orig_string)
+(PATCH / "rings/dsp/string.h").write_text(orig_string)
 (PATCH / "rings/dsp/qn_delay_line.h").write_text((ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text())
 
 sources = sorted(set(list((EUR / "rings/dsp").glob("*.cc")) + [EUR / "rings/resources.cc"] +
