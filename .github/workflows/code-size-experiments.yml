@@ -81,7 +81,7 @@ jobs:
             rm -rf build
             mkdir -p build
             set +e
-            FELUCCA_SLICE=0 FELUCCA_RIC=1 \
+            FELUCCA_SLICE=1 FELUCCA_RIC=1 \
               FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" \
               FELUCCA_DATA_SECTIONS="${data}" ./build.sh 2>&1 | tee "/tmp/${name}.log"
             local status=${PIPESTATUS[0]}
@@ -106,6 +106,12 @@ jobs:
               exit "${status}"
             fi
 
+            mkdir -p "${RESULTS}/${name}"
+            cp build/rings-clouds.felucca.map "${RESULTS}/${name}/"
+            cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}/"
+            cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}/"
+            cp "/tmp/${name}.log" "${RESULTS}/${name}/build.log"
+
             if [ "${gc}" = "1" ]; then
               map=build/rings-clouds.felucca.map
               for required in \
@@ -125,11 +131,6 @@ jobs:
               echo "GC retention check: startup, vector table, IRQ handlers, second core, required sections, and full Rings/Clouds ABI/buffers present."
             fi
 
-            mkdir -p "${RESULTS}/${name}"
-            cp build/rings-clouds.felucca.map "${RESULTS}/${name}/"
-            cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}/"
-            cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}/"
-            cp "/tmp/${name}.log" "${RESULTS}/${name}/build.log"
             rm -f build/felucca.fwsc build/felucca.bin
             echo "Saved map/symbol/section diagnostics only; no firmware artifact is uploaded."
             echo "::endgroup::"
