@@ -258,3 +258,17 @@ Run 105 (`45357989706`, commit `0ffdb52b903ed80a2d5e27e4db9b0ab4181e2ee6`) passe
 ## Regression triage detail
 
 Run 104's six browser failures are not all the same bug. The enum comparison specifically shows the browser helper collapsing repeated `"-"` placeholders in the modulation-destination list, while firmware retains those reserved positions; the retired duplicate `OFF` entry in INSERT is a real alias and should remain hidden. Fix alias handling by treating `"-"` as a reserved value, not a duplicate alias, and add a focused test. The delay-division assertions also reveal a separate editor descriptor/order gap for the 1.5.1 dotted delay TIME list; do not assume the placeholder fix resolves it. The two user-preset round-trip/load failures and the DIGITAL-to-FM6 load conversion failure are separate protocol/mock-vs-firmware issues and need isolated reproductions before edits.
+
+
+## Regression and linker checkpoint — Run 45749034792 (2026-11-26)
+
+Run 45749034792 (commit `2c489e1a76afff63fcc68e90d7dca4da4ee9a61b`) completed with **failure**. The following steps passed: target C/C++ ABI smoke, pinned Rings/Clouds compile-only check, compact Rings delay-line host comparison, normal FM-1 target firmware build, focused engine diagnostic, and lean target memory build. The development firmware upload was skipped because the host regression step failed. This is not a Rings/Clouds production integration build.
+
+The host regression currently has two remaining fingerprint failures:
+
+- The legacy engine-memory suite reports 720/720 sequence hashes different from its Felucca 1.4 references, including the ANALOG-to-ANALOG baseline case. The same mismatch appears with CPU2 disabled. The test therefore does not currently isolate an engine-switch memory defect: even the no-switch reference differs. The focused diagnostic completed and showed matching companion fingerprints for RNG-isolated switch/no-switch, frozen-LFO switch/no-switch, and an elapsed-time-matched companion-skipped control. This is evidence against those specific switch/RNG explanations, not proof of the final cause. Preserve the original references; do not regenerate them or report an engine-memory regression as confirmed.
+- The SONG compatibility probe reports `3e37420d` rather than the pre-lanes reference `676a420d`, with the same 11,026 block count. The other SONG lane behavior checks in that UI suite pass; only the historical block-by-block fingerprint fails. The precise source of the historical fingerprint drift remains under investigation. Preserve the golden and block count.
+
+The uploaded linker diagnostics artifact is `15085651099`. Its lean target map remains unchanged from the previous measured baseline: `.data` 352 bytes, `.bss` 55,684 bytes, and `.pool` 145,720 bytes. This is still a lean baseline with no linked Rings or Clouds runtime objects or buffers; it does not prove the combined DSP profile fits.
+
+**Next gate:** isolate the old engine-mix fingerprint from the retired global FX buses, then trace the SONG probe's first state divergence without changing either golden. Only after those host regressions are resolved should the development firmware artifact be published. The `main` branch remains untouched.
