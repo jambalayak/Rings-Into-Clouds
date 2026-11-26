@@ -5,16 +5,16 @@
 #include <algorithm>
 #include <cmath>
 
-#ifndef RINGS_DELAY_FRACTION_BITS
-#define RINGS_DELAY_FRACTION_BITS 14
+#ifndef RINGS_DELAY_SCALE
+#define RINGS_DELAY_SCALE 16384
 #endif
 
 namespace rings {
 extern uint64_t qn_saturation_count;
 extern float qn_max_abs;
 
-/* Test-only signed 16-bit delay storage. Fraction bits are selected per build:
- * Q2.14 provides +/-2 range; Q3.13 provides +/-4 range.
+/* Test-only signed 16-bit delay storage. RINGS_DELAY_SCALE selects the
+ * quantizer gain, allowing range/precision trade-offs without changing DSP.
  * All other Rings DSP calculations remain float. */
 template <size_t N>
 class QNDelayLine {
@@ -69,7 +69,7 @@ class QNDelayLine {
     return -stored * coefficient + read;
   }
  private:
-  static constexpr float kScale = static_cast<float>(1u << RINGS_DELAY_FRACTION_BITS);
+  static constexpr float kScale = static_cast<float>(RINGS_DELAY_SCALE);
   inline float sample(size_t i) const {
     return static_cast<float>(line_[i]) / kScale;
   }
