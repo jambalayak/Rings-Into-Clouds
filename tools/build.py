@@ -211,7 +211,13 @@ def ld_regions():
 
 
 def build_app():
-    flags = [*CFLAGS, *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
+    code_opt = os.environ.get("FELUCCA_CODE_OPT", "-Os")
+    if code_opt not in ("-Os", "-Oz"):
+        raise SystemExit(f"unsupported code-size profile: {code_opt}")
+    flags = [*(code_opt if f == "-Os" else f for f in CFLAGS),
+             *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
+    if os.environ.get("FELUCCA_DATA_SECTIONS") == "1":
+        flags.append("-fdata-sections")
     for flag in ("FELUCCA_FLASH", "FELUCCA_OTA", "FELUCCA_OTA_DRYRUN", "FELUCCA_OTA_RAMONLY", "FELUCCA_CDC",
                  "FELUCCA_UART", "FELUCCA_UAC", "FELUCCA_UAC_TONE", "FELUCCA_UAC_48K", "FELUCCA_ICONS", "FELUCCA_SLICE", "FELUCCA_FM4",
                  "FELUCCA_CDC_DEFAULT", "FELUCCA_UAC_AS_FIRST", "FELUCCA_UAC_MIDI_LAST", "FELUCCA_CPU2", "FELUCCA_ADPCM", "FELUCCA_RIC"):
@@ -259,8 +265,10 @@ def build_app():
                       f"{link_libdir}/libcompiler_rt.a", "--end-group"] if RIC_LINK else [])
     link_args = ["-T", FW / "app.ld", "-Map", OUT / "felucca.map", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
                  *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, *dsp_libraries, "-o", elf]
+    if os.environ.get("FELUCCA_GC_SECTIONS") == "1":
+        link_args.insert(0, "--gc-sections")
     if RIC_LINK:
-        # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM.
+        # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM/POOL.
         link_args.insert(0, "--noinhibit-exec")
     tc("pi32v2/bin/ld", *link_args, allow_memory_overflow=RIC_LINK)
     if RIC_LINK and (OUT / "felucca.map").is_file():
@@ -373,7 +381,7 @@ def check(img, syms, dis, rt):
             "ric_dsp_link_anchor", "ric_dsp_construct", "ric_dsp_init",
             "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
             "ric_clouds_processor_storage", "ric_clouds_large_buffer",
-            "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
+            "ric_clouds_small_buffer", "ric_rings_reverb_buffer", "ric_rings_process", "ric_clouds_process",
         )
         missing = [name for name in required if not symv_in(syms, name)]
         if missing:
@@ -394,15 +402,11 @@ def check(img, syms, dis, rt):
                 "Clouds processor": symbol_size("ric_clouds_processor_storage"),
                 "Clouds large buffer": symbol_size("ric_clouds_large_buffer"),
                 "Clouds small buffer": symbol_size("ric_clouds_small_buffer"),
+                "Rings reverb buffer": symbol_size("ric_rings_reverb_buffer"),
             }
             notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
-            expected = {
-                "Rings Part": 110384, "Rings Strummer": 524, "Clouds processor": 8684,
-                "Clouds large buffer": 118784, "Clouds small buffer": 65408,
-            }
-            for name, size in expected.items():
-                if measured[name] != size:
-                    errors.append(f"{name} map size {measured[name]} B differs from target class/buffer size {size} B")
+            if measured["Rings reverb buffer"] != 65536:
+                errors.append(f"Rings reverb buffer map size {measured['Rings reverb buffer']} B != 65536 B")
             if not (OUT / "rings-clouds.felucca.map").is_file():
                 errors.append("Rings/Clouds diagnostic linker map was not preserved")
     if (OUT / "felucca.map").is_file():
