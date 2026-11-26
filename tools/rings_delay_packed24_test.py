@@ -35,7 +35,7 @@ for name, quantized in [("float", False), ("packed24", True)]:
     build = WORK / name
     build.mkdir(parents=True, exist_ok=True)
     (PATCH / "rings/dsp/string.h").write_text(orig if not quantized else q24)
-    extra = [] if not quantized else ["-DRINGS_DELAY_SCALE=131072"]
+    extra = [] if not quantized else ["-DRINGS_DELAY_SCALE=131072", "-DRINGS_DELAY_DIAGNOSTICS"]
     objects = []
     for src in sources:
         obj = build / (str(src).replace("/", "__") + ".o")
