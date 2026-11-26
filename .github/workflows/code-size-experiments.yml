@@ -1,0 +1,156 @@
+name: Isolated FM-1 code-size experiments
+
+on:
+  push:
+    branches:
+      - code-size-experiments
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-size-experiments-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out firmware and pinned submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Prepare Python build dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install Pillow fonttools
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          for attempt in 1 2 3; do
+            rm -rf "${SDK_DIR}"
+            if git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 clone \
+              --depth 1 --single-branch --branch "${SDK_TAG}" \
+              "${SDK_URL}" "${SDK_DIR}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Unable to fetch pinned AC79 SDK after 3 attempts" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          test -d "${SDK_DIR}/.git"
+          echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+
+      - name: Check -Oz support
+        id: oz
+        shell: bash
+        run: |
+          if "${HOME}/.jieli/toolchain/pi32v2/bin/clang" -target pi32v2 -Oz -x c -c -o /tmp/oz-probe.o - <<< 'int f(int x) { return x + 1; }'; then
+            echo "supported=true" >> "${GITHUB_OUTPUT}"
+            echo "-Oz is supported by the installed target compiler"
+          else
+            echo "supported=false" >> "${GITHUB_OUTPUT}"
+            echo "-Oz is unsupported; the -Oz profile will be skipped"
+          fi
+
+      - name: Run ordered code-size profiles (diagnostics only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/code-size-results
+
+          run_profile() {
+            local name="$1" opt="$2" gc="$3" data="$4"
+            echo "::group::${name}: ${opt}, gc=${gc}, data=${data}"
+            rm -rf build
+            mkdir -p build
+            set +e
+            FELUCCA_SLICE=0 FELUCCA_RIC=1 \
+              FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" \
+              FELUCCA_DATA_SECTIONS="${data}" ./build.sh 2>&1 | tee "/tmp/${name}.log"
+            local status=${PIPESTATUS[0]}
+            set -e
+
+            if [ ! -s build/rings-clouds.felucca.map ]; then
+              echo "No combined Rings/Clouds linker map for ${name}; stopping on first real failure."
+              exit "${status:-1}"
+            fi
+
+            # Capacity failures are expected measurements; compiler, linker,
+            # symbol, ABI, vector, or section failures are not.
+            local unexpected
+            unexpected="$(grep 'FAIL ' "/tmp/${name}.log" | grep -Ev 'RAM headroom|pool headroom|image [0-9]+ B exceeds the app slot' || true)"
+            if [ -n "${unexpected}" ]; then
+              echo "First non-capacity build/check failure in ${name}:"
+              printf '%s\n' "${unexpected}"
+              exit 1
+            fi
+            if [ "${status}" -ne 0 ] && ! grep -Eq 'RAM headroom|pool headroom|image [0-9]+ B exceeds the app slot|region .+ overflowed by' "/tmp/${name}.log"; then
+              echo "Profile ${name} failed without a recognized capacity-only diagnostic."
+              exit "${status}"
+            fi
+
+            if [ "${gc}" = "1" ]; then
+              map=build/rings-clouds.felucca.map
+              for required in \
+                '_start' '.text.fm1vec' 'fm1_alnk0_irq' 'fm1_timer5_irq' \
+                'fm1_cpu1_entry' 'fm1_cpu1_main' '_c1_start' '_c1_end' \
+                '.ram_text' '.data' '.bss' '.pool' '.noinit' \
+                'ric_dsp_link_anchor' 'ric_dsp_construct' 'ric_dsp_init' \
+                'ric_rings_part_storage' 'ric_rings_strummer_storage' \
+                'ric_rings_reverb_buffer' 'ric_rings_process' \
+                'ric_clouds_processor_storage' 'ric_clouds_large_buffer' \
+                'ric_clouds_small_buffer' 'ric_clouds_process'; do
+                if ! grep -Fq "${required}" "${map}"; then
+                  echo "GC RETENTION FAILURE (${name}): missing ${required}"
+                  exit 1
+                fi
+              done
+              echo "GC retention check: startup, vector table, IRQ handlers, second core, required sections, and full Rings/Clouds ABI/buffers present."
+            fi
+
+            mkdir -p "build/code-size-results/${name}"
+            cp build/rings-clouds.felucca.map "build/code-size-results/${name}/"
+            cp build/rings-clouds.felucca.symbols.txt "build/code-size-results/${name}/"
+            cp build/rings-clouds.felucca.sections.txt "build/code-size-results/${name}/"
+            cp "/tmp/${name}.log" "build/code-size-results/${name}/build.log"
+            rm -f build/felucca.fwsc build/felucca.bin
+            echo "Saved map/symbol/section diagnostics only; no firmware artifact is uploaded."
+            echo "::endgroup::"
+          }
+
+          # 1. True baseline: existing -Os flags, no GC, no data sections.
+          run_profile baseline-os  -Os 0 0
+          # 2. Function-section garbage collection only.
+          run_profile gc-os        -Os 1 0
+          # 3. Add data sections on top of GC.
+          run_profile gc-data-os   -Os 1 1
+          # 4. Compare -Oz only after confirming the target compiler supports it.
+          if [ "${{ steps.oz.outputs.supported }}" = "true" ]; then
+            run_profile gc-data-oz -Oz 1 1
+          else
+            echo "SKIPPED: gc-data-oz (compiler does not support -Oz)" | tee build/code-size-results/oz-skipped.txt
+          fi
+
+      - name: Upload code-size diagnostic maps only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fm1-code-size-experiments-${{ github.sha }}
+          path: build/code-size-results/
+          if-no-files-found: warn
+          retention-days: 7
