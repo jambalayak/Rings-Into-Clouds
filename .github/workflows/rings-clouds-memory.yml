@@ -60,7 +60,7 @@ jobs:
         run: python3 tools/check_cpp_toolchain.py
 
       - name: Link pinned Rings and Clouds behind the C ABI
-        run: FELUCCA_RIC=1 ./build.sh
+        run: FELUCCA_SLICE=0 FELUCCA_RIC=1 ./build.sh
 
       - name: Upload Rings and Clouds linker map and symbol evidence
         if: always()
