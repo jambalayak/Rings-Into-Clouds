@@ -253,8 +253,12 @@ def build_app():
             raise SystemExit("Rings/Clouds link object manifest is empty")
 
     elf = OUT / "felucca.elf"
+    link_libdir = ("/opt/jieli/pi32v2/lib/r3" if use_docker()
+                    else str(toolchain() / "pi32v2" / "lib" / "r3"))
+    dsp_libraries = (["--start-group", f"{link_libdir}/libm.a",
+                      f"{link_libdir}/libcompiler_rt.a", "--end-group"] if RIC_LINK else [])
     link_args = ["-T", FW / "app.ld", "-Map", OUT / "felucca.map", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
-                 *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, "-o", elf]
+                 *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, *dsp_libraries, "-o", elf]
     if RIC_LINK:
         # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM.
         link_args.insert(0, "--noinhibit-exec")
