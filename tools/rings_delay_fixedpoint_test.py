@@ -31,9 +31,9 @@ sources = sorted(set(list((EUR / "rings/dsp").glob("*.cc")) + [EUR / "rings/reso
 sources = [PATCH / "rings/dsp/part.cc" if p.name == "part.cc" else p for p in sources if "string_synth" not in p.name]
 main = ROOT / "tools/rings_delay_test/main_qn.cc"
 include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
-           "-I" + str(ROOT / "firmware/cxx"), "-I" + str(ROOT / "third_party"),
+           "-I" + str(ROOT / "third_party"),
            "-I" + str(EUR), "-I" + str(STM)]
-common = ["g++", "-std=c++11", "-O2", "-DTEST", "-ffunction-sections", "-fdata-sections",
+common = ["g++", "-std=c++11", "-O2", "-D_GNU_SOURCE", "-DTEST", "-ffunction-sections", "-fdata-sections",
           "-Wno-unused-function", "-Wno-unused-variable", *include]
 variants = [("float", None), ("q214", 14), ("q313", 13)]
 for variant, bits in variants:
