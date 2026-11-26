@@ -52,11 +52,10 @@ for variant, bits in variants:
     exe = build / "rings_delay_test"
     subprocess.run([*common, *extra, str(main), *objects, "-Wl,--gc-sections", "-o", str(exe)], cwd=ROOT, check=True)
     subprocess.run([str(exe), str(build / "audio.f32")], cwd=build, check=True)
-    if bits is not None:
-        stats = {}
-        for line in (build / "delay_stats.txt").read_text().splitlines():
-            k, v = line.split("=", 1); stats[k] = float(v)
-        (build / "delay_stats.json").write_text(json.dumps(stats, indent=2) + "\n")
+    stats = {}
+    for line in (build / "delay_stats.txt").read_text().splitlines():
+        k, v = line.split("=", 1); stats[k] = float(v)
+    (build / "delay_stats.json").write_text(json.dumps(stats, indent=2) + "\n")
 
 reference = np.fromfile(WORK / "float/audio.f32", dtype=np.float32).reshape(-1, 2)
 segments = list(csv.DictReader(open(WORK / "float/segments.csv", newline="")))
@@ -69,6 +68,12 @@ summary = {"sample_rate_hz_exact": 24000000/544, "cases": 75, "models": [
     "Modal", "Sympathetic Strings", "String", "FM Voice", "Quantized Sympathetic Strings"],
     "notes_midi": [36,60,84], "profiles": ["neutral","dark","bright","long_decay","loud_external"],
     "variants": {}}
+float_stats = json.loads((WORK / "float" / "delay_stats.json").read_text())
+summary["float_reference_host_sizes"] = {
+    "host_part_size_bytes": int(float_stats["part_size_bytes"]),
+    "host_string_size_bytes": int(float_stats["string_size_bytes"]),
+    "note": "Host g++ -O2 object sizes only; not FM-1 target RAM measurements."
+}
 for variant in ("q214", "q313"):
     rendered = np.fromfile(WORK / variant / "audio.f32", dtype=np.float32).reshape(-1, 2)
     stats = json.loads((WORK / variant / "delay_stats.json").read_text())
@@ -89,6 +94,8 @@ for variant in ("q214", "q313"):
                           "cases":rows})
     summary["variants"][variant] = {
         "fraction_bits":14 if variant=="q214" else 13,
+        "host_part_size_bytes":int(stats["part_size_bytes"]),
+        "host_string_size_bytes":int(stats["string_size_bytes"]),
         "range": "[-2, 1.9999389648]" if variant=="q214" else "[-4, 3.9998779297]",
         "overall_snr_db":snr_db(reference,rendered),
         "overall_rms_error":rms(rendered-reference),
