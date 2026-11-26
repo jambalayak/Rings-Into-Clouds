@@ -33,7 +33,7 @@ q15_header = ROOT / "tools" / "rings_delay_test" / "q15_delay_line.h"
 
 sources = sorted(set(list((EUR / "rings/dsp").glob("*.cc")) + [EUR / "rings/resources.cc"] +
                          list((STM / "dsp").glob("*.cc")) + list((STM / "utils").glob("*.cc"))))
-sources = [p for p in sources if "string_synth" not in p.name]
+sources = [PATCH / "rings/dsp/part.cc" if p.name == "part.cc" else p for p in sources if "string_synth" not in p.name]
 main = ROOT / "tools" / "rings_delay_test" / "main.cc"
 include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
            "-I" + str(ROOT / "third_party"),
