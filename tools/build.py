@@ -371,7 +371,7 @@ def check(img, syms, dis, rt):
     if RIC_LINK:
         required = (
             "ric_dsp_link_anchor", "ric_dsp_construct", "ric_dsp_init",
-            "ric_rings_part_storage", "ric_rings_strummer_storage",
+            "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
             "ric_clouds_processor_storage", "ric_clouds_large_buffer",
             "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
         )
