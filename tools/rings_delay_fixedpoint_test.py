@@ -60,7 +60,6 @@ for variant, bits in variants:
     (build / "delay_stats.json").write_text(json.dumps(stats, indent=2) + "\n")
 
 reference = np.fromfile(WORK / "float/audio.f32", dtype=np.float32).reshape(-1, 2)
-segments = list(csv.DictReader(open(WORK / "float/segments.csv", newline="")))
 def rms(x):
     return float(np.sqrt(np.mean(np.asarray(x, dtype=np.float64) ** 2)))
 def snr_db(ref, test):
@@ -78,6 +77,7 @@ summary["float_reference_host_sizes"] = {
 }
 for variant in ("q214", "q313"):
     rendered = np.fromfile(WORK / variant / "audio.f32", dtype=np.float32).reshape(-1, 2)
+    segments = list(csv.DictReader(open(WORK / variant / "segments.csv", newline="")))
     stats = json.loads((WORK / variant / "delay_stats.json").read_text())
     per_model = []
     for model in range(5):
@@ -88,11 +88,16 @@ for variant in ("q214", "q313"):
             x, y = reference[start:start+count], rendered[start:start+count]
             rows.append({"note":int(s["note"]), "profile":s["profile"],
                          "snr_db":snr_db(x,y), "rms_error":rms(y-x),
-                         "reference_rms":rms(x), "variant_rms":rms(y)})
+                         "reference_rms":rms(x), "variant_rms":rms(y),
+                         "delay_saturation_count":int(s["saturation_count"]),
+                         "max_abs_delay_value":float(s["max_abs_delay_value"])})
         per_model.append({"model":summary["models"][model],
                           "mean_snr_db":float(np.mean([r["snr_db"] for r in rows])),
                           "worst_snr_db":min(r["snr_db"] for r in rows),
                           "worst_case":min(rows,key=lambda r:r["snr_db"]),
+                          "delay_saturation_count":sum(r["delay_saturation_count"] for r in rows),
+                          "worst_saturation_case":max(rows,key=lambda r:r["delay_saturation_count"]),
+                          "max_abs_delay_value":max(r["max_abs_delay_value"] for r in rows),
                           "cases":rows})
     summary["variants"][variant] = {
         "fraction_bits":14 if variant=="q214" else 13,
@@ -105,6 +110,9 @@ for variant in ("q214", "q313"):
         "output_samples_over_full_scale":int(np.count_nonzero(np.abs(rendered)>1.0)),
         "delay_saturation_count":int(stats["qn_saturation_count"]),
         "max_abs_delay_value":float(stats["qn_max_abs"]),
+        "worst_saturation_case":max(
+            [case for model in per_model for case in model["cases"]],
+            key=lambda r:r["delay_saturation_count"]),
         "per_model":per_model}
     pcm = np.rint(np.clip(rendered,-1.0,1.0)*32767.0).astype("<i2")
     with wave.open(str(OUT / f"rings-{variant}.wav"),"wb") as w:
