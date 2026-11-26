@@ -204,6 +204,28 @@ def main():
     for name in sorted(sizes):
         print(f"TARGET SIZE {name}: {sizes[name]} bytes")
 
+    if "--link-objects" in sys.argv:
+        # Recompile the exact patched source set without the host-test-only TEST define.
+        # These objects are consumed by the real FM-1 app link; no audio routing is added.
+        link_build = ROOT / "build" / "rings-clouds-link"
+        link_build.mkdir(parents=True, exist_ok=True)
+        link_common = [x for x in common if x != "-DTEST"]
+        link_objects = []
+        for src in sources:
+            rel = src.relative_to(ROOT)
+            obj = link_build / (str(rel).replace("/", "__") + ".o")
+            obj.parent.mkdir(parents=True, exist_ok=True)
+            invoke([*link_common, "-Ifirmware/src", "-c", str(rel),
+                    "-o", str(obj.relative_to(ROOT))])
+            link_objects.append(obj)
+        bridge_src = ROOT / "firmware" / "cxx" / "rings_clouds_abi.cc"
+        bridge_obj = link_build / "rings_clouds_abi.o"
+        invoke([*link_common, "-Ifirmware/src", "-c",
+                str(bridge_src.relative_to(ROOT)), "-o", str(bridge_obj.relative_to(ROOT))])
+        link_objects.append(bridge_obj)
+        (link_build / "objects.txt").write_text(
+            "\\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\\n")
+        print(f"LINK OBJECTS: {len(link_objects)} pinned DSP and C ABI objects in build/rings-clouds-link/objects.txt")
     print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units for pi32v2.")
     print("Compile-only: no DSP objects are constructed, linked into firmware, or run.")
     
