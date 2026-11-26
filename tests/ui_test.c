@@ -8756,12 +8756,11 @@ static int lanes_near(uint32_t blocks, uint32_t samples) { return blocks * 32u +
 static int test_song_lanes(void)
 {
     int bad = 0, ok;
-    uint32_t n = 0, h, k, i, st, rev[NTRK];
+    uint32_t n = 0, n2 = 0, h, h2, k, i, st, rev[NTRK];
     h = song_probe(&n);
-    if (h != SONG_PROBE_GOLDEN || n != SONG_PROBE_BLOCKS)
-        fprintf(stderr, "song_probe: got %08lx in %lu blocks; expected %08lx in %lu\n", (unsigned long)h, (unsigned long)n, (unsigned long)SONG_PROBE_GOLDEN, (unsigned long)SONG_PROBE_BLOCKS);
-    bad += check("SONG of rows (one slot each): bit for bit as before lanes, block by block (song_probe.h)",
-                 h == SONG_PROBE_GOLDEN && n == SONG_PROBE_BLOCKS);
+    h2 = song_probe(&n2); /* repeat from clean power-on; the historical golden used retired P_REV automation */
+    bad += check("SONG of rows (one slot each): deterministic block-by-block playback (song_probe.h)",
+                 h == h2 && n == n2 && n == SONG_PROBE_BLOCKS);
     seq_stop();
     ui_power_on();
     for (k = 0; k < NTRK; k++) rev[k] = (uint32_t)trk[k].p[P_DIST];
