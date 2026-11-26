@@ -1622,7 +1622,15 @@ static void ui_draw(void)
     if (!scr_frame())                                   /* MENU > SCREEN OFF: dark (or waking), nothing drawn */
         return;
     ui_draw_page(counting);
+#ifdef UI_TEST_NO_MAIN
+    if (!ui.home && !ui.menu && !ui.confirm && !name_on() && cur_page()->graph == GR_EVENTS)
+        fprintf(stderr, "events_draw: page returned\n");
+#endif
     scr_shown();
+#ifdef UI_TEST_NO_MAIN
+    if (!ui.home && !ui.menu && !ui.confirm && !name_on() && cur_page()->graph == GR_EVENTS)
+        fprintf(stderr, "events_draw: scr_shown done\n");
+#endif
 }
 static void ui_draw_page(uint32_t counting)
 {
@@ -1712,6 +1720,15 @@ static void ui_draw_page(uint32_t counting)
     if (ui.help_t)
         ui.help_t--;
     felucca_dbg.stage = 6;
+#ifdef UI_TEST_NO_MAIN
+    if (!ui.home && cur_page()->graph == GR_EVENTS) fprintf(stderr, "events_draw: foot begin\n");
+#endif
     draw_foot();
+#ifdef UI_TEST_NO_MAIN
+    if (!ui.home && cur_page()->graph == GR_EVENTS) fprintf(stderr, "events_draw: foot done\n");
+#endif
     ui.force = 0;
+#ifdef UI_TEST_NO_MAIN
+    if (!ui.home && cur_page()->graph == GR_EVENTS) fprintf(stderr, "events_draw: page done\n");
+#endif
 }
