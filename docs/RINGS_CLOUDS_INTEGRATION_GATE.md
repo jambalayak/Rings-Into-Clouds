@@ -272,3 +272,13 @@ The host regression currently has two remaining fingerprint failures:
 The uploaded linker diagnostics artifact is `15085651099`. Its lean target map remains unchanged from the previous measured baseline: `.data` 352 bytes, `.bss` 55,684 bytes, and `.pool` 145,720 bytes. This is still a lean baseline with no linked Rings or Clouds runtime objects or buffers; it does not prove the combined DSP profile fits.
 
 **Next gate:** isolate the old engine-mix fingerprint from the retired global FX buses, then trace the SONG probe's first state divergence without changing either golden. Only after those host regressions are resolved should the development firmware artifact be published. The `main` branch remains untouched.
+
+## Known audio-regression coverage gaps (reviewed 2026-11-26)
+
+These historical test changes are recorded as limitations in the current regression evidence. They are not being rebuilt in this integration pass, and no golden files are being changed. A passing regression suite does not establish that the current sound is musically correct; the output still needs listening and reference comparison on a later sound-validation pass.
+
+- **`a03d249` — refreshed audio goldens for the compact-effects architecture.** The hashes were regenerated after removal of the legacy global delay, chorus and reverb buses. The source architecture change is intentional, but regenerated hashes alone do not independently establish that the resulting sound is correct. Gap: no reviewed listening/reference-render sign-off for the new compact-effects sound.
+- **`81d8fb9` — replaced the SONG golden with a determinism check.** The previous expected-output comparison was replaced by running the same probe twice and checking that both hashes match. This verifies repeatability, not expected musical behaviour. Gap: no independent behavioural oracle for the SONG render.
+- **`2e49d44` — replaced exact engine-memory output goldens with differential isolated-control comparisons.** The matched control comparison is useful for detecting cross-part state contamination, but it no longer checks output against the former exact sound reference. Gap: exact sound compatibility is not covered by that replacement test.
+
+These are coverage gaps, not assertions that the current DSP is wrong. Do not regenerate or weaken more goldens to clear them. Resolve them only in a separately scoped sound-review task with explicit expected behaviour, upstream/reference renders where applicable, and listening on the intended hardware.
