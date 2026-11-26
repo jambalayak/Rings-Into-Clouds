@@ -436,6 +436,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/union_test_c1" tests/union_test.c -lm
     run "engine memory (1.5), one-core RNG path: compare all 720 switches with the same 1.4 references" \
         "$OUT/union_test_c1" tests/union_golden.txt
+    run "engine memory diagnostic: isolate ANALOG/ANALOG p0 first-case render modes" \
+        env UNION_PROBE=1 "$OUT/union_test"
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/descdump" tests/descdump.c -lm
     echo "== parameter and engine tables as JSON (for the editor mock test)"
     "$OUT/descdump" > "$OUT/desc.json" || fail=1
