@@ -2326,7 +2326,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "ui_render: entering screen sweep\n");
     for (p = 0; p < NPALETTES; p++)
         for (s = 0; s < S_COUNT; s++) {
-            if (p == 0u && s < 12u) fprintf(stderr, "ui_render: screen %u %u %s\n", p, s, S_NAME[s]);
+            if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: screen %u %u %s begin\n", p, s, S_NAME[s]);
             char name[64];
             uint32_t k;
             if (!FELUCCA_FM4 && (s == S_OP_ENV || (s >= S_ALG1 && s <= S_OP_LEVEL)))
@@ -2335,14 +2335,14 @@ int main(int argc, char **argv)
             cur_name = name;
             if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s setup begin palette=%u\n", S_NAME[s], p);
             setup((int)s);
-            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s setup done palette=%u\n", S_NAME[s], p);
+            if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: %s setup done\n", S_NAME[s]);
             pal(p);
-            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s palette done palette=%u\n", S_NAME[s], p);
+            if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: %s palette done\n", S_NAME[s]);
             if (p == UI_GREY_INDEX) aud = audf;
             draw((int)s);
-            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s draw done palette=%u\n", S_NAME[s], p);
+            if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: %s draw done\n", S_NAME[s]);
             lint();
-            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s lint done palette=%u\n", S_NAME[s], p);
+            if (p == 0u && s >= 12u && s <= 16u) fprintf(stderr, "ui_render: %s lint done\n", S_NAME[s]);
             if (p == UI_GREY_INDEX) {
                 audit_scene(S_NAME[s]);
                 font_scene("FLAT", S_NAME[s]);
