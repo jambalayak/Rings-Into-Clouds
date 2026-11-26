@@ -19,17 +19,17 @@ dsp_h = (EUR / "rings/dsp/dsp.h").read_text().replace("48000.0f", "44117.6470588
 
 orig_string = (EUR / "rings/dsp/string.h").read_text()
 needle = "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;"
-replacement = '#include "qn_delay_line.h"\ntypedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;'
+replacement = '#include "rings/dsp/qn_delay_line.h"\ntypedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;'
 qn_string = orig_string.replace(needle, replacement)
 if qn_string == orig_string:
     raise SystemExit("Could not apply signed-16 delay typedef overlay")
-(PATCH / "rings/dsp/string.h").write_text(orig_string)
+(PATCH / "rings/dsp/string.h").write_text(qn_string if bits is not None else orig_string)
 (PATCH / "rings/dsp/qn_delay_line.h").write_text((ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text())
 
 sources = sorted(set(list((EUR / "rings/dsp").glob("*.cc")) + [EUR / "rings/resources.cc"] +
                          list((STM / "dsp").glob("*.cc")) + list((STM / "utils").glob("*.cc"))))
 sources = [PATCH / "rings/dsp/part.cc" if p.name == "part.cc" else p for p in sources if "string_synth" not in p.name]
-main = ROOT / "tools/rings_delay_test/main.cc"
+main = ROOT / "tools/rings_delay_test/main_qn.cc"
 include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
            "-I" + str(ROOT / "firmware/cxx"), "-I" + str(ROOT / "third_party"),
            "-I" + str(EUR), "-I" + str(STM)]
@@ -46,7 +46,7 @@ for variant, bits in variants:
     else:
         (PATCH / "rings/dsp/string.h").write_text(orig_string)
     for src in sources:
-        obj = build / (src.name + ".o")
+        obj = build / (str(src).replace("/", "__") + ".o")
         subprocess.run([*common, *extra, "-c", str(src), "-o", str(obj)], cwd=ROOT, check=True)
         objects.append(str(obj))
     exe = build / "rings_delay_test"
