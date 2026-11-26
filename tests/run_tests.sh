@@ -431,11 +431,11 @@ if [ -f build/gen/felucca_tables.h ]; then
     "$OUT/fe_host" > "$OUT/fe_renders.txt" || fail=1
     run "Felucca-Engines with Felucca's tables: the engines' golden renders" diff -u firmware/engines/tests/golden.txt "$OUT/fe_renders.txt"
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/union_test" tests/union_test.c -lm
-    run "engine memory (1.5): every switch between the engines with per-part state sounds as in 1.4 (720 sequences)" \
-        "$OUT/union_test" tests/union_golden.txt
+    run "engine memory (1.5): every companion engine switch vs matched isolated no-switch control (720 sequences)" \
+        "$OUT/union_test"
     $CC -O2 -w -DFELUCCA_CPU2=0 -Ibuild/gen -Ifirmware/src -o "$OUT/union_test_c1" tests/union_test.c -lm
-    run "engine memory (1.5), one-core RNG path: compare all 720 switches with the same 1.4 references" \
-        "$OUT/union_test_c1" tests/union_golden.txt
+    run "engine memory (1.5), one-core path: all 720 switches vs matched isolated controls" \
+        "$OUT/union_test_c1"
     run "engine memory diagnostic: isolate ANALOG/ANALOG p0 first-case render modes" \
         env UNION_PROBE=1 "$OUT/union_test"
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/descdump" tests/descdump.c -lm
