@@ -110,9 +110,10 @@ def main():
     sources = [clouds_patched if p == clouds_original else p for p in sources]
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
-        "-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os", "-std=gnu++11", "-DTEST",
+        "-target", "pi32v2", "-mcpu=r3", "-mfprev1", os.environ.get("FELUCCA_CODE_OPT", "-Os"), "-std=gnu++11", "-DTEST",
         "-fno-math-errno", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics",
-        "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", "-fdata-sections",
+        "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections",
+        *(["-fdata-sections"] if os.environ.get("FELUCCA_DATA_SECTIONS") == "1" else []),
         "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
         "-Wframe-larger-than=1024", "-Ibuild/upstream-dsp-compile/source-patches", "-Ifirmware/cxx", "-Ifirmware/sys",
         "-Ithird_party", "-Ithird_party/eurorack",
