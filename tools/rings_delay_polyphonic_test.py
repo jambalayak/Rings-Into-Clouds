@@ -16,10 +16,10 @@ assert "STRING_AND_REVERB" not in part_h + part_cc
 dsp_h = (EUR / "rings/dsp/dsp.h").read_text().replace("48000.0f", "44117.6470588f")
 (PATCH / "rings/dsp/dsp.h").write_text(dsp_h)
 orig = (EUR / "rings/dsp/string.h").read_text()
-needle = "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;"
-replacement = "typedef QNDelayLine<kDelayLineSize> StringDelayLine;\\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;"
+needle = "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;"
+replacement = "typedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;"
 qn = orig.replace('#include "stmlib/stmlib.h"',
-                  '#include "stmlib/stmlib.h"\\n#include "rings/dsp/qn_delay_line.h"').replace(needle, replacement)
+                  '#include "stmlib/stmlib.h"\n#include "rings/dsp/qn_delay_line.h"').replace(needle, replacement)
 if qn == orig: raise SystemExit("Could not patch Rings delay typedefs")
 (PATCH / "rings/dsp").mkdir(parents=True, exist_ok=True)
 (PATCH / "rings/dsp/qn_delay_line.h").write_text((ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text())
@@ -83,7 +83,7 @@ summary={"test":"four-resonator polyphonic strum stress; one Part per case; four
          "limitations":["Host g++ -O2 only; not FM-1 target RAM or CPU measurements.",
                         "Four sequential strums into one Rings Part; not eight simultaneous FM-1 allocator voices.",
                         "Clouds, resampling, MIDI, voice stealing and physical hardware are not exercised."]}
-(OUT/"metrics.json").write_text(json.dumps(summary,indent=2)+"\\n")
+(OUT/"metrics.json").write_text(json.dumps(summary,indent=2)+"\n")
 for name,data in [("rings-poly-float-reference.wav",ref),("rings-poly-q275.wav",test)]:
     pcm=np.rint(np.clip(data,-1,1)*32767).astype("<i2")
     with wave.open(str(OUT/name),"wb") as w:
