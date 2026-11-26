@@ -23,8 +23,10 @@ dsp_h = (EUR / "rings/dsp/dsp.h").read_text().replace("48000.0f", "44117.6470588
 # only the two Rings delay arrays (2048 + 1024 samples per String).
 orig_string = (EUR / "rings/dsp/string.h").read_text()
 q15_string = orig_string.replace(
+    '#include "stmlib/stmlib.h"',
+    '#include "stmlib/stmlib.h"\n#include "q15_delay_line.h"').replace(
     "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;",
-    '#include "q15_delay_line.h"\ntypedef Q15DelayLine<kDelayLineSize> StringDelayLine;\ntypedef Q15DelayLine<kDelayLineSize / 2> StiffnessDelayLine;')
+    "typedef Q15DelayLine<kDelayLineSize> StringDelayLine;\ntypedef Q15DelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
 if q15_string == orig_string:
     raise SystemExit("Could not apply Q15 String/Stiffness delay typedef overlay")
 q15_header = ROOT / "tools" / "rings_delay_test" / "q15_delay_line.h"
