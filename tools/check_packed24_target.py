@@ -40,6 +40,7 @@ def run(args):
 
 # Compile every Rings translation unit against the packed-24 delay overlay.
 sources = sorted(set(list((eur / "rings/dsp").glob("*.cc")) + [eur / "rings/resources.cc"]))
+sources = [PATCH / "rings/dsp/part.cc" if p.name == "part.cc" else p for p in sources]
 sources = [p for p in sources if "string_synth" not in p.name]
 for src in sources:
     rel = src.relative_to(ROOT)
