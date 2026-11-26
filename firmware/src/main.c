@@ -98,9 +98,17 @@ static void boot_leds(void)
         fm1_led_anim_start(settings_leds == LEDS_DIM || settings_leds == LEDS_DIM_LO);
 }
 
+#if FELUCCA_RIC
+extern uint32_t ric_dsp_link_anchor(void);
+#endif
+
 static void fm1_main(void)
 {
     uint32_t ms;
+#if FELUCCA_RIC
+    /* Link-retention root only: do not construct, initialise or process DSP here. */
+    (void)ric_dsp_link_anchor();
+#endif
 #if FELUCCA_CPU2
     uint8_t c1_told = 0;                                /* 2ND CORE MISREAD shown (and ON cleared) */
 #endif
