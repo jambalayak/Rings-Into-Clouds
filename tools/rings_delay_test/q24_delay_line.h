@@ -10,8 +10,10 @@
 #endif
 
 namespace rings {
+#if defined(RINGS_DELAY_DIAGNOSTICS)
 extern uint64_t qn_saturation_count;
 extern float qn_max_abs;
+#endif
 
 /* Test-only packed signed 24-bit delay storage. DSP arithmetic remains float;
  * only samples written to the Rings String/Stiffness delay memories are quantized. */
@@ -27,11 +29,23 @@ class Q24DelayLine {
   }
   inline void set_delay(size_t delay) { delay_ = delay; }
   inline void Write(float sample) {
+#if defined(RINGS_DELAY_DIAGNOSTICS)
     const float a = fabsf(sample);
     if (a > qn_max_abs) qn_max_abs = a;
+#endif
     long q = lrintf(sample * kScale);
-    if (q > 8388607) { q = 8388607; ++qn_saturation_count; }
-    if (q < -8388608) { q = -8388608; ++qn_saturation_count; }
+    if (q > 8388607) {
+      q = 8388607;
+#if defined(RINGS_DELAY_DIAGNOSTICS)
+      ++qn_saturation_count;
+#endif
+    }
+    if (q < -8388608) {
+      q = -8388608;
+#if defined(RINGS_DELAY_DIAGNOSTICS)
+      ++qn_saturation_count;
+#endif
+    }
     const uint32_t u = static_cast<uint32_t>(static_cast<int32_t>(q));
     const size_t p = write_ptr_ * 3;
     line_[p] = static_cast<uint8_t>(u);
