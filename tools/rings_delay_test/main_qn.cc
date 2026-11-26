@@ -37,12 +37,14 @@ int main(int argc, char **argv) {
   FILE *audio = fopen(argv[1], "wb");
   FILE *meta = fopen("segments.csv", "w");
   if (!audio || !meta) return 3;
-  fprintf(meta, "start,frames,model,note,profile,damping\n");
+  fprintf(meta, "start,frames,model,note,profile,damping,saturation_count,max_abs_delay_value\n");
   uint64_t cursor = 0;
   for (int model = 0; model < 5; ++model) {
     for (size_t ni = 0; ni < sizeof(kNotes)/sizeof(kNotes[0]); ++ni) {
       for (size_t ci = 0; ci < sizeof(kCases)/sizeof(kCases[0]); ++ci) {
         const TestCase &tc = kCases[ci];
+        rings::qn_saturation_count = 0;
+        rings::qn_max_abs = 0.0f;
         rings::Part part;
         part.Init();
         part.set_model(static_cast<rings::ResonatorModel>(model));
@@ -77,6 +79,10 @@ int main(int argc, char **argv) {
             if (fwrite(pair, sizeof(float), 2, audio) != 2) return 4;
           }
         }
+        fprintf(meta, "%llu,%llu,%d,%d,%s,%.6f,%llu,%.9g\\n",
+          static_cast<unsigned long long>(segment_start),
+          static_cast<unsigned long long>(frames), model, kNotes[ni], tc.name, tc.damping,
+          static_cast<unsigned long long>(rings::qn_saturation_count), rings::qn_max_abs);
         cursor += frames;
       }
     }
