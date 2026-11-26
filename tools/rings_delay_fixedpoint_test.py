@@ -19,8 +19,10 @@ dsp_h = (EUR / "rings/dsp/dsp.h").read_text().replace("48000.0f", "44117.6470588
 
 orig_string = (EUR / "rings/dsp/string.h").read_text()
 needle = "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;"
-replacement = '#include "rings/dsp/qn_delay_line.h"\ntypedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;'
-qn_string = orig_string.replace(needle, replacement)
+replacement = "typedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;"
+qn_string = orig_string.replace(
+    '#include "stmlib/stmlib.h"',
+    '#include "stmlib/stmlib.h"\n#include "rings/dsp/qn_delay_line.h"').replace(needle, replacement)
 if qn_string == orig_string:
     raise SystemExit("Could not apply signed-16 delay typedef overlay")
 (PATCH / "rings/dsp/string.h").write_text(orig_string)
