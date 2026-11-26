@@ -48,7 +48,8 @@
 #define SLC_HOP 32u                  /* AUTO detector: samples per hop */
 
 typedef struct {
-    uint32_t off, at, n;             /* data (SMP_DATA index), material position of its first sample, samples */
+    uint32_t off, at, n;             /* built-in data index, material position of its first sample, samples */
+    const uint8_t *data;             /* user-slot data: direct XIP pointer, not an index into SMP_DATA */
 } slc_seg_t;
 typedef struct {
     uint32_t len, rate, nseg, nauto; /* material samples (0 = none), rate (as smp_zone_t), segments, AUTO slices */
@@ -131,7 +132,7 @@ static inline int32_t slc_dec_next(const slc_src_t *s, slc_dec_t *d)
         d->pred = 0;
         d->idx = 0;
     }
-    b = SMP_DATA[g->off + (rel >> 1)];
+    b = g->data ? g->data[rel >> 1] : SMP_DATA[g->off + (rel >> 1)];
     code = (rel & 1u) ? (b >> 4) : (b & 15u);
     step = IMA_STEP[d->idx];
     vd = step >> 3;
@@ -262,13 +263,16 @@ static void slc_scan(slc_src_t *s, uint32_t len)
 static void slc_user_scan(uint32_t k, int valid)
 {
     slc_src_t *s = &slc_usr[k];
-    uint32_t i, j, at = 0;
+    uint32_t i, j, at = 0, base;
     s->len = 0;
     RING_PUBLISH();
     slc_man[k][0].n = slc_man[k][1].n = 0;          /* new material: its MAN slices are gone (slc_man_load: the stored) */
     if (!valid)
         return;
     s->nseg = 0;
+    /* User zones are rebased onto SMP_DATA for the SAMPLE engine's XIP view.
+     * Keep SLICE's host and target reads defined by retaining the real slot pointer. */
+    base = (uint32_t)(uintptr_t)(smp_user_xip(k) + SMP_USER_DATA) - (uint32_t)(uintptr_t)SMP_DATA;
     for (i = 0; i < usr_nz[k] && i < SLC_SEGS; i++) {
         const smp_zone_t *z = &usr_zone[k][i];
         for (j = 0; j < i && usr_zone[k][j].off != z->off; j++)
@@ -279,7 +283,9 @@ static void slc_user_scan(uint32_t k, int valid)
             break;
         s->seg[s->nseg].off = z->off;
         s->seg[s->nseg].at = at;
-        s->seg[s->nseg++].n = z->n;
+        s->seg[s->nseg].n = z->n;
+        s->seg[s->nseg].data = smp_user_xip(k) + SMP_USER_DATA + (z->off - base);
+        s->nseg++;
         at += z->n;
     }
     if (!s->nseg)
