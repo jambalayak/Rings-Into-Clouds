@@ -1,4 +1,4 @@
-name: Isolated FM-1 code-size experiments
+name: Isolated FM-1 five-model code-size experiments
 
 on:
   push:
