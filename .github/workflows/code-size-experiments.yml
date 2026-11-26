@@ -3,7 +3,7 @@ name: Isolated FM-1 code-size experiments
 on:
   push:
     branches:
-      - code-size-experiments
+      - five-model-code-size
 
 permissions:
   contents: read
@@ -120,7 +120,7 @@ jobs:
                 '.ram_text' '.data' '.bss' '.pool' '.noinit' \
                 'ric_dsp_link_anchor' 'ric_dsp_construct' 'ric_dsp_init' \
                 'ric_rings_part_storage' 'ric_rings_strummer_storage' \
-                'ric_rings_reverb_buffer' 'ric_rings_process' \
+                'ric_rings_process' \
                 'ric_clouds_processor_storage' 'ric_clouds_large_buffer' \
                 'ric_clouds_small_buffer' 'ric_clouds_process'; do
                 if ! grep -Fq "${required}" "${map}"; then
@@ -128,7 +128,7 @@ jobs:
                   exit 1
                 fi
               done
-              echo "GC retention check: startup, vector table, IRQ handlers, second core, required sections, and full Rings/Clouds ABI/buffers present."
+              echo "GC retention check: startup, vector table, IRQ handlers, second core, required sections, and five-model Rings and full Clouds ABI/buffers present."
             fi
 
             rm -f build/felucca.fwsc build/felucca.bin
