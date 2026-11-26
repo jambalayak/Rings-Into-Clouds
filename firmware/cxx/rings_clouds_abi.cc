@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * RINGS INTO CLOUDS C ABI.
  *
- * This translation unit reserves one five-model Rings instance and one stock
+ * This translation unit reserves one full six-model Rings instance and one stock
  * stereo Clouds instance. The boot anchor retains the objects, buffers and
  * processing entry points, but never constructs or runs the DSP. */
 #include <stdint.h>
@@ -21,6 +21,8 @@ __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_part_storage[sizeof(rings::Part)];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_strummer_storage[sizeof(rings::Strummer)];
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_rings_reverb_buffer[65536];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_processor_storage[sizeof(clouds::GranularProcessor)];
 
@@ -65,7 +67,7 @@ extern "C" int32_t ric_dsp_init(uint32_t sample_rate_hz, uint32_t inter_onset_us
 {
     if (ric_dsp_construct() != 0 || !sample_rate_hz)
         return -1;
-    rings_part()->Init(); /* five-model FM-1 source overlay; no Rings reverb allocation */
+    rings_part()->Init(reinterpret_cast<uint16_t *>(ric_rings_reverb_buffer));
     rings_strummer()->Init(static_cast<float>(inter_onset_us) * 0.000001f,
                            static_cast<float>(sample_rate_hz));
     clouds_processor()->Init(ric_clouds_large_buffer, sizeof ric_clouds_large_buffer,
@@ -145,9 +147,10 @@ extern "C" uint32_t ric_dsp_link_anchor(void)
     uintptr_t roots = reinterpret_cast<uintptr_t>(&ric_dsp_code_roots[0]);
     uintptr_t part = reinterpret_cast<uintptr_t>(ric_rings_part_storage);
     uintptr_t strummer = reinterpret_cast<uintptr_t>(ric_rings_strummer_storage);
+    uintptr_t reverb = reinterpret_cast<uintptr_t>(ric_rings_reverb_buffer);
     uintptr_t processor = reinterpret_cast<uintptr_t>(ric_clouds_processor_storage);
     uintptr_t large = reinterpret_cast<uintptr_t>(ric_clouds_large_buffer);
     uintptr_t small = reinterpret_cast<uintptr_t>(ric_clouds_small_buffer);
-    return static_cast<uint32_t>(roots ^ part ^ strummer ^ processor ^ large ^ small ^
+    return static_cast<uint32_t>(roots ^ part ^ strummer ^ reverb ^ processor ^ large ^ small ^
         sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor));
 }
