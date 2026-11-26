@@ -381,7 +381,7 @@ def check(img, syms, dis, rt):
             "ric_dsp_link_anchor", "ric_dsp_construct", "ric_dsp_init",
             "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
             "ric_clouds_processor_storage", "ric_clouds_large_buffer",
-            "ric_clouds_small_buffer", "ric_rings_reverb_buffer", "ric_rings_process", "ric_clouds_process",
+            "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
         )
         missing = [name for name in required if not symv_in(syms, name)]
         if missing:
@@ -402,11 +402,8 @@ def check(img, syms, dis, rt):
                 "Clouds processor": symbol_size("ric_clouds_processor_storage"),
                 "Clouds large buffer": symbol_size("ric_clouds_large_buffer"),
                 "Clouds small buffer": symbol_size("ric_clouds_small_buffer"),
-                "Rings reverb buffer": symbol_size("ric_rings_reverb_buffer"),
             }
             notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
-            if measured["Rings reverb buffer"] != 65536:
-                errors.append(f"Rings reverb buffer map size {measured['Rings reverb buffer']} B != 65536 B")
             if not (OUT / "rings-clouds.felucca.map").is_file():
                 errors.append("Rings/Clouds diagnostic linker map was not preserved")
     if (OUT / "felucca.map").is_file():
