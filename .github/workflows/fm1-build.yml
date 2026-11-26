@@ -122,7 +122,7 @@ jobs:
       # host regressions fail. This is diagnostic only; it is never labelled as tested.
       - name: Link pinned Rings and Clouds behind C ABI (memory diagnostic only)
         if: always()
-        run: FELUCCA_RIC=1 ./build.sh
+        run: FELUCCA_SLICE=0 FELUCCA_RIC=1 ./build.sh
 
       - name: Build lean FM-1 firmware for memory diagnostics (Slicer excluded)
         if: always()
