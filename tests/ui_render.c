@@ -2351,8 +2351,11 @@ int main(int argc, char **argv)
             if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s audit done palette=%u\n", S_NAME[s], p);
             mono_check();
             if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s mono done palette=%u\n", S_NAME[s], p);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s ppm begin palette=%u\n", S_NAME[s], p);
             for (k = 0; k < sizeof SHOW / sizeof SHOW[0]; k++)
                 if (!strcmp(UI_PALETTES[p].name, SHOW[k])) write_ppm(out, SHOW[k], S_NAME[s]);
+            if (s == S_SONG_EMPTY || s == S_SONG) fprintf(stderr, "ui_render: %s ppm done palette=%u\n", S_NAME[s], p);
+            if (p == 0u && s == S_SONG) fprintf(stderr, "ui_render: after SONG screen iteration\n");
         }
     fprintf(stderr, "ui_render: flat screen sweep complete\n");
     {   /* STYLE LINE (gfx.c ST_*): every screen in every palette, linted (GREY: gray, MONO: neutral); GREY MONO NIGHT
