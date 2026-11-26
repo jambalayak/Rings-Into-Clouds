@@ -99,7 +99,7 @@ for s in segments:
                     "float_peak":float(np.max(np.abs(x))),"q15_peak":float(np.max(np.abs(y)))})
 def read_stats(path):
     values = {}
-    raw = path.read_text().replace("\\\\n", "\\n")
+    raw = path.read_text()
     for line in raw.splitlines():
         if "=" in line:
             k,v=line.split("=",1); values[k]=float(v)
