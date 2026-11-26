@@ -1,0 +1,78 @@
+name: Rings and Clouds C ABI memory diagnostic
+
+on:
+  push:
+    branches:
+      - rings-clouds-abi-link
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rings-clouds-memory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  memory-link:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out firmware and pinned submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Prepare Python build dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install Pillow fonttools
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          for attempt in 1 2 3; do
+            rm -rf "${SDK_DIR}"
+            if git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 clone \
+              --depth 1 --single-branch --branch "${SDK_TAG}" \
+              "${SDK_URL}" "${SDK_DIR}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Unable to fetch pinned AC79 SDK after 3 attempts" >&2
+              exit 1
+            fi
+            echo "AC79 SDK fetch failed (attempt ${attempt}/3); retrying in 15 seconds"
+            sleep 15
+          done
+          test -d "${SDK_DIR}/.git"
+          echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+
+      - name: Verify target C/C++ ABI smoke probe
+        run: python3 tools/check_cpp_toolchain.py
+
+      - name: Link pinned Rings and Clouds behind the C ABI
+        run: FELUCCA_RIC=1 ./build.sh
+
+      - name: Upload Rings and Clouds linker map and symbol evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-clouds-c-abi-memory-map-${{ github.sha }}
+          path: |
+            build/rings-clouds.felucca.map
+            build/rings-clouds.felucca.sections.txt
+            build/rings-clouds.felucca.symbols.txt
+            build/felucca.map
+            build/felucca.sections.txt
+            build/felucca.symbols.txt
+          if-no-files-found: warn
+          retention-days: 7
