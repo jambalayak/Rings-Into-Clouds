@@ -27,6 +27,31 @@ jobs:
         run: python3 tools/check_upstream_dsp_compile.py
       - name: Compile packed-24 Rings and measure target object sizes
         run: python3 tools/check_packed24_target.py
+      - name: Install firmware build dependencies
+        run: python3 -m pip install --upgrade Pillow fonttools
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          git clone --depth 1 --single-branch --branch "${SDK_TAG}" "${SDK_URL}" "${SDK_DIR}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+      - name: Link FM-1 firmware with packed-24 Rings (diagnostic only)
+        shell: bash
+        run: |
+          set +e
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT=-Os ./build.sh 2>&1 | tee build/packed24-target-probe/firmware-link.log
+          status=${PIPESTATUS[0]}
+          echo "firmware build exit status: ${status}" | tee -a build/packed24-target-probe/firmware-link.log
+          for file in rings-clouds.felucca.map rings-clouds.felucca.symbols.txt rings-clouds.felucca.sections.txt; do
+            if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-target-probe/${file}"; fi
+          done
+          if [ ! -s build/packed24-target-probe/rings-clouds.felucca.map ]; then
+            echo "No combined linker map was produced" >&2
+            exit "${status:-1}"
+          fi
+          exit 0
       - name: Upload target object-size report
         if: always()
         uses: actions/upload-artifact@v7
