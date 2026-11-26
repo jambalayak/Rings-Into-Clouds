@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rings-delay-q214-q313-experiment
+      - rings-delay-saturation-localization
 
 permissions:
   contents: read
