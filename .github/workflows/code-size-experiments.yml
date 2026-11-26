@@ -94,6 +94,12 @@ jobs:
 
             # Capacity failures are expected measurements; compiler, linker,
             # symbol, ABI, vector, or section failures are not.
+            mkdir -p "${RESULTS}/${name}"
+            cp build/rings-clouds.felucca.map "${RESULTS}/${name}/"
+            cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}/"
+            cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}/"
+            cp "/tmp/${name}.log" "${RESULTS}/${name}/build.log"
+
             local unexpected
             unexpected="$(grep 'FAIL ' "/tmp/${name}.log" | grep -Ev 'RAM headroom|pool headroom|image [0-9]+ B exceeds the app slot' || true)"
             if [ -n "${unexpected}" ]; then
@@ -105,12 +111,6 @@ jobs:
               echo "Profile ${name} failed without a recognized capacity-only diagnostic."
               exit "${status}"
             fi
-
-            mkdir -p "${RESULTS}/${name}"
-            cp build/rings-clouds.felucca.map "${RESULTS}/${name}/"
-            cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}/"
-            cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}/"
-            cp "/tmp/${name}.log" "${RESULTS}/${name}/build.log"
 
             if [ "${gc}" = "1" ]; then
               map=build/rings-clouds.felucca.map
