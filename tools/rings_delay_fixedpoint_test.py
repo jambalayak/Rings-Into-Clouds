@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+import csv, json, math, pathlib, subprocess, wave
+import numpy as np
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+EUR = ROOT / "third_party" / "eurorack"
+STM = ROOT / "third_party" / "stmlib"
+PATCH = ROOT / "build" / "upstream-dsp-compile" / "source-patches"
+WORK = ROOT / "build" / "rings-delay-fixedpoint-experiment"
+OUT = WORK / "results"
+OUT.mkdir(parents=True, exist_ok=True)
+
+part_h = (PATCH / "rings/dsp/part.h").read_text()
+part_cc = (PATCH / "rings/dsp/part.cc").read_text()
+assert "STRING_AND_REVERB" not in part_h + part_cc
+dsp_h = (EUR / "rings/dsp/dsp.h").read_text().replace("48000.0f", "44117.6470588f")
+(PATCH / "rings/dsp").mkdir(parents=True, exist_ok=True)
+(PATCH / "rings/dsp/dsp.h").write_text(dsp_h)
+
+orig_string = (EUR / "rings/dsp/string.h").read_text()
+needle = "typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\ntypedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;"
+replacement = '#include "qn_delay_line.h"\ntypedef QNDelayLine<kDelayLineSize> StringDelayLine;\ntypedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;'
+qn_string = orig_string.replace(needle, replacement)
+if qn_string == orig_string:
+    raise SystemExit("Could not apply signed-16 delay typedef overlay")
+(PATCH / "rings/dsp/string.h").write_text(orig_string)
+(PATCH / "rings/dsp/qn_delay_line.h").write_text((ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text())
+
+sources = sorted(set(list((EUR / "rings/dsp").glob("*.cc")) + [EUR / "rings/resources.cc"] +
+                         list((STM / "dsp").glob("*.cc")) + list((STM / "utils").glob("*.cc"))))
+sources = [PATCH / "rings/dsp/part.cc" if p.name == "part.cc" else p for p in sources if "string_synth" not in p.name]
+main = ROOT / "tools/rings_delay_test/main.cc"
+include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
+           "-I" + str(ROOT / "firmware/cxx"), "-I" + str(ROOT / "third_party"),
+           "-I" + str(EUR), "-I" + str(STM)]
+common = ["g++", "-std=c++11", "-O2", "-DTEST", "-ffunction-sections", "-fdata-sections",
+          "-Wno-unused-function", "-Wno-unused-variable", *include]
+variants = [("float", None), ("q214", 14), ("q313", 13)]
+for variant, bits in variants:
+    build = WORK / variant
+    build.mkdir(parents=True, exist_ok=True)
+    objects = []
+    extra = [] if bits is None else [f"-DRINGS_DELAY_FRACTION_BITS={bits}"]
+    if bits is not None:
+        (PATCH / "rings/dsp/string.h").write_text(qn_string)
+    else:
+        (PATCH / "rings/dsp/string.h").write_text(orig_string)
+    for src in sources:
+        obj = build / (src.name + ".o")
+        subprocess.run([*common, *extra, "-c", str(src), "-o", str(obj)], cwd=ROOT, check=True)
+        objects.append(str(obj))
+    exe = build / "rings_delay_test"
+    subprocess.run([*common, *extra, str(main), *objects, "-Wl,--gc-sections", "-o", str(exe)], cwd=ROOT, check=True)
+    subprocess.run([str(exe), str(build / "audio.f32")], cwd=build, check=True)
+    if bits is not None:
+        stats = {}
+        for line in (build / "delay_stats.txt").read_text().splitlines():
+            k, v = line.split("=", 1); stats[k] = float(v)
+        (build / "delay_stats.json").write_text(json.dumps(stats, indent=2) + "\n")
+
+reference = np.fromfile(WORK / "float/audio.f32", dtype=np.float32).reshape(-1, 2)
+segments = list(csv.DictReader(open(WORK / "float/segments.csv", newline="")))
+def rms(x):
+    return float(np.sqrt(np.mean(np.asarray(x, dtype=np.float64) ** 2)))
+def snr_db(ref, test):
+    err = rms(test-ref)
+    return 20.0 * math.log10(max(rms(ref), 1e-15) / max(err, 1e-15))
+summary = {"sample_rate_hz_exact": 24000000/544, "cases": 75, "models": [
+    "Modal", "Sympathetic Strings", "String", "FM Voice", "Quantized Sympathetic Strings"],
+    "notes_midi": [36,60,84], "profiles": ["neutral","dark","bright","long_decay","loud_external"],
+    "variants": {}}
+for variant in ("q214", "q313"):
+    rendered = np.fromfile(WORK / variant / "audio.f32", dtype=np.float32).reshape(-1, 2)
+    stats = json.loads((WORK / variant / "delay_stats.json").read_text())
+    per_model = []
+    for model in range(5):
+        rows = []
+        for s in segments:
+            if int(s["model"]) != model: continue
+            start, count = int(s["start"]), int(s["frames"])
+            x, y = reference[start:start+count], rendered[start:start+count]
+            rows.append({"note":int(s["note"]), "profile":s["profile"],
+                         "snr_db":snr_db(x,y), "rms_error":rms(y-x),
+                         "reference_rms":rms(x), "variant_rms":rms(y)})
+        per_model.append({"model":summary["models"][model],
+                          "mean_snr_db":float(np.mean([r["snr_db"] for r in rows])),
+                          "worst_snr_db":min(r["snr_db"] for r in rows),
+                          "worst_case":min(rows,key=lambda r:r["snr_db"]),
+                          "cases":rows})
+    summary["variants"][variant] = {
+        "fraction_bits":14 if variant=="q214" else 13,
+        "range": "[-2, 1.9999389648]" if variant=="q214" else "[-4, 3.9998779297]",
+        "overall_snr_db":snr_db(reference,rendered),
+        "overall_rms_error":rms(rendered-reference),
+        "peak":float(np.max(np.abs(rendered))),
+        "output_samples_over_full_scale":int(np.count_nonzero(np.abs(rendered)>1.0)),
+        "delay_saturation_count":int(stats["qn_saturation_count"]),
+        "max_abs_delay_value":float(stats["qn_max_abs"]),
+        "per_model":per_model}
+    pcm = np.rint(np.clip(rendered,-1.0,1.0)*32767.0).astype("<i2")
+    with wave.open(str(OUT / f"rings-{variant}.wav"),"wb") as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(44118); w.writeframes(pcm.tobytes())
+# Include float WAV from the same fixed conversion for direct listening comparison.
+pcm = np.rint(np.clip(reference,-1.0,1.0)*32767.0).astype("<i2")
+with wave.open(str(OUT / "rings-float-reference.wav"),"wb") as w:
+    w.setnchannels(2); w.setsampwidth(2); w.setframerate(44118); w.writeframes(pcm.tobytes())
+(OUT / "metrics.json").write_text(json.dumps(summary, indent=2)+"\n")
+print(json.dumps({k:v for k,v in summary.items() if k!="variants"},indent=2))
+for name, v in summary["variants"].items():
+    print(name, json.dumps({k:x for k,x in v.items() if k!="per_model"}))
