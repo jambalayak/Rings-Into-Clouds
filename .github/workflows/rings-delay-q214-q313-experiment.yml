@@ -1,10 +1,11 @@
-name: Rings signed-16 delay format experiment (Q2.14 and Q3.13)
+name: Rings signed-16 delay format experiment (intermediate ranges)
 
 on:
   push:
     branches:
       - rings-delay-q214-q313-experiment
       - rings-delay-saturation-localization
+      - rings-delay-scaled-int16-experiment
 
 permissions:
   contents: read
@@ -30,13 +31,13 @@ jobs:
         run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
       - name: Generate approved five-model source overlay
         run: python3 tools/check_upstream_dsp_compile.py
-      - name: Compare float, Q2.14 and Q3.13 Rings delay storage
+      - name: Compare float and five signed-16 Rings delay quantizers
         run: python3 tools/rings_delay_fixedpoint_test.py
       - name: Upload audio and metrics
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-delay-q214-q313-${{ github.sha }}
+          name: rings-delay-scaled-int16-${{ github.sha }}
           path: build/rings-delay-fixedpoint-experiment/results/
           if-no-files-found: warn
           retention-days: 14
