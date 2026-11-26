@@ -1,0 +1,37 @@
+name: Rings Q2.75 four-resonator polyphonic stress
+on:
+  push:
+    branches:
+      - rings-delay-polyphonic-stress
+permissions:
+  contents: read
+concurrency:
+  group: rings-delay-polyphonic-stress
+  cancel-in-progress: true
+jobs:
+  host-audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade numpy
+      - name: Install target toolchain for approved five-model overlay
+        run: tools/get_toolchain.sh
+      - name: Prepare target compiler environment
+        run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Generate approved five-model source overlay
+        run: python3 tools/check_upstream_dsp_compile.py
+      - name: Run four-resonator float vs Q2.75 comparison
+        run: python3 tools/rings_delay_polyphonic_test.py
+      - name: Upload metrics and WAVs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-delay-polyphonic-stress-${{ github.sha }}
+          path: build/rings-delay-polyphonic-stress/results/
+          if-no-files-found: warn
+          retention-days: 14
