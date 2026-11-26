@@ -346,7 +346,7 @@ if [ -f build/gen/felucca_tables.h ]; then
         "$OUT/drumfuzz" 1 6 1500
     run "DRUM grid stress (#211) with a SONG playing" "$OUT/drumfuzz" 101 3 1500 song
     FV=$(sed -n 's/^#define FELUCCA_VERSION "\([^"]*\)".*/\1/p' firmware/src/felucca.c | head -n 1)   # (the splash, ABOUT: the real version)
-    $CC -O1 -w "-DFELUCCA_VERSION=\"$FV\"" -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/ui_render" tests/ui_render.c -lm
+    $CC -O1 -g -fwrapv -fsanitize=address,undefined -fno-sanitize=shift -fno-sanitize-recover=all -w "-DFELUCCA_VERSION=\"$FV\"" -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/ui_render" tests/ui_render.c -lm
     mkdir -p build/ui_new/ppm build/ui_slot
     run "UI renders: layout lint (every screen and palette, every page, engine and column value), GREY gray, MONO neutral, alignment by ink (1 px fails), draw cost, LARGE one value size per knob (#251)" \
         "$OUT/ui_render" build/ui_new build/ui_slot
