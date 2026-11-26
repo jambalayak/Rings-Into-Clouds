@@ -76,6 +76,18 @@ jobs:
       - name: Run host regression suite
         run: tests/run_tests.sh
 
+      - name: Upload tested development build
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-into-clouds-dev-${{ github.sha }}
+          path: |
+            build/felucca.fwsc
+            build/felucca.bin
+            build/felucca.map
+            build/felucca.sections.txt
+          if-no-files-found: error
+          retention-days: 7
       # One-time review artifact: capture the intentional compact-effects render baseline
       # without changing the checked-in golden file or making this run pass by itself.
       - name: Export compact-effects golden renders for review
@@ -124,15 +136,3 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Upload tested development build
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: rings-into-clouds-dev-${{ github.sha }}
-          path: |
-            build/felucca.fwsc
-            build/felucca.bin
-            build/felucca.map
-            build/felucca.sections.txt
-          if-no-files-found: error
-          retention-days: 7
