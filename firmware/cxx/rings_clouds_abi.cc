@@ -24,13 +24,15 @@ unsigned char ric_rings_strummer_storage[sizeof(rings::Strummer)];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_processor_storage[sizeof(clouds::GranularProcessor)];
 
-/* Stock stereo layout: 118,784 B large buffer (sample + workspace) in POOL,
- * 65,408 B small buffer in ordinary RAM. The buffers are deliberately full
- * sized at this measurement gate; no shortened recording profile is assumed. */
+/* Isolated, user-approved short-recording profile:
+ * 86,144 B large buffer = 32,768 B recording + 53,376 B workspace;
+ * 32,768 B small buffer = the second 32,768 B recording channel.
+ * Both live in POOL so the ordinary-RAM region is not consumed. The
+ * 53,376-byte workspace is unchanged. This is a probe, not a product merge. */
 __attribute__((used, section(".pool"), aligned(16)))
-unsigned char ric_clouds_large_buffer[118784];
-__attribute__((used, section(".bss.ric_clouds_small"), aligned(16)))
-unsigned char ric_clouds_small_buffer[65408];
+unsigned char ric_clouds_large_buffer[86144];
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_clouds_small_buffer[32768];
 }
 
 static uint8_t ric_dsp_constructed;
