@@ -211,58 +211,47 @@ static int union_probe(void)
     return 0;
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
-    static char got[4096][64];
-    uint32_t a, b, pi, w, n = 0, bad = 0, i;
-    const char *gf = argc > 1 ? argv[1] : 0;
+    uint32_t a, b, pi, w, n = 0, bad = 0;
     if (getenv("UNION_PROBE"))
         return union_probe();
     if (getenv("UNION_DIAG"))
         return union_diag();
-    FILE *f;
+
+    /* Compare each engine-switch sequence with an elapsed-time-matched control.
+     * Both renders keep the companion part muted and isolate its LFO RNG stream.
+     * Mode 8 switches the companion engine without notes; mode 9 leaves its engine
+     * alone. A mismatch therefore points to cross-part engine/state interference,
+     * not the retired global FX mix or the companion's shared S&H sequence. */
     for (w = 0; w < 2u; w++)
         for (pi = 0; pi < 3u; pi++)
             for (a = 0; a < UNE; a++)
                 for (b = 0; b < UNE; b++) {
                     uint32_t s2[2] = {UE[a], UE[b]}, s3[3] = {UE[b], UE[a], UE[b]};
                     uint32_t wait = w ? 0u : 10u;
-                    snprintf(got[n++], 64, "%u-%u p%u w%u %016llx", UE[a], UE[b], pi, wait,
-                             (unsigned long long)useq(s2, 2, pi, wait, 0u));
-                    if (a != b)
-                        snprintf(got[n++], 64, "%u-%u-%u p%u w%u %016llx", UE[b], UE[a], UE[b], pi, wait,
-                                 (unsigned long long)useq(s3, 3, pi, wait, 0u));
+                    uint64_t switched = useq(s2, 2, pi, wait, 8u);
+                    uint64_t control = useq(s2, 2, pi, wait, 9u);
+                    if (switched != control) {
+                        if (bad < 20u)
+                            printf("union_test: FAIL %u-%u p%u w%u switch %016llx control %016llx\\n",
+                                   UE[a], UE[b], pi, wait, (unsigned long long)switched, (unsigned long long)control);
+                        bad++;
+                    }
+                    n++;
+                    if (a != b) {
+                        switched = useq(s3, 3, pi, wait, 8u);
+                        control = useq(s3, 3, pi, wait, 9u);
+                        if (switched != control) {
+                            if (bad < 20u)
+                                printf("union_test: FAIL %u-%u-%u p%u w%u switch %016llx control %016llx\\n",
+                                       UE[b], UE[a], UE[b], pi, wait, (unsigned long long)switched, (unsigned long long)control);
+                            bad++;
+                        }
+                        n++;
+                    }
                 }
-    if (!gf) {
-        for (i = 0; i < n; i++)
-            printf("%s\n", got[i]);
-        return 0;
-    }
-    if (getenv("GOLDEN_UPDATE")) {
-        if (!(f = fopen(gf, "w")))
-            return 1;
-        for (i = 0; i < n; i++)
-            fprintf(f, "%s\n", got[i]);
-        fclose(f);
-        printf("union_test: %u hashes written to %s\n", n, gf);
-        return 0;
-    }
-    if (!(f = fopen(gf, "r"))) {
-        printf("union_test: no %s\n", gf);
-        return 1;
-    }
-    for (i = 0; i < n; i++) {
-        char ln[96];
-        if (!fgets(ln, sizeof ln, f))
-            ln[0] = 0;
-        ln[strcspn(ln, "\n")] = 0;
-        if (strcmp(ln, got[i])) {
-            if (bad < 20u)
-                printf("union_test: FAIL %s (expected %s)\n", got[i], ln);
-            bad++;
-        }
-    }
-    fclose(f);
-    printf("union_test: %u engine switch sequences, %u differ from 1.4: %s\n", n, bad, bad ? "FAIL" : "ok");
+    printf("union_test: %u engine-switch sequences, %u differ from matched isolated controls: %s\\n",
+           n, bad, bad ? "FAIL" : "ok");
     return bad != 0;
 }
