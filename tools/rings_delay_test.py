@@ -27,7 +27,6 @@ q15_string = orig_string.replace(
     '#include "q15_delay_line.h"\ntypedef Q15DelayLine<kDelayLineSize> StringDelayLine;\ntypedef Q15DelayLine<kDelayLineSize / 2> StiffnessDelayLine;')
 if q15_string == orig_string:
     raise SystemExit("Could not apply Q15 String/Stiffness delay typedef overlay")
-(PATCH / "rings/dsp/string.h").write_text(orig_string)
 q15_header = ROOT / "tools" / "rings_delay_test" / "q15_delay_line.h"
 (PATCH / "rings/dsp/q15_delay_line.h").write_text(q15_header.read_text())
 
@@ -43,6 +42,7 @@ common = ["g++", "-std=c++11", "-O2", "-D_GNU_SOURCE", "-DTEST", "-ffunction-sec
 for variant, extra in (("float", []), ("q15", ["-DRINGS_DELAY_Q15"])):
     build = WORK / variant
     build.mkdir(parents=True, exist_ok=True)
+    (PATCH / "rings/dsp/string.h").write_text(q15_string if variant == "q15" else orig_string)
     objects = []
     for src in sources:
         obj = build / (src.name + ".o")
@@ -98,12 +98,15 @@ for s in segments:
 stats = {}
 for line in (WORK / "q15/delay_stats.txt").read_text().splitlines():
     k,v=line.split("=",1); stats[k]=float(v)
+float_stats = {}
+for line in (WORK / "float/delay_stats.txt").read_text().splitlines():
+    k,v=line.split("=",1); float_stats[k]=float(v)
 summary = {"sample_rate_hz_exact":24000000/544,"wav_sample_rate_hz":44118,
            "samples_per_channel":int(a.shape[0]),"float_peak":peak_a,"q15_peak":peak_b,
            "rms_error":rms_err,"snr_db":snr,"output_samples_over_full_scale_float":int(np.count_nonzero(np.abs(a)>1.0)),
            "output_samples_over_full_scale_q15":int(np.count_nonzero(np.abs(b)>1.0)),
            "q15_delay_saturation_count":int(stats["q15_saturation_count"]),
-           "q15_delay_max_abs_before_quantisation":stats["q15_max_abs"],"segments":metrics}
+           "q15_delay_max_abs_before_quantisation":stats["q15_max_abs"],"float_part_size_bytes":float_stats["part_size_bytes"],"q15_part_size_bytes":stats["part_size_bytes"],"part_size_saving_bytes":float_stats["part_size_bytes"]-stats["part_size_bytes"],"segments":metrics}
 (OUT / "metrics.json").write_text(json.dumps(summary,indent=2)+"\n")
 # Same fixed PCM conversion for both; deliberately no per-file normalisation.
 for name, data in (("rings-float-reference.wav",a),("rings-int16-delay.wav",b)):
