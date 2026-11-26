@@ -1,4 +1,4 @@
-name: Rings 16-bit delay audio comparison (test only, Q15 class include order fix)
+name: Rings 16-bit delay audio comparison (test only, Q15 stats formatting fix)
 
 on:
   push:
