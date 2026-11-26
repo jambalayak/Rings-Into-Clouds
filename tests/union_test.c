@@ -199,11 +199,25 @@ static int union_diag(void)
     return 0;
 }
 
+/* A single minimal legacy case, split by render/RNG mode. UNION_PROBE=1:
+ * keep ANALOG/ANALOG, preset 0, wait 10 ms; print every existing diagnostic mode. */
+static int union_probe(void)
+{
+    const uint32_t e[2] = {UE[0], UE[0]};
+    uint32_t m;
+    for (m = 0; m <= 12u; m++)
+        printf("union_probe: ANALOG/ANALOG p0 w10 mode%u %016llx\n",
+               m, (unsigned long long)useq(e, 2, 0, 10, m));
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     static char got[4096][64];
     uint32_t a, b, pi, w, n = 0, bad = 0, i;
     const char *gf = argc > 1 ? argv[1] : 0;
+    if (getenv("UNION_PROBE"))
+        return union_probe();
     if (getenv("UNION_DIAG"))
         return union_diag();
     FILE *f;
