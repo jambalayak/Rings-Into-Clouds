@@ -97,12 +97,15 @@ for s in segments:
                     "rms_error":rms(e),"snr_db":20*math.log10(max(rms(x),1e-15)/max(rms(e),1e-15)),
                     "dominant_partial_cents":cents,"decay_windows":decay,
                     "float_peak":float(np.max(np.abs(x))),"q15_peak":float(np.max(np.abs(y)))})
-stats = {}
-for line in (WORK / "q15/delay_stats.txt").read_text().splitlines():
-    k,v=line.split("=",1); stats[k]=float(v)
-float_stats = {}
-for line in (WORK / "float/delay_stats.txt").read_text().splitlines():
-    k,v=line.split("=",1); float_stats[k]=float(v)
+def read_stats(path):
+    values = {}
+    raw = path.read_text().replace("\\\\n", "\\n")
+    for line in raw.splitlines():
+        if "=" in line:
+            k,v=line.split("=",1); values[k]=float(v)
+    return values
+stats = read_stats(WORK / "q15/delay_stats.txt")
+float_stats = read_stats(WORK / "float/delay_stats.txt")
 summary = {"sample_rate_hz_exact":24000000/544,"wav_sample_rate_hz":44118,
            "samples_per_channel":int(a.shape[0]),"float_peak":peak_a,"q15_peak":peak_b,
            "rms_error":rms_err,"snr_db":snr,"output_samples_over_full_scale_float":int(np.count_nonzero(np.abs(a)>1.0)),
