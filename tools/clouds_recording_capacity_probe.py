@@ -67,20 +67,20 @@ once(profile,
 
 harness = ROOT / "tools/clouds_compact_profile_host.cc"
 h = harness.read_text()
-for old, new, label in (
-    ("GuardedBuffer large(86144);", "GuardedBuffer large(98416);", "matrix large buffer"),
-    ("GuardedBuffer small(32768);", "GuardedBuffer small(45040);", "matrix small buffer"),
+for old, new, label, expected in (
+    ("GuardedBuffer large(86144);", "GuardedBuffer large(98416);", "matrix large buffer", 2),
+    ("GuardedBuffer small(32768);", "GuardedBuffer small(45040);", "matrix small buffer", 2),
     ("p->Init(large.data(), 86144, small.data(), 32768);",
-     "p->Init(large.data(), 98416, small.data(), 45040);", "matrix processor init"),
-    ("GuardedBuffer large(86143);", "GuardedBuffer large(98415);", "undersized large buffer"),
+     "p->Init(large.data(), 98416, small.data(), 45040);", "matrix processor init", 2),
+    ("GuardedBuffer large(86143);", "GuardedBuffer large(98415);", "undersized large buffer", 1),
     ("p->Init(large.data(), 86143, small.data(), 32768);",
-     "p->Init(large.data(), 98415, small.data(), 45040);", "undersized processor init"),
+     "p->Init(large.data(), 98415, small.data(), 45040);", "undersized processor init", 1),
     ("const size_t large_size = 86144, small_size = 32768;",
-     "const size_t large_size = 98416, small_size = 45040;", "render buffer sizes"),
+     "const size_t large_size = 98416, small_size = 45040;", "render buffer sizes", 1),
 ):
-    if h.count(old) != 1:
-        raise SystemExit(f"{label}: expected one match, found {h.count(old)}")
-    h = h.replace(old, new, 1)
+    if h.count(old) != expected:
+        raise SystemExit(f"{label}: expected {expected} matches, found {h.count(old)}")
+    h = h.replace(old, new)
 harness.write_text(h)
 
 test = ROOT / "tools/clouds_compact_profile_test.py"
