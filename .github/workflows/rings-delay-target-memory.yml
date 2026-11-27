@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rings-no-sample-engine-exp
+      - marbles-dsp-sizing-exp
 
 permissions:
   contents: read
