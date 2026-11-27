@@ -111,21 +111,36 @@ static void eng_mem_claim(const track_t *t)
     eng_mem_owner[p] = (uint8_t)(e + 1u);
 }
 
-/* SLICE missing-source notice (ui_input.c sample_notice). */
+/* Missing-source notice (ui_input.c sample_notice): separate codes keep the
+ * once-per-track suppression independent for SAMPLE, GRAIN and SLICE. */
 static uint8_t snd_said[NTRK];
 static const char *snd_missing(const track_t *t, uint32_t *code)
 {
-#if FELUCCA_SLICE
     const engine_t *e = ENGINES[eng_idx(t->eng_req)];
+#if FELUCCA_SAMPLE_ENGINE
+    if (e == &ENG_SAMPLE) {
+        uint32_t si = (uint32_t)t->p[P_E0] % SMP_NALL;
+        *code = 16u + si;
+        return smp_set_missing(si) ? "NO SAMPLE" : 0;
+    }
+#endif
+#if FELUCCA_GRAIN_ENGINE
+    if (e == &ENG_GRAIN) {
+        uint32_t si = (uint32_t)t->p[P_E0] % SMP_NALL;
+        *code = 32u + si;
+        return smp_set_missing(si) ? "NO SAMPLE" : 0;
+    }
+#endif
+#if FELUCCA_SLICE
     if (e == &ENG_SLICE) {
         uint32_t si = slc_src_of(t->p);
         *code = 64u + si;
         return slc_get(si) ? 0 : N_SLC_SRC[si];
     }
-#else
+#endif
+    (void)e;
     (void)t;
     (void)code;
-#endif
     return 0;
 }
 
