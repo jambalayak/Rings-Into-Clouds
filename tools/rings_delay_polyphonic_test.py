@@ -32,7 +32,7 @@ include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
            "-I" + str(ROOT / "third_party"), "-I" + str(EUR), "-I" + str(STM)]
 common = ["g++", "-std=c++11", "-O2", "-D_GNU_SOURCE", "-DTEST", "-ffunction-sections", "-fdata-sections",
           "-Wno-unused-function", "-Wno-unused-variable", *include]
-variants = [("float", None), ("q275", 11915), ("q300", 10922), ("q313", 8192), ("q412", 4096), ("q511", 2048)]
+variants = [("float", None), ("q275", 11915), ("q300", 10922), ("q313", 8192), ("q3125", 8388), ("q412", 4096), ("q511", 2048)]
 for name, scale in variants:
     build = WORK / name
     build.mkdir(parents=True, exist_ok=True)
