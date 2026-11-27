@@ -31,6 +31,9 @@ int32_t ric_dsp_init(uint32_t sample_rate_hz, uint32_t inter_onset_us);
 void ric_rings_strummer_process(const float *exciter, uint32_t frames, void *performance_state);
 void ric_rings_process(const void *performance_state, const void *patch,
                        const float *input, float *out, float *aux, uint32_t frames);
+/* Independent second mono Rings experiment; state and patch are separate from Rings 1. */
+void ric_rings2_process(const void *performance_state, const void *patch,
+                        const float *input, float *out, float *aux, uint32_t frames);
 void ric_clouds_prepare(void);
 void ric_clouds_process(int16_t *input_interleaved, int16_t *output_interleaved, uint32_t frames);
 
