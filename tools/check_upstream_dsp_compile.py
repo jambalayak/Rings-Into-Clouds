@@ -325,6 +325,13 @@ def main():
         "}  // namespace rings_mono",
         1
     )
+    # The upstream chord lookup contains four polyphony-indexed rows. Keep all
+    # four rows in the mono specialization: only row zero is selected at runtime,
+    # but shrinking this lookup with kMaxPolyphony=1 truncates its initializer.
+    mono_part_cc = mono_part_cc.replace(
+        "float chords[kMaxPolyphony][11][8]",
+        "float chords[4][11][8]"
+    )
     mono_part_cc_path = patch_root / "rings_mono" / "dsp" / "part.cc"
     mono_part_cc_path.parent.mkdir(parents=True, exist_ok=True)
     mono_part_cc_path.write_text(mono_part_cc)
