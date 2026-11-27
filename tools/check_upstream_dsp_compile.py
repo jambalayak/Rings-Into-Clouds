@@ -117,6 +117,29 @@ def main():
     stmlib_dsp = stmlib_dsp[:clip_start] + portable_clip_sqrt + stmlib_dsp[block_end:]
     stmlib_dsp_patched.write_text(stmlib_dsp)
 
+    # The FM-1 target's -nostdinc++ environment does not provide std::upper_bound.
+    # Replace this one standard-library call with an equivalent local binary search.
+    marbles_dist_original = eur / "marbles" / "random" / "distributions.h"
+    marbles_dist_patched = patch_root / "marbles" / "random" / "distributions.h"
+    marbles_dist_patched.parent.mkdir(parents=True, exist_ok=True)
+    marbles_dist = marbles_dist_original.read_text()
+    upper_bound_call = "int n = std::upper_bound(&cdf_[1], &cdf_[num_tokens_ + 1], u) - &cdf_[0];"
+    binary_search = """int lo = 1;
+    int hi = num_tokens_ + 1;
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (u < cdf_[mid]) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    int n = lo;"""
+    if upper_bound_call not in marbles_dist:
+        raise SystemExit("expected Marbles std::upper_bound call not found")
+    marbles_dist_patched.write_text(marbles_dist.replace(upper_bound_call, binary_search))
+
+
     # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
     # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
     part_h_original = eur / "rings/dsp/part.h"
