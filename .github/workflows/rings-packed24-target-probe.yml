@@ -134,6 +134,9 @@ jobs:
             exit "${status:-1}"
           fi
           exit 0
+      - name: Run Rings float/Q15 host audio comparison
+        if: matrix.size_strategy == 'no-unwind'
+        run: python3 tools/rings_delay_test.py
       - name: Compile-only UI function-size probes
         if: matrix.size_strategy == 'no-unwind'
         continue-on-error: true
@@ -201,5 +204,54 @@ jobs:
         with:
           name: rings-xip-audit-${{ matrix.optimization }}-${{ matrix.size_strategy }}-${{ github.sha }}
           path: build/xip-audit-artifact/
+          if-no-files-found: warn
+          retention-days: 14
+
+  retained-host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ python3
+          python3 -m pip install --upgrade numpy Pillow fonttools
+      - name: Generate firmware tables and sample data
+        run: |
+          mkdir -p build/gen build/host build/genwav build/drum-demo build/slice-demo
+          python3 tools/gen_tables.py build/gen/felucca_tables.h
+          python3 tools/gen_fm6_patches.py build/gen/felucca_fm6.h
+          python3 tools/gen_adpcm.py build/gen/felucca_adpcm.h
+          python3 tools/gen_samples.py build/gen/felucca_samples.h
+      - name: Apply diagnostic engine trim and remove SAMPLE selection
+        run: |
+          python3 tools/rings_clouds_engine_trim_probe.py
+          python3 tools/rings_clouds_no_sample_probe.py
+      - name: Run DRUM host tests
+        run: |
+          cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/drum_test tests/drum_test.c -lm
+          build/host/drum_test build/drum-demo
+      - name: Run SLICE host tests and user-slot upload round trip
+        run: |
+          python3 tests/slice_loop.py build/host/LOOP
+          python3 tools/fm1_sample_upload.py build LOOP build/host/LOOP build/host/LOOP.wav
+          cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/slice_test tests/slice_test.c -lm
+          build/host/slice_test build/host/LOOP build/slice-demo
+      - name: Run Clouds compact-profile ASan/UBSan and audio tests
+        run: python3 tools/clouds_compact_profile_test.py
+      - name: Upload retained-engine host test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-clouds-retained-host-tests-${{ github.sha }}
+          path: |
+            build/drum-demo/
+            build/slice-demo/
+            build/clouds-compact-profile/
+            build/host/LOOP.*
           if-no-files-found: warn
           retention-days: 14
