@@ -289,30 +289,14 @@ jobs:
           python3 tools/gen_fm6_patches.py build/gen/felucca_fm6.h
           python3 tools/gen_adpcm.py build/gen/felucca_adpcm.h
           python3 tools/gen_samples.py build/gen/felucca_samples.h
+      - name: Run DRUM host tests
+        run: |
+          cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/drum_test tests/drum_test.c -lm
+          build/host/drum_test build/drum-demo
       - name: Apply diagnostic engine trim and remove SAMPLE selection
         run: |
           python3 tools/rings_clouds_engine_trim_probe.py
           python3 tools/rings_clouds_no_sample_probe.py
-      - name: Run DRUM host tests on retained-engine profile
-        run: |
-          # PHYS is intentionally removed in this profile; keep all DRUM tests
-          # while dropping only the legacy assertion that PHYS remains registered.
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("tests/drum_test.c")
-          s = p.read_text()
-          line = '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM || ENGINES[ENGI_PHYS] != &ENG_PHYS || ENG_PHYS.keys != 0;'
-          if line not in s:
-              raise SystemExit("expected PHYS-only assertion not found")
-          s = s.replace(line, '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM;', 1)
-          lines = s.splitlines()
-          start = next(i for i, line in enumerate(lines) if line.startswith('    printf("drum_test: keys:'))
-          end = next(i for i, line in enumerate(lines) if line.startswith('    fails += bad != 0;'))
-          lines[start:end] = ['    printf("drum_test: keys: the GM drum map, first C plays KICK, KICK picks the kick; DRUM is engine %u: %s\\n", ENGI_DRUM, bad ? "FAIL" : "ok");']
-          p.write_text("\n".join(lines) + "\n")
-          PY
-          cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/drum_test tests/drum_test.c -lm
-          build/host/drum_test build/drum-demo
       - name: Run SLICE host tests and user-slot upload round trip
         run: |
           python3 tests/slice_loop.py build/host/LOOP
