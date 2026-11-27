@@ -24,7 +24,7 @@ if patched == orig:
 (PATCH / "rings/dsp/string.h").write_text(patched)
 
 common = [
-    "-target", "pi32v2", "-mcpu=r3", "-mfprev1", "-Os", "-std=gnu++11", "-DTEST",
+    "-target", "pi32v2", "-mcpu=r3", "-mfprev1", os.environ.get("FELUCCA_CODE_OPT", "-Os"), "-std=gnu++11", "-DTEST",
     "-fno-math-errno", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics",
     "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", "-fdata-sections",
     "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
