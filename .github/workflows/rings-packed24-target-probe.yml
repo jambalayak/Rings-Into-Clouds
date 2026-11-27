@@ -4,6 +4,7 @@ on:
     branches:
       - rings-delay-packed24-target-probe
       - rings-xip-audit-capture
+      - rings-no-external-input-probe
 permissions:
   contents: read
 concurrency:
@@ -100,6 +101,8 @@ jobs:
         run: python3 tools/check_upstream_dsp_compile.py
       - name: Compile packed-24 Rings and measure target object sizes
         run: python3 tools/check_packed24_target.py
+      - name: Compile-only Rings external-input removal probe
+        run: python3 tools/check_rings_no_external_input.py
       - name: Install firmware build dependencies
         run: python3 -m pip install --upgrade Pillow fonttools
       - name: Install pinned AC79 SDK
@@ -144,6 +147,7 @@ jobs:
           cp -f build/packed24-target-probe/*.log "$STAGE/reports/" 2>/dev/null
           cp -f build/packed24-target-probe/sizes.txt "$STAGE/reports/" 2>/dev/null
           cp -f build/xip-function-probes/* "$STAGE/reports/" 2>/dev/null
+          cp -f build/rings-no-input-probe/report.txt "$STAGE/reports/" 2>/dev/null
           find build -type f -name '*.o' -print0 | while IFS= read -r -d '' f; do
             rel="${f#build/}"
             mkdir -p "$STAGE/objects/$(dirname "$rel")"
