@@ -377,10 +377,12 @@ int main(int argc, char **argv)
         printf("slice: no user loop (%s.hdr / .bin / .hits: tests/slice_loop.py + fm1_sample_upload.py build)\n", loop);
         return 1;
     }
+#if FELUCCA_SAMPLE_ENGINE
     if ((uintptr_t)host_slots < (uintptr_t)SMP_DATA || (uintptr_t)host_slots - (uintptr_t)SMP_DATA > 0xF0000000u) {
         printf("slice: the slot image must lie above SMP_DATA within 4 GiB (32-bit offsets)\n");
         return 1;
     }
+#endif
     smp_user_scan(0);
     check("USR1: valid after smp_user_scan, slice table built", usr_nz[0] && slc_usr[0].len && slc_get(1) != 0,
           "%u zones, %u samples", usr_nz[0], slc_usr[0].len);
@@ -821,6 +823,7 @@ int main(int argc, char **argv)
 #ifdef SLC_PIANO_NOTE
     check("PIANO: build-time table == decoder states", !(bad = table_check(&SLC_PIANO)), "%u of %u differ", bad,
           SLC_GRID + SLC_PIANO.nauto);
+#if FELUCCA_SAMPLE_ENGINE
     for (i = 0; i < NELEM(SMP_ZONES) && !(SMP_ZONES[i].root16 == SLC_PIANO_NOTE * 16 &&
                                           SMP_ZONES[i].off == SLC_PIANO.seg[0].off); i++)
         ;
@@ -829,6 +832,14 @@ int main(int argc, char **argv)
           SLC_PIANO.len == SMP_ZONES[i].n && SLC_PIANO.seg[0].n == SLC_PIANO.len && SLC_PIANO.rate == SMP_ZONES[i].rate &&
           SLC_PIANO.nauto == 1u && SLC_PIANO.apos[0] == 0u && SLC_PIANO.ast[0] == 0u,
           "%u samples, %u AUTO", SLC_PIANO.len, SLC_PIANO.nauto);
+#else
+    check("PIANO (SRC 4): compact SLICE-only data retained, one AUTO slice at 0",
+          slc_get(SLC_SRC_PIANO) == &SLC_PIANO && SLC_PIANO.nseg == 1u && SLC_PIANO.len == 16537u &&
+          SLC_PIANO.seg[0].off == 0u && SLC_PIANO.seg[0].n == 16537u &&
+          SLC_PIANO.nauto == 1u && SLC_PIANO.apos[0] == 0u &&
+          SLC_PIANO.seg[0].off + (SLC_PIANO.len + 1u) / 2u <= sizeof SLC_DATA,
+          "%u samples, %u AUTO, %u B compact data", SLC_PIANO.len, SLC_PIANO.nauto, (uint32_t)sizeof SLC_DATA);
+#endif
     {   /* SRC 4 plays the zone from its start */
         track_t *t = &trk[0];
         voice_t *v;
@@ -857,10 +868,15 @@ int main(int argc, char **argv)
           str_eq(N_SLC_SRC[3], "USR3") && str_eq(N_SLC_SRC[4], "PIANO") && SLC_BREAK.len != 0u, 0);
     sine_ok("SLICE on an empty USR2: A4", sine_run(SLC_ENG, 2, 69), 440.0);
     sine_ok("SLICE on an empty USR2: A3", sine_run(SLC_ENG, 2, 57), 220.0);
+#if FELUCCA_SAMPLE_ENGINE
     sine_ok("SAMPLE on an empty USR2: A4", sine_run(4u, (int16_t)(SMP_NSETS + 1), 69), 440.0);
     sine_ok("GRAIN on an empty USR3: C5", sine_run(8u, (int16_t)(SMP_NSETS + 2), 72), 523.25);
     check("SLICE on USR1 (a sample), SAMPLE on PIANO: not the sine", !sine_run(SLC_ENG, 1, 60).sine &&
           !sine_run(4u, 0, 60).sine, 0);
+#else
+    check("SAMPLE and GRAIN engine indices disabled", !eng_ok(4u) && !eng_ok(8u), 0);
+    check("SLICE on USR1: not the sine", !sine_run(SLC_ENG, 1, 60).sine, 0);
+#endif
     printf("slice: %s\n", fails ? "FAILED" : "all checks ok");
     return fails != 0;
 }
