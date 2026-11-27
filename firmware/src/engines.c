@@ -188,11 +188,11 @@ static int eng_track_allowed(uint32_t e, const track_t *t)
     uint32_t p = (uint32_t)(t - trk);
     if (!eng_ok(e) || p >= NPART)
         return 0;
-    return p == TRK_DRUM ? e == ENGI_DRUM : e != ENGI_DRUM;
+    return p == (NTRK - 1u) ? e == ENGI_DRUM : e != ENGI_DRUM;
 }
 static uint32_t eng_track_count(const track_t *t)
 {
-    return (uint32_t)(t - trk) == TRK_DRUM ? 1u : NENG_SHOWN - 1u;
+    return (uint32_t)(t - trk) == (NTRK - 1u) ? 1u : NENG_SHOWN - 1u;
 }
 static uint32_t eng_track_vis(uint32_t n, const track_t *t)
 {
