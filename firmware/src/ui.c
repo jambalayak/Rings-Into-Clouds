@@ -1281,21 +1281,35 @@ static int param_kept(uint32_t i)
  * (SAMPLE 4, once PERC, is past SMP_NPRESETS: apply_preset_to loads it as DRUM) */
 static uint32_t preset_orig(const engine_t *e, uint32_t k)
 {
+#if FELUCCA_SAMPLE_ENGINE
     return e->presets == SMP_PRESET_TABLE && k < SMP_NSETS ? SMP_SET_ORIG[k] : k;
+#else
+    (void)e;
+    return k;
+#endif
 }
 
 /* the presets of engine e that browsing shows before preset k (k = npresets: all of them) */
 static uint32_t preset_rank(const engine_t *e, uint32_t k)
 {
+#if FELUCCA_SAMPLE_ENGINE
     uint32_t i, n = 0;
     if (e->presets != SMP_PRESET_TABLE)
         return k;
     for (i = 0; i < k; i++)
         n += preset_orig(e, i) == i;
     return n;
+#else
+    (void)e;
+    return k;
+#endif
 }
 
+#if FELUCCA_SAMPLE_ENGINE
 #define preset_shown(e) (ENGINES[e]->npresets - (ENGINES[e]->presets == SMP_PRESET_TABLE ? SMP_NALIAS : 0u))
+#else
+#define preset_shown(e) ENGINES[e]->npresets
+#endif
 
 #if !FELUCCA_FM4
 /* DIGITAL (engine 1, retired): t's sound = p, values as DIGITAL has them, converted to FM6 with a patch of its own
