@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - rings-into-clouds-development
+      - marbles-dsp-sizing-exp
   workflow_dispatch:
 
 permissions:
