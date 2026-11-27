@@ -154,10 +154,9 @@ jobs:
             if [ -f "$lib" ]; then cp -f "$lib" "$STAGE/archives/"; fi
           done
           if [ -f build/felucca.elf ]; then
-            "$TC/objdump" -dr build/felucca.elf > "$STAGE/reports/felucca-elf-disassembly.txt" 2>&1
+            "$TC/objdump" -d build/felucca.elf > "$STAGE/reports/felucca-elf-disassembly.txt" 2>&1
             "$TC/objdump" -r build/felucca.elf > "$STAGE/reports/felucca-elf-relocations.txt" 2>&1
-            "$TC/readelf" -r build/felucca.elf > "$STAGE/reports/felucca-elf-readelf-relocations.txt" 2>&1
-            "$TC/nm" -S --size-sort --defined-only build/felucca.elf > "$STAGE/reports/felucca-elf-symbols.txt" 2>&1
+            "$TC/objdump" -t build/felucca.elf > "$STAGE/reports/felucca-elf-symbols.txt" 2>&1
             "$TC/objdump" -h build/felucca.elf > "$STAGE/reports/felucca-elf-sections.txt" 2>&1
             # The ELF is inspected in-job only and is deliberately excluded from upload.
           fi
@@ -170,11 +169,14 @@ jobs:
             echo "===== $f =====" >> "$STAGE/reports/object-sections.txt"
             "$TC/objdump" -h "$f" >> "$STAGE/reports/object-sections.txt" 2>&1
             echo "===== $f =====" >> "$STAGE/reports/object-symbols.txt"
-            "$TC/nm" -S --size-sort --defined-only "$f" >> "$STAGE/reports/object-symbols.txt" 2>&1
+            "$TC/objdump" -t "$f" >> "$STAGE/reports/object-symbols.txt" 2>&1
           done
           # Host-side analysis of object symbols, retained tables, string relocations and SMP_DATA.
           python3 -m pip install --quiet pyelftools
-          mapfile -d '' OBJECTS < <(find build -type f -name '*.o' -print0)
+          OBJECTS=(build/felucca.o build/fm1_cpu1.o build/fm1_isr.o build/fm1_vec.o build/crt0.o)
+          while IFS= read -r rel; do
+            [ -n "$rel" ] && [ -f "$rel" ] && OBJECTS+=("$rel")
+          done < build/rings-clouds-link/objects.txt
           python3 tools/xip_audit.py --objects "${OBJECTS[@]}" --root . > "$STAGE/reports/table-analysis.log" 2>&1
           cp -f xip-table-hashes.txt xip-identical-duplicates.txt xip-subsets.txt xip-symmetry.txt xip-table-readers.txt xip-strings.txt xip-smp-data-estimates.txt "$STAGE/reports/" 2>/dev/null
           # Remove any accidental image/package outputs from the staging tree.
