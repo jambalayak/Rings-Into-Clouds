@@ -1540,6 +1540,8 @@ static void select_engine(uint32_t e)
         ui_message("DRUM IS TRACK 4");
         return;
     }
+    if (e % NENGINES == TSEL->eng_req % NENGINES)
+        return;
     set_engine(e);
     ui_say("ENGINE ", ENGINES[TSEL->eng_req]->name);
     ui.force = 1;
