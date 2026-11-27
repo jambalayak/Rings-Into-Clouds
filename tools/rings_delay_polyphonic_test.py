@@ -56,9 +56,9 @@ reference = np.fromfile(WORK / "float/audio.f32", dtype=np.float32).reshape(-1, 
 ref_segments = list(csv.DictReader(open(WORK / "float/segments.csv", newline="")))
 models = ["Modal", "Sympathetic Strings", "String", "FM Voice", "Quantized Sympathetic Strings"]
 summary = {
-    "test": "four-resonator polyphonic strum stress; one Part per case; four sequential notes; no Clouds processing",
+    "test": "eight-voice Rings Part stress; eight overlapping strums; no Clouds processing",
     "models": models, "profiles": ["neutral", "bright", "long_decay"],
-    "notes_midi": [36, 48, 60, 72], "strums_per_case": 4, "polyphony": 4, "cases": 15,
+    "notes_midi": [36, 43, 48, 55, 60, 64, 67, 72], "strums_per_case": 8, "polyphony": 8, "cases": 15,
     "variants": {}
 }
 for name, scale in variants[1:]:
@@ -97,7 +97,7 @@ with wave.open(str(OUT / "rings-poly-float-reference.wav"), "wb") as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(44118); w.writeframes(pcm.tobytes())
 summary["limitations"] = [
     "Host g++ -O2 only; not FM-1 target RAM or CPU measurements.",
-    "Four sequential strums into one Rings Part; not eight simultaneous FM-1 allocator voices.",
+    "Eight overlapping strums into one Rings Part with its internal polyphony set to eight; FM-1 allocator voice routing is not exercised.",
     "Clouds, resampling, MIDI, voice stealing and physical hardware are not exercised."
 ]
 (OUT / "metrics.json").write_text(json.dumps(summary, indent=2) + "\n")
