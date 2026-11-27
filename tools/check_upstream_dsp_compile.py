@@ -190,6 +190,7 @@ def main():
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
         "-target", "pi32v2", "-mcpu=r3", "-mfprev1", os.environ.get("FELUCCA_CODE_OPT", "-Os"), "-std=gnu++11", "-DTEST",
+        *(["-fno-unwind-tables", "-fno-asynchronous-unwind-tables"] if os.environ.get("FELUCCA_NO_UNWIND") == "1" else []),
         "-fno-math-errno", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics",
         "-fno-use-cxa-atexit", "-nostdinc++", "-ffunction-sections", *(["-fdata-sections"] if os.environ.get("FELUCCA_DATA_SECTIONS") == "1" else []),
         "-Wall", "-Wno-unused-function", "-Wno-unused-variable", "-Wno-unused-local-typedef",
