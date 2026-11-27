@@ -1,15 +1,15 @@
-name: Rings compact-delay FM-1 target memory probe
+name: Rings no-SAMPLE FM-1 target memory probe
 
 on:
   push:
     branches:
-      - rings-delay-qn8388-target-probe
+      - rings-no-sample-engine-exp
 
 permissions:
   contents: read
 
 concurrency:
-  group: rings-delay-qn8388-target-probe
+  group: rings-no-sample-engine-exp
   cancel-in-progress: true
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
           echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
 
-      - name: Run float and compact-delay target linker diagnostics
+      - name: Run compact Rings/Clouds + SLICE-only sample target diagnostics
         shell: bash
         run: |
           set -uo pipefail
@@ -73,10 +73,10 @@ jobs:
             echo "=== ${name} (delay scale: ${scale:-float}, optimization: ${opt}, GC: ${gc}, data sections: ${data}) ==="
             set +e
             if [ -n "${scale}" ]; then
-              FELUCCA_RINGS_DELAY_SCALE="${scale}" FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              FELUCCA_SAMPLE_ENGINE=0 FELUCCA_GRAIN_ENGINE=0 FELUCCA_RINGS_DELAY_SCALE="${scale}" FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
               status=${PIPESTATUS[0]}
             else
-              env -u FELUCCA_RINGS_DELAY_SCALE FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              env -u FELUCCA_RINGS_DELAY_SCALE FELUCCA_SAMPLE_ENGINE=0 FELUCCA_GRAIN_ENGINE=0 FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
               status=${PIPESTATUS[0]}
             fi
             set -e
@@ -104,7 +104,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-qn8388-target-memory-${{ github.sha }}
+          name: rings-no-sample-target-memory-${{ github.sha }}
           path: target-memory-results/
           if-no-files-found: warn
           retention-days: 14
