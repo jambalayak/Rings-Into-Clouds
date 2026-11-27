@@ -82,12 +82,26 @@ for name, scale in variants[1:]:
                           "worst_snr_db": min(r["snr_db"] for r in cases),
                           "worst_case": min(cases, key=lambda r: r["snr_db"]),
                           "saturation_count": sum(r["saturation_count"] for r in cases)})
+    per_polyphony = []
+    for polyphony, label in [(1, "Mono"), (4, "Quad")]:
+        config_cases = [r for r in rows if r["polyphony"] == polyphony]
+        per_polyphony.append({
+            "configuration": label, "polyphony": polyphony,
+            "overall_snr_db": snr(
+                np.concatenate([reference[int(a["start"]):int(a["start"])+int(a["frames"])]
+                                for a in ref_segments if int(a["polyphony"]) == polyphony]),
+                np.concatenate([rendered[int(a["start"]):int(a["start"])+int(a["frames"])]
+                                for a in ref_segments if int(a["polyphony"]) == polyphony])),
+            "saturation_count": sum(r["saturation_count"] for r in config_cases),
+            "mean_case_snr_db": float(np.mean([r["snr_db"] for r in config_cases])),
+            "worst_case": min(config_cases, key=lambda r: r["snr_db"])
+        })
     summary["variants"][name] = {
         "quantizer_scale": int(scale), "positive_full_scale": 32767.0/scale,
         "negative_full_scale": -32768.0/scale, "overall_snr_db": snr(reference, rendered),
         "overall_rms_error": rms(rendered-reference), "saturation_count": int(stats["qn_saturation_count"]),
         "max_abs_delay_value": stats["qn_max_abs"], "host_part_size_bytes": int(stats["part_size_bytes"]),
-        "host_string_size_bytes": int(stats["string_size_bytes"]), "per_model": per_model, "cases_detail": rows
+        "host_string_size_bytes": int(stats["string_size_bytes"]), "per_model": per_model, "per_polyphony": per_polyphony, "cases_detail": rows
     }
     pcm = np.rint(np.clip(rendered, -1.0, 1.0) * 32767.0).astype("<i2")
     with wave.open(str(OUT / f"rings-poly-{name}.wav"), "wb") as w:
