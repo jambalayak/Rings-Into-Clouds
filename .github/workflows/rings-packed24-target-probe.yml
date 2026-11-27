@@ -111,8 +111,12 @@ jobs:
           git config --global http.version HTTP/1.1
           git clone --depth 1 --single-branch --branch "${SDK_TAG}" "${SDK_URL}" "${SDK_DIR}"
           echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+      - name: Prepare diagnostic-only build (no installable outputs)
+        run: python3 tools/prepare_diagnostic_build.py
       - name: Link FM-1 firmware with packed-24 Rings (${{ matrix.size_strategy }}, diagnostic only)
         shell: bash
+        env:
+          FELUCCA_DIAGNOSTIC_ONLY: "1"
         run: |
           set +e
           FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" FELUCCA_SIZE="${FELUCCA_SIZE}" ./build.sh 2>&1 | tee "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
