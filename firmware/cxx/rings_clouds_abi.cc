@@ -19,6 +19,8 @@
 /* Definitions used only when the isolated compact Rings delay overlay is enabled. */
 namespace rings { uint64_t qn_saturation_count = 0; float qn_max_abs = 0.0f; }
 
+extern "C" uint32_t ric_marbles_size_anchor(void);
+
 extern "C" {
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_part_storage[sizeof(rings::Part)];
@@ -154,5 +156,6 @@ extern "C" uint32_t ric_dsp_link_anchor(void)
     uintptr_t large = reinterpret_cast<uintptr_t>(ric_clouds_large_buffer);
     uintptr_t small = reinterpret_cast<uintptr_t>(ric_clouds_small_buffer);
     return static_cast<uint32_t>(roots ^ part ^ strummer ^ processor ^ large ^ small ^
-        sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor));
+        sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor) ^
+        ric_marbles_size_anchor());
 }
