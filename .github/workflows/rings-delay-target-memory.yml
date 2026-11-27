@@ -85,7 +85,10 @@ jobs:
               cp build/rings-clouds.felucca.map "${RESULTS}/${name}.map"
               cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}.symbols.txt"
               cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}.sections.txt"
-              echo "Map and symbol diagnostics saved for ${name}."
+              if [ -f build/gen/felucca_samples.h ]; then
+                cp build/gen/felucca_samples.h "${RESULTS}/${name}.samples.h"
+              fi
+              echo "Map, symbols, sections and generated sample-range diagnostics saved for ${name}."
             else
               echo "No linker map produced for ${name}."
               return 1
