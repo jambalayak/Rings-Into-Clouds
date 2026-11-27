@@ -1102,6 +1102,8 @@ static int drum_kit_retired(void)
     uint32_t r, i, k = 0, ok = 1;
     int bad = 0;
     reset();
+    song.sel = 3;                                      /* Track 4's new-project default is DRUM */
+    set_engine_of(TSEL, ENGI_DRUM); TSEL->engine = TSEL->eng_req;
     a[0] = 1; a[1] = G_ENGSEL; a[2] = (8192 + ENGI_DRUM) & 127; a[3] = (8192 + ENGI_DRUM) >> 7;
     request(ED_SET, a, 4);
     a[0] = 0; a[1] = P_E0;
