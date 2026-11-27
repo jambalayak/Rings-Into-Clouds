@@ -233,13 +233,13 @@ jobs:
           python3 tools/rings_clouds_no_sample_probe.py
       - name: Run DRUM host tests
         run: |
-          cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/drum_test tests/drum_test.c -lm
+          cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/drum_test tests/drum_test.c -lm
           build/host/drum_test build/drum-demo
       - name: Run SLICE host tests and user-slot upload round trip
         run: |
           python3 tests/slice_loop.py build/host/LOOP
           python3 tools/fm1_sample_upload.py build LOOP build/host/LOOP build/host/LOOP.wav
-          cc -O2 -w -Ibuild/gen -Ifirmware/src -o build/host/slice_test tests/slice_test.c -lm
+          cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/slice_test tests/slice_test.c -lm
           build/host/slice_test build/host/LOOP build/slice-demo
       - name: Run Clouds compact-profile ASan/UBSan and audio tests
         run: python3 tools/clouds_compact_profile_test.py
