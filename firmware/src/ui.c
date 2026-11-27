@@ -1366,10 +1366,6 @@ static void apply_preset_to(track_t *t, uint32_t pi)
     }
 #endif
     if (t->eng_req % NENGINES == ENGI_SAMPLE && pi == SMP_SET_PERC) {   /* SAMPLE preset 4 was PERC (retired, a stored */
-        if (!eng_track_allowed(ENGI_DRUM, t)) {
-            ui_message("DRUM IS TRACK 4");
-            return;
-        }
         set_engine_of(t, ENGI_DRUM);                  /* number: the editor's PRESET, a favourite): DRUM's kit */
         return;                                       /* (core.h drum_from_perc) */
     }

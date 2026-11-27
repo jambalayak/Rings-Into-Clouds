@@ -549,7 +549,15 @@ static int test_sound_loads(void)
         bad += check("SAMPLE PERC user preset: loads as a DRUM track (its kit)", t->eng_req == ENGI_DRUM && perc_kit(t) &&
                      t->p[P_LEVEL] == keep[P_LEVEL]);
         bad += check("  its GM hits play as drums", gm_hits_play(t));
+        /* A newly-authored DRUM user preset has no legacy marker and stays Track 4-only. */
+        r = *up_rec(7);
+        r.packed[UP_CAT_AT] &= (uint8_t)~UP_CAT_LEGACY_PERC;
+        *up_rec(8) = r;
+        set_engine_of(t, 0);
+        up_load(8);
+        bad += check("  a native DRUM user preset remains Track 4-only", t->eng_req == 0u && str_eq(ui.msg, "DRUM IS TRACK 4"));
         memset(up_rec(7), 0, sizeof r);
+        memset(up_rec(8), 0, sizeof r);
     }
     set_engine_of(t, 0);
     apply_preset_to(t, SMP_SET_PERC);             /* (engine 0: an ANALOG preset 4, not PERC) */

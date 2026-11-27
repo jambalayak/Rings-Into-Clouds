@@ -76,10 +76,15 @@ static up_rec_t *up_rec(uint32_t k) { return &up_bank[k / UP_PER_BANK].r[k % UP_
  * versions 1..3 (a 16-bit value in every pair) has none; giving it one (a rename) rewrites it as version 4 / 5 when its
  * values fit a byte (up_to_v4; not a version 1 PHYS sound, whose MODEL 2 means DUST) */
 #define UP_CAT_AT (UP_PMAX * 2u - 1u)
+#define UP_CAT_LEGACY_PERC 0x80u           /* migrated SAMPLE PERC may load as DRUM on its original track */
 #include "category.c"
+static int up_legacy_perc(const up_rec_t *r)
+{
+    return r->ver >= 4u && r->np <= UP_CAT_AT && (r->packed[UP_CAT_AT] & UP_CAT_LEGACY_PERC) != 0;
+}
 static uint32_t up_cat_of(const up_rec_t *r)
 {
-    uint32_t c = r->ver >= 4u && r->np <= UP_CAT_AT ? r->packed[UP_CAT_AT] : 0u;
+    uint32_t c = r->ver >= 4u && r->np <= UP_CAT_AT ? (r->packed[UP_CAT_AT] & 0x7fu) : 0u;
     return c && c < CAT_N ? c : cat_of_engine(r->engine);
 }
 static int up_to_v4(up_rec_t *r)                 /* 1 = r is version 4 / 5 (now) */
@@ -102,7 +107,7 @@ static int up_to_v4(up_rec_t *r)                 /* 1 = r is version 4 / 5 (now)
 static void up_set_cat(up_rec_t *r, uint32_t c)  /* c CAT_BASS..CAT_OTHER; a record that cannot hold one keeps none */
 {
     if (c && c < CAT_N && up_to_v4(r))
-        r->packed[UP_CAT_AT] = (uint8_t)c;
+        r->packed[UP_CAT_AT] = (uint8_t)((r->packed[UP_CAT_AT] & UP_CAT_LEGACY_PERC) | c);
 }
 
 static int up_valid(const up_rec_t *r)
@@ -127,9 +132,12 @@ static void up_migrate(up_rec_t *r)
     int16_t e[8]; uint32_t k;
     if (!up_valid(r)) return;
     for (k = 0; k < 8u; k++) e[k] = up_value(r, r->np - 8u + k);
-    if (drum_from_phys(r->engine, e) || drum_from_perc(r->engine, e)) {   /* (SAMPLE PERC: see the top) */
+    if (drum_from_phys(r->engine, e) || drum_from_perc(r->engine, e)) {
+        int legacy_perc = r->engine == ENGI_SAMPLE;
         r->engine = ENGI_DRUM;
         for (k = 0; k < 8u; k++) up_set_value(r, r->np - 8u + k, e[k]);
+        if (legacy_perc && up_to_v4(r))
+            r->packed[UP_CAT_AT] |= UP_CAT_LEGACY_PERC;
     }
 }
 
@@ -467,7 +475,7 @@ static int up_load(uint32_t k)
     if (!up_used(k))
         return 1;
     r = up_rec(k);
-    if (!eng_track_allowed(r->engine, t)
+    if (!eng_track_allowed(r->engine, t) && !up_legacy_perc(r)
 #if !FELUCCA_FM4
         && !(r->engine == ENGI_DIGITAL && eng_track_allowed(ENGI_FM6, t)) /* legacy conversion may not bypass Track 4 */
 #endif
