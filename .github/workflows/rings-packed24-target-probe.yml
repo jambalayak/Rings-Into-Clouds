@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           for variant in baseline kern-2; do
-            dir="build/font-${variant}"
+            dir="build/font-kern-${variant}"
             cc -O1 -w -I"$dir" -Ifirmware/src -o "$dir/theme_test" tests/theme_test.c -lm
             "$dir/theme_test"
             cc -O1 -w -I"$dir" -Ifirmware/src -o "$dir/text_ref_test" tests/text_ref_test.c -lm
