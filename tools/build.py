@@ -404,6 +404,21 @@ def check(img, syms, dis, rt):
                 "Clouds small buffer": symbol_size("ric_clouds_small_buffer"),
             }
             notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
+            expected_buffers = {"Clouds large buffer": 86144, "Clouds small buffer": 32768}
+            for label, expected in expected_buffers.items():
+                if measured[label] != expected:
+                    errors.append(f"{label} is {measured[label]} B; expected {expected} B")
+            pool_start, pool_end = sym("_pool_start"), sym("_pool_end")
+            for symbol, label in (("ric_clouds_large_buffer", "Clouds large buffer"),
+                                  ("ric_clouds_small_buffer", "Clouds small buffer")):
+                address = sym(symbol)
+                size = measured[label]
+                if not (pool_start <= address and address + size <= pool_end):
+                    errors.append(f"{label} is not wholly inside POOL")
+            audio_queue_bytes = symbol_size("abuf")
+            notes.append(f"existing I2S DMA audio buffer abuf {audio_queue_bytes} B (already included in RAM .data+.bss)")
+            if audio_queue_bytes != 2048:
+                errors.append(f"I2S DMA audio buffer abuf is {audio_queue_bytes} B; expected 2048 B")
             if not (OUT / "rings-clouds.felucca.map").is_file():
                 errors.append("Rings/Clouds diagnostic linker map was not preserved")
     if (OUT / "felucca.map").is_file():
@@ -414,8 +429,20 @@ def check(img, syms, dis, rt):
         errors.append("app.ld: POOL does not start where RAM ends")
     if ram_len - bss < 4096:                      # keep >= 4 KiB of .bss spare (state the audio side touches)
         errors.append(f"RAM headroom {ram_len - bss} B < 4096 B")
-    if pool_len - pool < 8192:                    # keep >= 8 KiB of the pool spare
-        errors.append(f"pool headroom {pool_len - pool} B < 8192 B")
+    if RIC_LINK:
+        # Integration-only capacity reserve; none of these scratch buffers are connected
+        # to the firmware audio path in this experiment.
+        queue_allowance = 2048
+        conversion_allowance = 2048  # 2 x float Rings outputs + stereo int16 Clouds in/out, 128 frames
+        pool_net_free = pool_free - queue_allowance - conversion_allowance
+        notes.append(
+            f"POOL reserve: queue {queue_allowance} B + conversion scratch {conversion_allowance} B; "
+            f"net uncommitted POOL {pool_net_free} B"
+        )
+        if pool_net_free < 8192:
+            errors.append(f"POOL headroom after queue/conversion reserve {pool_net_free} B < 8192 B")
+    elif pool_free < 8192:                          # keep >= 8 KiB of the pool spare
+        errors.append(f"pool headroom {pool_free} B < 8192 B")
     return errors, notes
 
 

@@ -12,6 +12,13 @@ jobs:
   target-compile:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        optimization: ["-Os", "-Oz"]
+    env:
+      FELUCCA_CODE_OPT: ${{ matrix.optimization }}
+      FELUCCA_DATA_SECTIONS: "1"
     steps:
       - name: Check out pinned DSP submodules
         uses: actions/checkout@v7
@@ -23,6 +30,8 @@ jobs:
         run: tools/get_toolchain.sh
       - name: Prepare target compiler environment
         run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Verify POOL startup initialisation and compact allocation checks
+        run: python3 tools/check_ric_pool_init.py
       - name: Generate approved five-model baseline overlay and target size probe
         run: python3 tools/check_upstream_dsp_compile.py
       - name: Compile packed-24 Rings and measure target object sizes
@@ -41,22 +50,22 @@ jobs:
         shell: bash
         run: |
           set +e
-          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT=-Os ./build.sh 2>&1 | tee build/packed24-target-probe/firmware-link.log
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" ./build.sh 2>&1 | tee "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}.log"
           status=${PIPESTATUS[0]}
-          echo "firmware build exit status: ${status}" | tee -a build/packed24-target-probe/firmware-link.log
+          echo "firmware build exit status: ${status}" | tee -a "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}.log"
           for file in rings-clouds.felucca.map rings-clouds.felucca.symbols.txt rings-clouds.felucca.sections.txt; do
-            if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-target-probe/${file}"; fi
+            if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-target-probe/${FELUCCA_CODE_OPT#-}-${file}"; fi
           done
-          if [ ! -s build/packed24-target-probe/rings-clouds.felucca.map ]; then
+          if [ ! -s "build/packed24-target-probe/rings-clouds.felucca.map" ]; then
             echo "No combined linker map was produced" >&2
             exit "${status:-1}"
           fi
           exit 0
-      - name: Upload target object-size report
+      - name: Upload target object-size and linker reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-packed24-target-probe-${{ github.sha }}
+          name: rings-packed24-target-probe-${{ matrix.optimization }}-${{ github.sha }}
           path: build/packed24-target-probe/
           if-no-files-found: warn
           retention-days: 14
