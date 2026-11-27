@@ -128,11 +128,61 @@ jobs:
             exit "${status:-1}"
           fi
           exit 0
-      - name: Upload target object-size and linker reports
+      - name: Compile-only UI function-size probes
+        if: matrix.size_strategy == 'no-unwind'
+        continue-on-error: true
+        run: python3 tools/xip_function_probes.py
+      - name: Capture read-only XIP audit evidence (text reports only)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          STAGE=build/xip-audit-artifact
+          mkdir -p "$STAGE/objects" "$STAGE/archives" "$STAGE/reports"
+          cp -f build/rings-clouds.felucca.map "$STAGE/reports/" 2>/dev/null
+          cp -f build/rings-clouds.felucca.symbols.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/rings-clouds.felucca.sections.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/felucca.o "$STAGE/objects/" 2>/dev/null
+          cp -f build/rings-clouds-link/objects.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/packed24-target-probe/*.log "$STAGE/reports/" 2>/dev/null
+          cp -f build/packed24-target-probe/sizes.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/xip-function-probes/* "$STAGE/reports/" 2>/dev/null
+          find build -type f -name '*.o' -print0 | while IFS= read -r -d '' f; do
+            rel="${f#build/}"
+            mkdir -p "$STAGE/objects/$(dirname "$rel")"
+            cp -f "$f" "$STAGE/objects/$rel"
+          done
+          TC="${JIELI_TOOLCHAIN}/common/bin"
+          for lib in "${JIELI_TOOLCHAIN}/pi32v2/lib/r3/libm.a" "${JIELI_TOOLCHAIN}/pi32v2/lib/r3/libcompiler_rt.a"; do
+            if [ -f "$lib" ]; then cp -f "$lib" "$STAGE/archives/"; fi
+          done
+          if [ -f build/felucca.elf ]; then
+            "$TC/objdump" -dr build/felucca.elf > "$STAGE/reports/felucca-elf-disassembly.txt" 2>&1
+            "$TC/objdump" -r build/felucca.elf > "$STAGE/reports/felucca-elf-relocations.txt" 2>&1
+            "$TC/readelf" -r build/felucca.elf > "$STAGE/reports/felucca-elf-readelf-relocations.txt" 2>&1
+            "$TC/nm" -S --size-sort --defined-only build/felucca.elf > "$STAGE/reports/felucca-elf-symbols.txt" 2>&1
+            "$TC/objdump" -h build/felucca.elf > "$STAGE/reports/felucca-elf-sections.txt" 2>&1
+            # The ELF is inspected in-job only and is deliberately excluded from upload.
+          fi
+          : > "$STAGE/reports/object-relocations.txt"
+          : > "$STAGE/reports/object-sections.txt"
+          : > "$STAGE/reports/object-symbols.txt"
+          find "$STAGE/objects" -type f -name '*.o' -print0 | while IFS= read -r -d '' f; do
+            echo "===== $f =====" >> "$STAGE/reports/object-relocations.txt"
+            "$TC/objdump" -r "$f" >> "$STAGE/reports/object-relocations.txt" 2>&1
+            echo "===== $f =====" >> "$STAGE/reports/object-sections.txt"
+            "$TC/objdump" -h "$f" >> "$STAGE/reports/object-sections.txt" 2>&1
+            echo "===== $f =====" >> "$STAGE/reports/object-symbols.txt"
+            "$TC/nm" -S --size-sort --defined-only "$f" >> "$STAGE/reports/object-symbols.txt" 2>&1
+          done
+          # Remove any accidental image/package outputs from the staging tree.
+          find "$STAGE" -type f \( -name '*.elf' -o -name '*.bin' -o -name '*.fwsc' -o -name '*.ufw' \) -delete
+          printf 'Branch=%s\nCommit=%s\nStrategy=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "${{ matrix.size_strategy }}" > "$STAGE/reports/build-identity.txt"
+      - name: Upload XIP audit evidence (no ELF or flashable images)
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-packed24-target-probe-${{ matrix.optimization }}-${{ matrix.size_strategy }}-${{ github.sha }}
-          path: build/packed24-target-probe/
+          name: rings-xip-audit-${{ matrix.optimization }}-${{ matrix.size_strategy }}-${{ github.sha }}
+          path: build/xip-audit-artifact/
           if-no-files-found: warn
           retention-days: 14
