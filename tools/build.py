@@ -216,6 +216,8 @@ def build_app():
         raise SystemExit(f"unsupported code-size profile: {code_opt}")
     flags = [*(code_opt if f == "-Os" else f for f in CFLAGS),
              *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
+    if os.environ.get("FELUCCA_NO_UNWIND") == "1":
+        flags.extend(["-fno-unwind-tables", "-fno-asynchronous-unwind-tables"])
     if os.environ.get("FELUCCA_DATA_SECTIONS") == "1":
         flags.append("-fdata-sections")
     for flag in ("FELUCCA_FLASH", "FELUCCA_OTA", "FELUCCA_OTA_DRYRUN", "FELUCCA_OTA_RAMONLY", "FELUCCA_CDC",
@@ -267,6 +269,8 @@ def build_app():
                  *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, *dsp_libraries, "-o", elf]
     if os.environ.get("FELUCCA_GC_SECTIONS") == "1":
         link_args.insert(0, "--gc-sections")
+    if os.environ.get("FELUCCA_ICF_SAFE") == "1":
+        link_args.insert(0, "--icf=safe")
     if RIC_LINK:
         # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM/POOL.
         link_args.insert(0, "--noinhibit-exec")
