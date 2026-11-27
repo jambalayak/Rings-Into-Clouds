@@ -1552,8 +1552,8 @@ static void select_engine(uint32_t e)
 static uint32_t preset_all_pos(uint32_t *total)          /* list index of the selected track's preset */
 {
     uint32_t n = 0, cur = 0, e, r;
-    for (r = 0; r < eng_track_count(TSEL); r++) {      /* track-specific engine list; projects load independently */
-        const engine_t *en = ENGINES[e = eng_track_vis(r, TSEL)];
+    for (r = 0; r < NENG_SHOWN; r++) {                /* the global sound browser; selection is checked when loaded */
+        const engine_t *en = ENGINES[e = eng_vis(r)];
         if (e == TSEL->eng_req)
             cur = n + preset_rank(en, preset_orig(en, TSEL->preset % (en->npresets ? en->npresets : 1u)));
         n += preset_shown(e);
@@ -1568,13 +1568,13 @@ static uint32_t preset_all_pos(uint32_t *total)          /* list index of the se
 static uint32_t preset_all_at(uint32_t n, uint32_t *k)
 {
     uint32_t e = 0, i, r;
-    for (r = 0; r < eng_track_count(TSEL) && n >= preset_shown(eng_track_vis(r, TSEL)); r++)
-        n -= preset_shown(eng_track_vis(r, TSEL));
-    if (r == eng_track_count(TSEL)) {
+    for (r = 0; r < NENG_SHOWN && n >= preset_shown(eng_vis(r)); r++)
+        n -= preset_shown(eng_vis(r));
+    if (r == NENG_SHOWN) {
         *k = up_nth(n);
         return NENGINES;
     }
-    e = eng_track_vis(r, TSEL);
+    e = eng_vis(r);
     for (i = 0; preset_orig(ENGINES[e], i) != i || n--; i++)    /* the n-th shown preset */
         ;
     *k = i;
@@ -1698,6 +1698,10 @@ static void preset_go(uint32_t n)                    /* load list index n into t
     if (e == NENGINES) {
         up_load(k);
     } else {
+        if (e != TSEL->eng_req && !eng_track_allowed(e, TSEL)) {
+            ui_message("DRUM IS TRACK 4");
+            return;                                    /* do not apply this index to the track's different engine */
+        }
         if (e != TSEL->eng_req)
             select_engine(e);
         apply_preset(k);

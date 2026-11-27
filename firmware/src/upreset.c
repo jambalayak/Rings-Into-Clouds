@@ -467,7 +467,11 @@ static int up_load(uint32_t k)
     if (!up_used(k))
         return 1;
     r = up_rec(k);
-    if (!eng_track_allowed(r->engine, t)) {
+    if (!eng_track_allowed(r->engine, t)
+#if !FELUCCA_FM4
+        && r->engine != ENGI_DIGITAL              /* retired DIGITAL records still convert to FM6 */
+#endif
+       ) {
         ui_message("DRUM IS TRACK 4");
         return 1;
     }

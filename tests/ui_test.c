@@ -1385,7 +1385,7 @@ static int test_favorites(void)
                  !memcmp(TSEL, &before, sizeof before));
     bad += check("one favorite occupies one display row, without repeated copies",
                  preset_visible(pos, total, 0) == 0 && preset_visible(pos, total, 1) == total);
-    select_engine(ENGI_DRUM);
+    set_engine_of(TSEL, ENGI_DRUM);              /* emulate a legacy project with DRUM on a melodic track */
     before = *TSEL;
     turn(EN_K3, 1);
     bad += check("a DRUM sound can be a favorite on any track", preset_favorite() &&
@@ -1399,7 +1399,8 @@ static int test_favorites(void)
     bad += check("unmarking the current sound leaves it loaded even when outside the filtered list",
                  !preset_favorite() && total == 1 && pos == total && TSEL->eng_req == 0);
     turn(EN_PRESET, -1);
-    bad += check("browsing from a nonfavorite selects the last favorite", TSEL->eng_req == ENGI_DRUM);
+    bad += check("a favorite DRUM remains listed but cannot be newly loaded on a melodic track",
+                 TSEL->eng_req == 0u && msg_is("DRUM IS TRACK 4"));
     turn(EN_K3, -1);
     before = *TSEL;
     turn(EN_PRESET, 1);
@@ -4102,11 +4103,11 @@ static int test_quick_layers(void)
     key_up(white(eng_rank(2))); frame();
     key_down(white(1)); key_up(white(1)); frame();
     ok &= TSEL->eng_req == ENGI_FM6;                    /* (G3: FM6, second in ENGINE_ORDER) */
-    key_down(white(LY_INIT - 1u)); key_up(white(LY_INIT - 1u)); frame();
-    ok &= TSEL->eng_req == ENGI_DRUM;                   /* (the last key: DRUM; ADPCM, after it, has none) */
+    key_down(white(eng_track_count(TSEL) - 1u)); key_up(white(eng_track_count(TSEL) - 1u)); frame();
+    ok &= TSEL->eng_req == eng_track_vis(eng_track_count(TSEL) - 1u, TSEL); /* last selectable engine; DRUM is reserved */
     ok &= !memcmp(TSEL->step, before.step, sizeof before.step) && TSEL->p[P_SLEN] == before.p[P_SLEN];
     btn_up(B_EDIT); frame();
-    bad += check("EDIT + white key n: the n-th engine shown (FM6 2nd, DRUM last), while playing; steps and LEN stay", ok);
+    bad += check("EDIT + white key n: track-specific engines (FM6 2nd; DRUM reserved), while playing; steps and LEN stay", ok);
     hold(B_SAVE);
     bad += check("  SAVE held: UNDO back to before the layer's loads, the steps untouched",
                  TSEL->eng_req == 0u && TSEL->preset == before.preset && !memcmp(TSEL->step, before.step, sizeof before.step));
@@ -4115,12 +4116,12 @@ static int test_quick_layers(void)
     btn_down(B_EDIT); frames(480);
     for (i = 0; i < LY_INIT; i++) {
         key_down(white(i)); key_up(white(i)); frame();
-        a += TSEL->eng_req == eng_vis(i);
+        a += TSEL->eng_req == eng_track_vis(i, TSEL);
         ok &= eng_ok(TSEL->eng_req);
     }
     btn_up(B_EDIT); frame();
-    bad += check("  the first 13 engines in PRESETS order have their white keys from F3 (ADPCM, the 14th, only with ENG; never DIGITAL)",
-                 ok && a == LY_INIT && LY_INIT == NENG_SHOWN - FELUCCA_ADPCM);
+    bad += check("  EDIT exposes each track-selectable engine in PRESETS order; DRUM is reserved, unused key slots stay dim",
+                 ok && a == eng_track_count(TSEL) && eng_track_count(TSEL) <= LY_INIT);
     set_engine_of(TSEL, 0);
     lay_combo(B_EDIT, white(eng_rank(3))); key_up(white(eng_rank(3))); frame();
     turn(EN_K2, 1);
@@ -4132,7 +4133,7 @@ static int test_quick_layers(void)
     btn_up(B_EDIT); frame();
     bad += check("  KNOB 2: the engine's next sound, KNOB 3 FAV; OCT-: the sound as the layer opened", ok && ui.home);
     btn_down(B_EDIT); frame(); turn(EN_K1, 1);
-    ok = TSEL->eng_req == eng_step(0, 1);
+    ok = TSEL->eng_req == eng_track_step(0, 1, TSEL);
     btn_up(B_EDIT); frame();
     bad += check("  KNOB 1: the next engine", ok);
     {                                                   /* #124: SAMPLE's alias (1 = PIANO) is not a stop on KNOB 2 */
@@ -5106,13 +5107,14 @@ static int test_fm4_retired(void)
     bad += check("PRESETS: the list holds every engine's presets but DIGITAL's", seen == all && NENG_SHOWN == NENGINES - 1u);
     go_page(GR_BROWSE);
     set_engine_of(TSEL, 0);
-    for (i = 0, seen = 0; i < NENG_SHOWN; i++) {
+    for (i = 0, seen = 0; i < eng_track_count(TSEL); i++) {
         turn(EN_K2, 1);
         seen |= 1u << TSEL->eng_req;
     }
-    bad += check("PRESETS KNOB 2: the engines in order, DIGITAL skipped, back to the first",
-                 seen == all && TSEL->eng_req == 0u && eng_step(0, 1) == ENGI_FM6 && eng_step(ENGI_FM6, 1) == 2u &&
-                 eng_step(ENGI_FM6, -1) == 0u && eng_step(0, -1) == (FELUCCA_ADPCM ? ENGI_ADPCM : ENGI_DRUM));
+    bad += check("PRESETS KNOB 2: track-selectable engines in order, DRUM reserved, back to the first",
+                 seen == (all & ~(1u << ENGI_DRUM)) && TSEL->eng_req == 0u &&
+                 eng_track_step(0, 1, TSEL) == ENGI_FM6 && eng_track_step(ENGI_FM6, -1, TSEL) == 0u &&
+                 eng_track_step(0, -1, TSEL) == eng_track_vis(eng_track_count(TSEL) - 1u, TSEL));
     {   /* the display order (engines.c ENGINE_ORDER): every engine one can pick once; the PRESETS list follows it */
         static const char *const ORDER[] = {"ANALOG", "FM6", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL", "GRAIN",
                                             "PHYS", "NOISE", "SLICE", "DRUM",
@@ -9784,28 +9786,21 @@ static int test_edit_quick_actions(void)
     ok = undo.trk != 4u && motion_count(TSEL) == 0u && !lys.loaded;
     bad += check("  the mutes take no undo copy, record nothing (no sound load)", ok);
 
-    /* the white keys as before (an engine pick from DRUM: the sound load clears the mutes) */
+    /* Track 4 is dedicated: its only white-key engine is DRUM; the other slots stay dim. */
     btn_down(B_EDIT); frames(500);
     key_down(white(0)); frame(); key_up(white(0)); frame();
-    ok = TSEL->eng_req == eng_vis(0) && !drum_mute[3] && eqa_count(TSEL) == 0u;
-    a = leds_at(0); b2 = leds_at(250);
-    for (i = 0; i < 11u; i++)                         /* (ANALOG: no actions, the black keys dark and inert) */
-        ok &= !(((a | b2) >> black(i)) & 1u);
-    {
-        track_t before = *TSEL;
-        uint8_t m[NPART];
-        memcpy(m, drum_mute, sizeof m);
-        ui.msg_t = 0;
-        for (i = 0; i < 11u; i++) {
-            key_down(black(i)); frame(); key_up(black(i)); frame();
-        }
-        ok &= !memcmp(m, drum_mute, sizeof m) && !ui.msg_t && !gates() && before.eng_req == TSEL->eng_req &&
-              !memcmp(before.p, TSEL->p, sizeof before.p) && ui.layer == LAYER_EDIT;
+    ok = TSEL->eng_req == ENGI_DRUM && drum_mute[3] == 1u && eqa_count(TSEL) == NLANE;
+    for (i = 1; i < LY_INIT; i++) {
+        key_down(white(i)); frame(); key_up(white(i)); frame();
+        ok &= TSEL->eng_req == ENGI_DRUM && drum_mute[3] == 1u;
     }
-    oct_back();                                       /* OCT-: DRUM back, the mutes as the layer opened (KICK) */
+    a = leds_at(0); b2 = leds_at(250);
+    for (i = 0; i < 11u; i++)
+        ok &= !(((a | b2) >> black(i)) & 1u) || i < NLANE; /* DRUM's lane keys remain the only quick actions */
+    oct_back();                                       /* OCT-: the mutes as the layer opened (KICK) */
     btn_up(B_EDIT); frame();
     ok &= TSEL->eng_req == ENGI_DRUM && drum_mute[3] == 1u;
-    bad += check("  a white key loads its engine (the mutes go with the sound); ANALOG's black keys dark, inert; OCT- back", ok);
+    bad += check("  Track 4 DRUM stays dedicated: only DRUM selectable; its lane actions and OCT- restore remain", ok);
 
     /* OCT-: the mutes as the layer opened */
     btn_down(B_EDIT); frames(500);
