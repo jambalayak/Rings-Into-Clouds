@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <math.h>
-#include <algorithm>
-#include <cmath>
 
 #ifndef RINGS_DELAY_SCALE
 #define RINGS_DELAY_SCALE 16384
@@ -22,7 +20,7 @@ class QNDelayLine {
   QNDelayLine() : write_ptr_(0), delay_(1) {}
   void Init() { Reset(); }
   void Reset() {
-    std::fill(line_, line_ + N, int16_t(0));
+    for (size_t i = 0; i < N; ++i) line_[i] = 0;
     write_ptr_ = 0;
     delay_ = 1;
   }
