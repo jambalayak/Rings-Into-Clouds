@@ -16,6 +16,12 @@
 #ifndef FELUCCA_SLICE
 #define FELUCCA_SLICE 1          /* the SLICE engine (eng_slice.c), engine 13; FELUCCA_SLICE=0 builds without it */
 #endif
+#ifndef FELUCCA_SAMPLE_ENGINE
+#define FELUCCA_SAMPLE_ENGINE 1  /* the SAMPLE voice engine; SLICE's shared user-slot support can remain without it */
+#endif
+#ifndef FELUCCA_GRAIN_ENGINE
+#define FELUCCA_GRAIN_ENGINE FELUCCA_SAMPLE_ENGINE /* GRAIN also consumes SAMPLE's sets and user-slot decoder */
+#endif
 #ifndef FELUCCA_FM4
 #define FELUCCA_FM4 0            /* the DIGITAL engine (eng_digital.c, four-operator FM): kept in the tree, not built
                                   * by default; replaced by FM6, its sounds convert (fm4_convert.c) */
@@ -39,7 +45,7 @@
                                                          * numbers */
 #define ENGI_ADPCM 14u
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-#define NENG_SHOWN (NENGINES - !FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
+#define NENG_SHOWN (NENGINES - !FELUCCA_FM4 - !FELUCCA_SAMPLE_ENGINE - !FELUCCA_GRAIN_ENGINE)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
