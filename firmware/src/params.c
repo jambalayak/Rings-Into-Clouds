@@ -257,7 +257,11 @@ static int32_t enum_orig(const param_desc_t *d, int32_t v)
 {
     if (d->names == N_DRUM_KIT)
         return v >= 0 && v < DK_COUNT ? (int32_t)DK_PLAYS[v] : v;
+#if FELUCCA_SAMPLE_ENGINE
     return d->names == SMP_ALL_NAMES && v >= 0 && v < SMP_NSETS ? SMP_SET_ORIG[v] : v;
+#else
+    return v;
+#endif
 }
 
 /* a stored value as the parameter takes it (projects, user presets, motion): inside d's range, and a retired
