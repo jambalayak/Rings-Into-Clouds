@@ -1,8 +1,8 @@
-name: Rings Q2.75 four-resonator polyphonic stress
+name: Rings eight-voice delay-format stress
 on:
   push:
     branches:
-      - rings-delay-polyphonic-stress
+      - rings-delay-eight-voice-stress
 permissions:
   contents: read
 concurrency:
@@ -25,13 +25,13 @@ jobs:
         run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
       - name: Generate approved five-model source overlay
         run: python3 tools/check_upstream_dsp_compile.py
-      - name: Run four-resonator float vs Q2.75 comparison
+      - name: Run eight-voice float vs fixed-point comparison
         run: python3 tools/rings_delay_polyphonic_test.py
       - name: Upload metrics and WAVs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-delay-polyphonic-stress-${{ github.sha }}
+          name: rings-delay-eight-voice-stress-${{ github.sha }}
           path: build/rings-delay-polyphonic-stress/results/
           if-no-files-found: warn
           retention-days: 14
