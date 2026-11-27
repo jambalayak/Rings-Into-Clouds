@@ -344,6 +344,12 @@ def main():
     ).replace("namespace rings_mono {", "namespace rings_mono2 {").replace(
         "}  // namespace rings_mono", "}  // namespace rings_mono2"
     )
+    # The source has seven LFO frequency constants; keep that lookup independent
+    # of the compact two-string resonator-bank allocation.
+    mono2_part_cc = mono2_part_cc.replace(
+        "float lfo_frequencies[kNumStrings] = {",
+        "float lfo_frequencies[8] = {"
+    )
     mono2_part_cc_path = patch_root / "rings_mono2" / "dsp" / "part.cc"
     mono2_part_cc_path.parent.mkdir(parents=True, exist_ok=True)
     mono2_part_cc_path.write_text(mono2_part_cc)
