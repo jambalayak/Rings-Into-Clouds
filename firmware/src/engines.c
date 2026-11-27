@@ -181,6 +181,16 @@ static int eng_ok(uint32_t e)
     return 1;
 }
 static uint32_t eng_vis(uint32_t n) { return ENGINE_ORDER[n % NENG_SHOWN]; }
+/* Rank in the complete engine list for the global ENG status display. */
+static uint32_t eng_rank(uint32_t e)
+{
+    uint32_t n;
+    if (!eng_ok(e))
+        e = ENGI_DRUM;
+    for (n = 0; n < NENG_SHOWN && ENGINE_ORDER[n] != e; n++)
+        ;
+    return n < NENG_SHOWN ? n : 0u;
+}
 /* New projects use a dedicated DRUM part on track 4. The project loader deliberately
  * bypasses these selection helpers, so older projects retain their saved assignments. */
 static int eng_track_allowed(uint32_t e, const track_t *t)
