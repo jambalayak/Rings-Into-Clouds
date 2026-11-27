@@ -182,6 +182,35 @@ def main():
         raise SystemExit("Rings Reverb references remain in five-model source overlay")
     part_cc_patched.write_text(part_cc)
 
+    # Optional isolated target-memory probe: replace only Rings' two delay
+    # storage typedefs with signed int16 storage. DSP math/interpolation remains float.
+    delay_scale = os.environ.get("FELUCCA_RINGS_DELAY_SCALE")
+    if delay_scale:
+        scale = int(delay_scale)
+        if scale < 1 or scale > 32768:
+            raise SystemExit("FELUCCA_RINGS_DELAY_SCALE must be in 1..32768")
+        string_original = eur / "rings/dsp/string.h"
+        string_patched = patch_root / "rings/dsp/string.h"
+        string_text = string_original.read_text()
+        old_typedefs = ("typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\n"
+                        "typedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;")
+        new_typedefs = ("typedef QNDelayLine<kDelayLineSize> StringDelayLine;\n"
+                        "typedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
+        if old_typedefs not in string_text:
+            raise SystemExit("expected Rings delay-line typedefs not found")
+        include_line = '#include "stmlib/stmlib.h"'
+        if include_line not in string_text:
+            raise SystemExit("expected Rings stmlib include not found")
+        qn_header = (ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text()
+        qn_path = patch_root / "rings/dsp/qn_delay_line.h"
+        qn_path.parent.mkdir(parents=True, exist_ok=True)
+        qn_path.write_text(qn_header)
+        string_text = string_text.replace(include_line, include_line + '\n#include "rings/dsp/qn_delay_line.h"')
+        string_text = string_text.replace(old_typedefs, new_typedefs)
+        string_patched.parent.mkdir(parents=True, exist_ok=True)
+        string_patched.write_text(string_text)
+        print(f"TARGET DELAY STORAGE: signed int16, scale={scale}; float DSP math retained")
+
     sources = [clouds_patched if p == clouds_original else
                part_cc_patched if p == part_cc_original else p for p in sources]
     BUILD.mkdir(parents=True, exist_ok=True)
