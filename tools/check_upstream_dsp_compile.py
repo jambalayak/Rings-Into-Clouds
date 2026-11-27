@@ -308,6 +308,32 @@ def main():
         raise SystemExit("Rings Reverb references remain in five-model source overlay")
     part_cc_patched.write_text(part_cc)
 
+    # Compile-time-only second Rings instance experiment: clone the five-model Part
+    # declaration into a private namespace and reduce its compile-time polyphony to 1.
+    # It shares stateless DSP component types, but owns its own mono resonator state.
+    mono_part_h = part_h.replace(
+        "#ifndef RINGS_DSP_PART_H_",
+        "#ifndef RINGS_MONO_DSP_PART_H_"
+    ).replace(
+        "#define RINGS_DSP_PART_H_",
+        "#define RINGS_MONO_DSP_PART_H_"
+    ).replace(
+        "namespace rings {",
+        "namespace rings_mono {\\n\\nusing namespace rings;"
+    ).replace(
+        "const int32_t kMaxPolyphony = 4;",
+        "const int32_t kMaxPolyphony = 1;"
+    ).replace(
+        "}  // namespace rings",
+        "}  // namespace rings_mono"
+    )
+    if "namespace rings_mono" not in mono_part_h or "kMaxPolyphony = 1" not in mono_part_h:
+        raise SystemExit("failed to generate mono Rings Part header")
+    mono_part_h_path = patch_root / "rings_mono" / "dsp" / "part.h"
+    mono_part_h_path.parent.mkdir(parents=True, exist_ok=True)
+    mono_part_h_path.write_text(mono_part_h)
+
+
     # Optional isolated target-memory probe: replace only Rings' two delay
     # storage typedefs with signed int16 storage. DSP math/interpolation remains float.
     delay_scale = os.environ.get("FELUCCA_RINGS_DELAY_SCALE")
@@ -375,6 +401,11 @@ def main():
 
     five_size_src = ROOT / "tools" / "cpp_smoke" / "size_probe_five_model.cc"
     five_size_obj = BUILD / "size_probe_five_model.o"
+
+    mono_size_src = ROOT / "tools" / "cpp_smoke" / "rings_mono_size_probe.cc"
+    mono_size_obj = BUILD / "rings_mono_size_probe.o"
+    invoke([*common, "-c", str(mono_size_src.relative_to(ROOT)),
+            "-o", str(mono_size_obj.relative_to(ROOT))])
     invoke([*common, "-c", str(five_size_src.relative_to(ROOT)),
             "-o", str(five_size_obj.relative_to(ROOT))])
 
@@ -394,8 +425,9 @@ def main():
         "ric_marbles_size_t_generator", "ric_marbles_size_xy_generator",
         "ric_marbles_size_output_channel", "ric_marbles_size_random_sequence",
         "ric_marbles_size_random_stream", "ric_marbles_size_random_generator",
+        "ric_marbles2_size_rings_mono_part",
     }
-    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj):
+    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj, mono_size_obj):
         dumped = subprocess.run([*dump_prefix, str(obj.relative_to(ROOT))],
                                 cwd=ROOT, text=True, capture_output=True)
         if dumped.returncode:
