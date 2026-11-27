@@ -204,19 +204,19 @@ def main():
         "const float kIcdfTableSize = 128.0f;\n\n" + q15_interpolator
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\n      distributions_table[cell] + offset,\n      uniform,\n      kIcdfTableSize)"
+        "stmlib::Interpolate(\n      distributions_table[cell] + offset,\n      uniform,\n      kIcdfTableSize)",
         "InterpolateQ15(distributions_table[cell] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\n      distributions_table[cell + 1] + offset,\n      uniform,\n      kIcdfTableSize)"
+        "stmlib::Interpolate(\n      distributions_table[cell + 1] + offset,\n      uniform,\n      kIcdfTableSize)",
         "InterpolateQ15(distributions_table[cell + 1] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 1] + offset,\n      uniform,\n      kIcdfTableSize)"
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 1] + offset,\n      uniform,\n      kIcdfTableSize)",
         "InterpolateQ15(distributions_table[cell + kNumRangeValues + 1] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 2] + offset,\n      uniform,\n      kIcdfTableSize)"
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 2] + offset,\n      uniform,\n      kIcdfTableSize)",
         "InterpolateQ15(distributions_table[cell + kNumRangeValues + 2] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
