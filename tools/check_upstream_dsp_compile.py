@@ -339,7 +339,9 @@ def main():
 
     # Compile-time-only second Rings instance experiment: clone the five-model Part
     # declaration into a private namespace and reduce its compile-time polyphony to 1.
-    # It shares stateless DSP component types, but owns its own mono resonator state.
+    # Keep the full eight-string sympathetic bank in the baseline mono measurement.
+    # A separate compact-bank sizing probe below tests whether reducing only this bank
+    # can recover enough POOL headroom; it is not a proposed sound/default change.
     mono_part_h = part_h.replace(
         "#ifndef RINGS_DSP_PART_H_",
         "#ifndef RINGS_MONO_DSP_PART_H_"
