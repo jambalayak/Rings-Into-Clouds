@@ -9,6 +9,7 @@ on:
       - rings-clouds-no-sample-float-probe
       - rings-clouds-pool-trim-probe
       - rings-clouds-float-delay-probe
+      - rings-clouds-recording-capacity-probe
 permissions:
   contents: read
 concurrency:
@@ -101,6 +102,8 @@ jobs:
         run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
       - name: Verify POOL startup initialisation and compact allocation checks
         run: python3 tools/check_ric_pool_init.py
+      - name: Apply isolated Clouds recording-capacity allocation probe
+        run: python3 tools/clouds_recording_capacity_probe.py
       - name: Generate approved five-model baseline overlay and target size probe
         run: python3 tools/check_upstream_dsp_compile.py
       - name: Install firmware build dependencies
@@ -327,6 +330,8 @@ jobs:
           PY
           cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/slice_test tests/slice_test.c -lm
           build/host/slice_test build/host/LOOP build/slice-demo
+      - name: Apply isolated Clouds recording-capacity allocation probe
+        run: python3 tools/clouds_recording_capacity_probe.py
       - name: Run Clouds compact-profile ASan/UBSan and audio tests
         run: python3 tools/clouds_compact_profile_test.py
       - name: Upload retained-engine host test reports
