@@ -116,6 +116,17 @@ extern "C" void ric_rings_process(const void *performance_state, const void *pat
                           input, out, aux, frames);
 }
 
+extern "C" void ric_rings2_process(const void *performance_state, const void *patch,
+                                   const float *input, float *out, float *aux, uint32_t frames)
+{
+    if (!ric_dsp_constructed || !performance_state || !patch ||
+        !out || !aux || frames > rings::kMaxBlockSize)
+        return;
+    rings2_mono_part()->Process(*static_cast<const rings::PerformanceState *>(performance_state),
+                                *static_cast<const rings::Patch *>(patch),
+                                input, out, aux, frames);
+}
+
 extern "C" void ric_clouds_prepare(void)
 {
     if (ric_dsp_constructed)
@@ -158,6 +169,7 @@ static ric_root_fn const volatile ric_dsp_code_roots[]
         reinterpret_cast<ric_root_fn>(&ric_dsp_init),
         reinterpret_cast<ric_root_fn>(&ric_rings_strummer_process),
         reinterpret_cast<ric_root_fn>(&ric_rings_process),
+        reinterpret_cast<ric_root_fn>(&ric_rings2_process),
         reinterpret_cast<ric_root_fn>(&ric_clouds_prepare),
         reinterpret_cast<ric_root_fn>(&ric_clouds_process),
         reinterpret_cast<ric_root_fn>(&ric_dsp_get_sizes)
