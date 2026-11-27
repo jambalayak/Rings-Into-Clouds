@@ -56,13 +56,13 @@ once(profile,
         workspace_size = buffer_size_[0] - 32768;''',
 '''        // Mono non-Spectral: 45,040 B recording followed by the full 53,376 B
         // FX workspace inside the 98,416 B large POOL allocation.
-        buffer_size[0] = MONO_RECORD;
-        workspace = static_cast<uint8_t*>(buffer_[0]) + MONO_RECORD;
-        workspace_size = buffer_size_[0] - MONO_RECORD;''',
+        buffer_size[0] = 45040;
+        workspace = static_cast<uint8_t*>(buffer_[0]) + 45040;
+        workspace_size = buffer_size_[0] - 45040;''',
      "mono recording/workspace partition")
 once(profile,
 '''        ? 32768 : buffer_size_[num_channels_ - 1];''',
-'''        ? MONO_RECORD : buffer_size_[num_channels_ - 1];''',
+'''        ? 45040 : buffer_size_[num_channels_ - 1];''',
      "persistent recording size")
 
 harness = ROOT / "tools/clouds_compact_profile_host.cc"
