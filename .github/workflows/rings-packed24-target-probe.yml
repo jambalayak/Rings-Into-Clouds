@@ -7,6 +7,7 @@ on:
       - rings-sine-table-fold-probe
       - rings-clouds-engine-trim-probe
       - rings-clouds-no-sample-float-probe
+      - rings-clouds-pool-trim-probe
 permissions:
   contents: read
 concurrency:
@@ -119,6 +120,8 @@ jobs:
         run: python3 tools/rings_clouds_engine_trim_probe.py
       - name: Remove selectable SAMPLE engine, retain shared SLICE data
         run: python3 tools/rings_clouds_no_sample_probe.py
+      - name: Reduce shared engine memory to retained DRUM and SLICE requirements
+        run: python3 tools/rings_clouds_pool_trim_probe.py
       - name: Link FM-1 firmware with packed-24 Rings (${{ matrix.size_strategy }}, diagnostic only)
         shell: bash
         env:
