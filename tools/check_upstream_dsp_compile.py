@@ -59,15 +59,14 @@ def main():
     # Apply reviewed FM-1 source overlays without modifying either pinned submodule.
     patch_root = BUILD / "source-patches"
 
-    # The STM32 debug-pin include is unused by the DSP and has no FM-1 equivalent.
+    # Apply the isolated compact Clouds profile to copied source overlays only.
+    # Pinned third_party submodules remain untouched.
+    from clouds_compact_profile import apply_compact_profile
+    apply_compact_profile(ROOT, patch_root)
     clouds_original = eur / "clouds/dsp/granular_processor.cc"
     clouds_patched = patch_root / "clouds/dsp/granular_processor.cc"
-    clouds_patched.parent.mkdir(parents=True, exist_ok=True)
-    clouds_text = clouds_original.read_text()
-    debug_include = '#include "clouds/drivers/debug_pin.h"'
-    if debug_include not in clouds_text:
-        raise SystemExit("expected upstream Clouds debug-pin include was not found")
-    clouds_patched.write_text("\n".join(line for line in clouds_text.splitlines() if line.strip() != debug_include) + "\n")
+    phase_vocoder_original = eur / "clouds/dsp/pvoc/phase_vocoder.cc"
+    phase_vocoder_patched = patch_root / "clouds/dsp/pvoc/phase_vocoder.cc"
 
     # The pinned stmlib header contains ARM/NEON inline assembly (ssat/usat/vsqrt),
     # which is not valid for the FM-1 pi32v2 target. Use the same saturating C and
@@ -183,6 +182,7 @@ def main():
     part_cc_patched.write_text(part_cc)
 
     sources = [clouds_patched if p == clouds_original else
+               phase_vocoder_patched if p == phase_vocoder_original else
                part_cc_patched if p == part_cc_original else p for p in sources]
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
