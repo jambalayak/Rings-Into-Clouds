@@ -1424,7 +1424,14 @@ static void set_engine_of(track_t *t, uint32_t ei)
 }
 
 static void apply_preset(uint32_t pi) { apply_preset_to(TSEL, pi); }
-static void set_engine(uint32_t ei) { set_engine_of(TSEL, ei); }
+static void set_engine(uint32_t ei)
+{
+    if (!eng_track_allowed(ei, TSEL)) {
+        ui_message("DRUM IS TRACK 4");
+        return;
+    }
+    set_engine_of(TSEL, ei);
+}
 
 /* CLEAN INIT (1.5.5, #190): the engine's basic sound, nothing added: E1..E8 at the engine's own defaults (not its first
  * preset's), every other sound value at its default (TP: no FX sends DIST CHO DLY REV, INSERT OFF, no LFO or ENV DEST
