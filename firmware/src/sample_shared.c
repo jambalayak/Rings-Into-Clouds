@@ -20,6 +20,25 @@ static const int16_t IMA_STEP[89] = {
     4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818, 18500, 20350,
     22385, 24623, 27086, 29794, 32767};
 static const int8_t IMA_IDX[8] = {-1, -1, -1, -1, 2, 4, 6, 8};
+/* Shared pitch conversion and missing-source fallback used by SLICE. */
+static uint32_t pow2_q16(int32_t d16)
+{
+    uint32_t u = (uint32_t)(d16 + 192 * 16), oct = u / 192u;
+    uint32_t r = pitch_inc(1600 + u % 192u) / (pitch_inc(1600) >> 16);
+    return oct >= 16u ? r << (oct - 16u) : r >> (16u - oct);
+}
+static void smp_sine(int32_t *out, uint32_t n, const vmod_t *m, int32_t d16, int32_t lp, uint32_t *ph, int32_t *y)
+{
+    uint32_t i, p = *ph, inc = pitch_inc((uint32_t)clamp(m->pitch16 + d16, 0, 2047));
+    int32_t s = *y;
+    for (i = 0; i < n; i++, p += inc) {
+        s += mulq15((sine_i(p) >> 1) - s, lp);
+        out[i] += voice_amp(s, m, i) << 1;
+    }
+    *ph = p;
+    *y = s;
+}
+
 /* ---- user sample slots (loaded from the web editor into flash, see web/EDITOR_PROTOCOL.md)
  * 3 slots of 80 KiB at flash 0xA0000.. (Felucca data region), read through the plain XIP
  * window. Slot = header (magic, count, name, data length, CRC32) + up to 16 zones in the
