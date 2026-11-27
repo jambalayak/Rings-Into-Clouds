@@ -65,3 +65,10 @@ Baseline target diagnostic from the same run:
 A full-fidelity float-table port would leave only 12,616 bytes of XIP headroom before Marbles executable code and other support data are counted. The measured Marbles object-storage subtotal would leave 25,292 bytes of POOL headroom before integration overhead. Therefore the next experiment should test a Q15/int16 representation of the 45 inverse-CDF tables: all values are in [0, 1], and simple quantization to signed Q15 has a maximum pointwise table error of approximately 1.526e-5. This is a memory-saving hypothesis only; interpolation error, output distribution statistics, target code size and CPU cost must be tested before accepting it.
 
 The target compiler now builds the Marbles translation units, but no Marbles object is initialized or processed. CPU cost is not yet measured. It must be measured on FM-1 hardware once a runtime integration exists; host timings are not a substitute.
+
+
+## Q15 interpolation experiment
+
+A deterministic 200,000-sample numerical comparison was run against the upstream float inverse-CDF tables. With the 45 tables quantized to signed Q15 and linearly interpolated after conversion back to float, the observed maximum output difference was 0.00001501 and the mean absolute difference was 0.00000391. This is a source-data simulation, not yet a compiled C++ host regression or a listening test.
+
+The target overlay now generates Q15 versions of the 45 inverse-CDF tables and changes the Marbles interpolation helper to decode them. The three 257-entry float LUTs are left unchanged. A fresh target build is running to verify the patch and measure the actual image/resource reduction. No firmware behaviour is connected by this experiment.
