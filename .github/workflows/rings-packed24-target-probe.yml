@@ -72,10 +72,20 @@ jobs:
           - optimization: "-Oz"
             size_strategy: whole-file
             size_flag: "0"
+          - optimization: "-Oz"
+            size_strategy: icf-safe
+            size_flag: "1"
+            icf_safe: "1"
+          - optimization: "-Oz"
+            size_strategy: no-unwind
+            size_flag: "1"
+            no_unwind: "1"
     env:
       FELUCCA_CODE_OPT: ${{ matrix.optimization }}
       FELUCCA_SIZE: ${{ matrix.size_flag }}
       FELUCCA_DATA_SECTIONS: "1"
+      FELUCCA_ICF_SAFE: ${{ matrix.icf_safe || '0' }}
+      FELUCCA_NO_UNWIND: ${{ matrix.no_unwind || '0' }}
     steps:
       - name: Check out pinned DSP submodules
         uses: actions/checkout@v7
