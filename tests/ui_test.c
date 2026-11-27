@@ -1401,7 +1401,7 @@ static int test_favorites(void)
     turn(EN_PRESET, -1);
     bad += check("a favorite DRUM remains listed but cannot be newly loaded on a melodic track",
                  TSEL->eng_req == 0u && msg_is("DRUM IS TRACK 4"));
-    turn(EN_K3, -1);
+    favorite_set(ENGI_DRUM, 0, 0);                    /* clear the remaining legacy favorite without starring ANALOG again */
     before = *TSEL;
     turn(EN_PRESET, 1);
     bad += check("empty favorites explains LIST ALL and retains the current sound and steps",

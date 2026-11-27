@@ -563,7 +563,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             return;
         if (a[0] != TSEL->eng_req && !eng_track_allowed(a[0], TSEL)
 #if !FELUCCA_FM4
-            && a[0] != ENGI_DIGITAL              /* retired DIGITAL preset requests convert to FM6 below */
+            && !(a[0] == ENGI_DIGITAL && eng_track_allowed(ENGI_FM6, TSEL)) /* legacy conversion may not bypass Track 4 */
 #endif
            ) {
             ui_message("DRUM IS TRACK 4");
