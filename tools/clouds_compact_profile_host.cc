@@ -16,6 +16,7 @@
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/dsp/parameters.h"
 #include "clouds/dsp/frame.h"
+#include "clouds/resources.h"
 
 using clouds::GranularProcessor;
 using clouds::PlaybackMode;
@@ -56,7 +57,7 @@ static void SetParameters(Parameters* p) {
   p->pitch = 0.0f;
   p->density = 0.5f;
   p->texture = 0.5f;
-  p->dry_wet = 1.0f;
+  p->dry_wet = 0.99f;
   p->stereo_spread = 0.5f;
   p->feedback = 0.15f;
   p->reverb = 0.2f;
@@ -214,7 +215,25 @@ static bool RunCompactMatrix() {
     }
     p->~GranularProcessor();
   }
-  std::cout << "PASS compact profile: 16 mode/quality cases, switching, freeze, limits, guards, fail-closed\n";
+  // Explicitly reject the tempting 40,960-byte stereo-4096 base allocation:
+  // it has no room for even one texture, let alone two magnitude textures + phase.
+  {
+    GuardedBuffer channel0(40960);
+    GuardedBuffer channel1(40960);
+    void* buffers[2] = { channel0.data(), channel1.data() };
+    size_t sizes[2] = { 40960, 40960 };
+    clouds::PhaseVocoder vocoder;
+    if (vocoder.Init(buffers, sizes, clouds::lut_sine_window_4096,
+                     4096, 2, 16, 32000.0f)) {
+      std::cerr << "unsafe 40,960-byte stereo 4096 profile was accepted\\n";
+      return false;
+    }
+    if (!channel0.intact() || !channel1.intact()) {
+      std::cerr << "40,960-byte rejection damaged a buffer guard\\n";
+      return false;
+    }
+  }
+  std::cout << "PASS compact profile: 16 mode/quality cases, switching, freeze, limits, guards, fail-closed, 40,960-byte rejection\\n";
   return true;
 #endif
 }
@@ -249,7 +268,7 @@ static bool RenderWav(const std::string& path) {
   params->pitch = 0.0f;
   params->density = 0.4949495f;  // refresh_rate=0.5, deterministic phase history
   params->texture = 0.5f;
-  params->dry_wet = 1.0f;
+  params->dry_wet = 0.99f;
   params->feedback = 0.0f;
   params->reverb = 0.0f;
   p->Prepare();

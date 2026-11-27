@@ -118,7 +118,7 @@ stock_stats = wav_stats(stock_wav)
 compact_stats = wav_stats(compact_wav)
 (OUT / "wav-comparison.txt").write_text(
     "Same-gain WAV comparison; no normalization or per-file gain adjustment.\n"
-    "Both renders use identical 32 kHz stereo input, full-quality setting, dry/wet=1,\n"
+    "Both renders use identical 32 kHz stereo input, full-quality setting, dry/wet=0.99,\n"
     "feedback=0, reverb=0, pitch=0, density=0.4949495 and size/position=0.5.\n"
     f"Stock Spectral 4096: frames={stock_stats[0]} peak={stock_stats[1]} rms={stock_stats[2]:.3f}\n"
     f"Compact Spectral 2048: frames={compact_stats[0]} peak={compact_stats[1]} rms={compact_stats[2]:.3f}\n"
