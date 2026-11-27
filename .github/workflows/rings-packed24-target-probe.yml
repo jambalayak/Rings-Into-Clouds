@@ -9,6 +9,50 @@ concurrency:
   group: rings-delay-packed24-target-probe
   cancel-in-progress: true
 jobs:
+
+  font-kern-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out experiment branch
+        uses: actions/checkout@v7
+      - name: Install font test dependencies
+        run: python3 -m pip install --upgrade Pillow fonttools
+      - name: Generate baseline and reduced-kerning font tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/font-kern-baseline build/font-kern-2
+          python3 tools/gen_aa_font.py build/font-kern-baseline/ui_fonts.h --preset inter-tight --kern-min 1 2>&1 | tee build/font-kern-baseline/generator.log
+          python3 tools/gen_aa_font.py build/font-kern-2/ui_fonts.h --preset inter-tight --kern-min 2 2>&1 | tee build/font-kern-2/generator.log
+          python3 tools/gen_ui_palettes.py build/font-kern-baseline/ui_palettes.h
+          cp build/font-kern-baseline/ui_palettes.h build/font-kern-2/ui_palettes.h
+          echo "=== Generated header sizes ==="
+          wc -c build/font-kern-baseline/ui_fonts.h build/font-kern-2/ui_fonts.h
+          echo "=== Generated font cost summaries ==="
+          grep -E '^face |^fonts total' build/font-kern-baseline/generator.log
+          grep -E '^face |^fonts total' build/font-kern-2/generator.log
+      - name: Compare font metrics, pixels, contrast and spacing
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variant in baseline kern-2; do
+            dir="build/font-${variant}"
+            cc -O1 -w -I"$dir" -Ifirmware/src -o "$dir/theme_test" tests/theme_test.c -lm
+            "$dir/theme_test"
+            cc -O1 -w -I"$dir" -Ifirmware/src -o "$dir/text_ref_test" tests/text_ref_test.c -lm
+            "$dir/text_ref_test"
+            python3 tests/text_spacing_test.py "$dir/ui_fonts.h"
+          done
+      - name: Upload font comparison reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-font-kern-probe-${{ github.sha }}
+          path: build/font-kern-*/
+          if-no-files-found: warn
+          retention-days: 14
+
   target-compile:
     runs-on: ubuntu-latest
     timeout-minutes: 120
