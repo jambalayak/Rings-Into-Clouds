@@ -195,14 +195,19 @@ static uint32_t eng_rank(uint32_t e)
  * bypasses these selection helpers, so older projects retain their saved assignments. */
 static int eng_track_allowed(uint32_t e, const track_t *t)
 {
-    uint32_t p = (uint32_t)(t - trk);
+    uint32_t p = (uint32_t)(t - trk), current = t->eng_req % NENGINES;
     if (!eng_ok(e) || p >= NPART)
         return 0;
-    return p == (NTRK - 1u) ? e == ENGI_DRUM : e != ENGI_DRUM;
+    /* DRUM is selectable only when already present in a legacy project. New projects
+     * start with it on track 4; loading a project never silently relocates it. */
+    if (e == ENGI_DRUM)
+        return current == ENGI_DRUM;
+    return p != (NTRK - 1u) || current != ENGI_DRUM;
 }
 static uint32_t eng_track_count(const track_t *t)
 {
-    return (uint32_t)(t - trk) == (NTRK - 1u) ? 1u : NENG_SHOWN - 1u;
+    uint32_t p = (uint32_t)(t - trk), current = t->eng_req % NENGINES;
+    return current == ENGI_DRUM && p != (NTRK - 1u) ? NENG_SHOWN : NENG_SHOWN - 1u;
 }
 static uint32_t eng_track_vis(uint32_t n, const track_t *t)
 {
