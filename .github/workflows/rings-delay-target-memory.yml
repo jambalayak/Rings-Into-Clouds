@@ -96,9 +96,8 @@ jobs:
             grep -E "TARGET SIZE|TARGET DELAY STORAGE|image [0-9]+ B|RAM|POOL|Rings/Clouds" "${RESULTS}/${name}.log" > "${RESULTS}/${name}.summary.txt" || true
           }
 
-          run_profile float ""
-          run_profile scale-8388 "8388" "-Os"
-          run_profile scale-8388-oz "8388" "-Oz"
+          # The float, -Os and plain -Oz baselines are retained in earlier run artifacts.
+          # Re-run only the best combined profile to capture its generated sample header.
           run_profile scale-8388-oz-gc-data "8388" "-Oz" "1" "1"
 
       - name: Upload target linker diagnostics (not firmware)
