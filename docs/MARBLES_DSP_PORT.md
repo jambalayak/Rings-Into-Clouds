@@ -100,3 +100,21 @@ The upstream implementation's `Ramps` structure has a master ramp and two slave 
 The X generator has three X channels and one Y channel. In its default internal T-clock mode, the three X outputs are associated with the three T timing streams; Y is a slower random modulation output (default rate 1/16 of X2, with its own division control in the original UI). FM-1 routing should preserve this timing relationship unless the user deliberately selects another clocking mode.
 
 The requested T1 -> Rings 1 strum and T2 -> Rings 2 strum mapping is intentional and valid: Rings 2 is clocked from the Marbles master pulse, while Rings 1 receives the T1 random gate stream. T3 remains available as a selectable auxiliary gate destination.
+
+
+## Q15 target-link result (run 45961122280)
+
+The corrected Q15 overlay compiled and linked successfully for the FM-1 `pi32v2` target. The same run passed the existing SLICE and DRUM host regression suites. This remains a diagnostic link, not an installable firmware integration.
+
+Target-linked results with Marbles DSP objects and Q15 resources retained:
+- Application image: 541,900 bytes / 581,564-byte capacity; 39,664 bytes free.
+- RAM `.data + .bss`: 63,908 / 73,728 bytes; 9,820 bytes free.
+- POOL: 343,376 / 368,640 bytes; 25,264 bytes free.
+- Each of the 45 Q15 inverse-CDF tables is 774 bytes (387 signed 16-bit entries); the complete 45-table data set is 34,830 bytes.
+- Three other 257-entry float lookup tables remain float.
+- Marbles object sizes: TGenerator 1,944 B; XYGenerator 5,788 B; RandomStream 524 B; RandomGenerator 4 B. The measured `OutputChannel` and `RandomSequence` sizes are already embedded in XYGenerator/TGenerator and must not be double-counted.
+- The linker retained Marbles resources and eight Marbles DSP translation units. No Marbles objects are constructed or processed yet.
+
+The Marbles-enabled target diagnostic increases XIP by 45,696 bytes and POOL by 8,288 bytes relative to the prior no-Marble target diagnostic. This includes linked code/resources and sizing-anchor storage, not a final runtime allocation plan. Compared with retaining the original float distribution tables, Q15 saves 34,830 bytes of XIP table data.
+
+With only 39,664 bytes of XIP and 25,264 bytes of POOL remaining, keep the next work focused on a minimal Marbles runtime/event integration and precise allocation audit. Do not start a second Rings instance or allocate duplicate Clouds processors. The user's required X1/X2 and T1/T2 routing must be preserved; T2 is the master-clock output, not the second derived random gate.
