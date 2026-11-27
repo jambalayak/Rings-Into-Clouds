@@ -112,6 +112,16 @@ jobs:
             -o build/host/slice_test tests/slice_test.c -lm
           build/host/slice_test build/slice_demo/loop build/slice_demo
 
+      - name: Run DRUM host regression with SAMPLE and GRAIN disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/host build/drum_demo
+          cc -O2 -w -DFELUCCA_SAMPLE_ENGINE=0 -DFELUCCA_GRAIN_ENGINE=0 -DFELUCCA_SLICE=1 \
+            -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ibuild/gen -Ifirmware/src \
+            -o build/host/drum_test tests/drum_test.c -lm
+          build/host/drum_test build/drum_demo
+
       - name: Upload target linker diagnostics (not firmware)
         if: always()
         uses: actions/upload-artifact@v7
