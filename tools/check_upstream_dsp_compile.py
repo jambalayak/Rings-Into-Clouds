@@ -405,13 +405,13 @@ def main():
         string_original = eur / "rings/dsp/string.h"
         string_patched = patch_root / "rings/dsp/string.h"
         string_text = string_original.read_text()
-        old_typedefs = ("typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\\n"
+        old_typedefs = ("typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\n"
                         "typedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;")
         include_line = '#include "stmlib/stmlib.h"'
         if old_typedefs not in string_text or include_line not in string_text:
             raise SystemExit("expected Rings delay-line declarations not found")
         if packed24:
-            new_typedefs = ("typedef Q24DelayLine<kDelayLineSize> StringDelayLine;\\n"
+            new_typedefs = ("typedef Q24DelayLine<kDelayLineSize> StringDelayLine;\n"
                             "typedef Q24DelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
             header_name = "q24_delay_line.h"
             status = "packed signed-24, Q3.21; float DSP math retained"
@@ -419,7 +419,7 @@ def main():
             scale = int(delay_scale)
             if scale < 1 or scale > 32768:
                 raise SystemExit("FELUCCA_RINGS_DELAY_SCALE must be in 1..32768")
-            new_typedefs = ("typedef QNDelayLine<kDelayLineSize> StringDelayLine;\\n"
+            new_typedefs = ("typedef QNDelayLine<kDelayLineSize> StringDelayLine;\n"
                             "typedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
             header_name = "qn_delay_line.h"
             status = f"signed int16, scale={scale}; float DSP math retained"
@@ -427,7 +427,7 @@ def main():
         overlay_header = patch_root / "rings/dsp" / header_name
         overlay_header.parent.mkdir(parents=True, exist_ok=True)
         overlay_header.write_text(header_path.read_text())
-        string_text = string_text.replace(include_line, include_line + f'\\n#include "rings/dsp/{header_name}"')
+        string_text = string_text.replace(include_line, include_line + f'\n#include "rings/dsp/{header_name}"')
         string_text = string_text.replace(old_typedefs, new_typedefs)
         string_patched.parent.mkdir(parents=True, exist_ok=True)
         string_patched.write_text(string_text)
