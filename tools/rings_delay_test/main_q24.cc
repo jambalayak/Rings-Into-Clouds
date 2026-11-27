@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include "rings/dsp/part.h"
+#include "rings/dsp/q24_delay_line.h"
 #include "rings/dsp/performance_state.h"
 #include "rings/dsp/patch.h"
 #include "stmlib/utils/random.h"
