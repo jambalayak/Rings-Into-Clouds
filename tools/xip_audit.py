@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 """Read-only XIP table, string, reader and sample-data audit. Requires pyelftools."""
-import argparse, collections, hashlib, math, pathlib, re, struct, zlib, bz2, lzma
+import argparse, collections, hashlib, math, pathlib, re, struct, zlib, bz2, lzma, io
 from elftools.elf.elffile import ELFFile
 from elftools.elf.relocation import RelocationSection
 
@@ -18,7 +18,7 @@ def ent(d):
     c=collections.Counter(d); n=len(d)
     return -sum(v/n*math.log2(v/n) for v in c.values()) if n else 0
 def syms(path):
-    with path.open("rb") as f: elf=ELFFile(f); tab=elf.get_section_by_name(".symtab")
+    elf=ELFFile(io.BytesIO(path.read_bytes())); tab=elf.get_section_by_name(".symtab")
     if not tab:return [],None
     rows=[]
     for s in tab.iter_symbols():
