@@ -118,3 +118,23 @@ Target-linked results with Marbles DSP objects and Q15 resources retained:
 The Marbles-enabled target diagnostic increases XIP by 45,696 bytes and POOL by 8,288 bytes relative to the prior no-Marble target diagnostic. This includes linked code/resources and sizing-anchor storage, not a final runtime allocation plan. Compared with retaining the original float distribution tables, Q15 saves 34,830 bytes of XIP table data.
 
 With only 39,664 bytes of XIP and 25,264 bytes of POOL remaining, keep the next work focused on a minimal Marbles runtime/event integration and precise allocation audit. Do not start a second Rings instance or allocate duplicate Clouds processors. The user's required X1/X2 and T1/T2 routing must be preserved; T2 is the master-clock output, not the second derived random gate.
+
+
+## Tempo-sync implementation direction
+
+The FM-1 already has a single transport clock and a shared beat-duration helper in `fx.c` (`beat_samples()`), which resolves to the project BPM for internal tempo or the measured MIDI clock tempo when external sync is selected. The sequencer's `events_block(n)` runs once before the track render in each audio half.
+
+The Marbles T generator can run from its internal oscillator at a host-controlled frequency. Its base rate is 2 Hz at 120 BPM; therefore the synced master-clock frequency can be derived from the FM-1 beat duration and a selected subdivision multiplier. Keep its 1x range and calculate the semitone-rate control from the host tempo/subdivision, while leaving the original jitter and random T1/T3 gate generation active. Transport start/restart should reset Marbles' phase and Deja Vu position; stop should stop or freeze its clock according to the selected sync mode. External MIDI clock tempo changes must update the same clock source without creating a second independent transport.
+
+For every audio block:
+1. Set TGenerator's rate from the current FM-1 beat length and selected subdivision.
+2. Process TGenerator to produce the T1/T3 slave ramps/gate flags and T2 master ramp.
+3. Derive the T2 50%-duty gate's rising edge from the master ramp wrap/phase, not by treating T2 as a second slave gate.
+4. Pass the three T timing ramps into XYGenerator in its internal T1/T2/T3 clock mode, yielding X1, X2, X3 and the slower Y output.
+5. Convert X1/X2 to Rings pitch values; T1/T2 edges to the two Rings strum triggers; route X3, Y and T3 through a selectable modulation/destination matrix.
+
+Use sample-offset trigger events (or split the Rings processing block at event offsets) so the two strum inputs retain their actual timing inside the 128-frame audio half. Avoid calling ordinary `trk_note_on` as a substitute for Rings' strum API. The Marbles DSP must not generate MIDI note events on the sequencer tracks unless a separate user-facing routing option explicitly requests that behaviour.
+
+The existing Rings C ABI currently exposes one Rings Part, one Strummer and one Clouds processor; its setters for Marbles routing, per-Rings parameters, pitch/strum state and modulation destinations still need to be designed. The present `events_block`/mix ordering also has a performance-FX early return, so decide deliberately whether the Rings/Clouds instrument is inserted before the performance layer or only on the normal master path. Do not leave one path silently bypassing the instrument.
+
+CPU has not been measured. Run the Marbles T/XY processing in a target audio-budget experiment before turning it on in the real-time mix path.
