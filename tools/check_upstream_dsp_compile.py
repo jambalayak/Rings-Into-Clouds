@@ -335,7 +335,19 @@ def main():
     mono_part_cc_path = patch_root / "rings_mono" / "dsp" / "part.cc"
     mono_part_cc_path.parent.mkdir(parents=True, exist_ok=True)
     mono_part_cc_path.write_text(mono_part_cc)
-    sources.append(mono_part_cc_path)
+
+    # Build/link the compact two-string mono variant for an isolated second-Part
+    # memory probe. The full eight-string mono variant remains sizeof-only above.
+    mono2_part_cc = mono_part_cc.replace(
+        '#include "rings_mono/dsp/part.h"',
+        '#include "rings_mono2/dsp/part.h"'
+    ).replace("namespace rings_mono {", "namespace rings_mono2 {").replace(
+        "}  // namespace rings_mono", "}  // namespace rings_mono2"
+    )
+    mono2_part_cc_path = patch_root / "rings_mono2" / "dsp" / "part.cc"
+    mono2_part_cc_path.parent.mkdir(parents=True, exist_ok=True)
+    mono2_part_cc_path.write_text(mono2_part_cc)
+    sources.append(mono2_part_cc_path)
 
     # Compile-time-only second Rings instance experiment: clone the five-model Part
     # declaration into a private namespace and reduce its compile-time polyphony to 1.
