@@ -309,7 +309,7 @@ jobs:
           start = next(i for i, line in enumerate(lines) if line.startswith('    printf("drum_test: keys:'))
           end = next(i for i, line in enumerate(lines) if line.startswith('    fails += bad != 0;'))
           lines[start:end] = ['    printf("drum_test: keys: the GM drum map, first C plays KICK, KICK picks the kick; DRUM is engine %u: %s\\n", ENGI_DRUM, bad ? "FAIL" : "ok");']
-          p.write_text("\\n".join(lines) + "\\n")
+          p.write_text("\n".join(lines) + "\n")
           cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/drum_test tests/drum_test.c -lm
           build/host/drum_test build/drum-demo
       - name: Run SLICE host tests and user-slot upload round trip
