@@ -53,6 +53,14 @@ def main():
         root = eur if pattern.startswith(("rings/", "clouds/")) else stm
         sources.extend(root.glob(pattern))
     sources = sorted(p for p in set(sources) if "string_synth" not in p.name)
+
+    # Compile the upstream Marbles DSP separately for target sizing. It is deliberately
+    # not added to the Rings/Clouds link manifest yet: no sequencer behaviour is connected.
+    marbles_sources = sorted(set([
+        * (eur / "marbles" / "random").glob("*.cc"),
+        * (eur / "marbles" / "ramp").glob("*.cc"),
+        eur / "marbles" / "resources.cc",
+    ]))
     if not sources:
         raise SystemExit("No pinned DSP translation units found.")
 
@@ -236,6 +244,17 @@ def main():
     invoke([*upstream_common, "-c", str(upstream_size_src.relative_to(ROOT)),
             "-o", str(upstream_size_obj.relative_to(ROOT))])
 
+
+    marbles_size_src = ROOT / "tools" / "cpp_smoke" / "marbles_size_probe.cc"
+    marbles_size_obj = BUILD / "marbles_size_probe.o"
+    invoke([*common, "-c", str(marbles_size_src.relative_to(ROOT)),
+            "-o", str(marbles_size_obj.relative_to(ROOT))])
+    for src in marbles_sources:
+        rel = src.relative_to(ROOT)
+        obj = BUILD / ("marbles__" + str(rel).replace("/", "__") + ".o")
+        obj.parent.mkdir(parents=True, exist_ok=True)
+        invoke([*common, "-c", str(rel), "-o", str(obj.relative_to(ROOT))])
+
     five_size_src = ROOT / "tools" / "cpp_smoke" / "size_probe_five_model.cc"
     five_size_obj = BUILD / "size_probe_five_model.o"
     invoke([*common, "-c", str(five_size_src.relative_to(ROOT)),
@@ -254,8 +273,11 @@ def main():
         "ric_upstream_size_rings_strummer", "ric_upstream_size_clouds_processor",
         "ric_five_size_rings_part", "ric_five_size_rings_string",
         "ric_five_size_rings_strummer", "ric_five_size_clouds_processor",
+        "ric_marbles_size_t_generator", "ric_marbles_size_xy_generator",
+        "ric_marbles_size_output_channel", "ric_marbles_size_random_sequence",
+        "ric_marbles_size_random_stream", "ric_marbles_size_random_generator",
     }
-    for obj in (upstream_size_obj, five_size_obj):
+    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj):
         dumped = subprocess.run([*dump_prefix, str(obj.relative_to(ROOT))],
                                 cwd=ROOT, text=True, capture_output=True)
         if dumped.returncode:
@@ -293,7 +315,7 @@ def main():
         (link_build / "objects.txt").write_text(
             "\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\n")
         print(f"LINK OBJECTS: {len(link_objects)} pinned DSP and C ABI objects in build/rings-clouds-link/objects.txt")
-    print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units for pi32v2.")
+    print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units and {len(marbles_sources)} Marbles DSP translation units for pi32v2.")
     if "--link-objects" in sys.argv:
         print("DSP link objects prepared for the FM-1 app link; no DSP objects are constructed or processed.")
     else:
