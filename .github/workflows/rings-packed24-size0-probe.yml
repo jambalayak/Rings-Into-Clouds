@@ -1,0 +1,63 @@
+name: Rings packed-24 direct -Oz size probe
+on:
+  push:
+    branches:
+      - rings-delay-packed24-size0-probe
+permissions:
+  contents: read
+concurrency:
+  group: rings-delay-packed24-size0-probe
+  cancel-in-progress: true
+jobs:
+  target-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade numpy Pillow fonttools
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+      - name: Prepare target compiler environment
+        run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Verify POOL startup initialisation and compact allocation checks
+        run: python3 tools/check_ric_pool_init.py
+      - name: Generate approved five-model baseline overlay and target size probe
+        run: python3 tools/check_upstream_dsp_compile.py
+      - name: Compile packed-24 Rings target objects
+        run: python3 tools/check_packed24_target.py
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          git clone --depth 1 --single-branch --branch "${SDK_TAG}" "${SDK_URL}" "${SDK_DIR}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+      - name: Link diagnostic with direct whole-file -Oz (FELUCCA_SIZE=0)
+        shell: bash
+        run: |
+          set +e
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="-Oz" FELUCCA_SIZE=0 ./build.sh 2>&1 | tee build/packed24-size0-link.log
+          status=${PIPESTATUS[0]}
+          echo "firmware build exit status: ${status}" | tee -a build/packed24-size0-link.log
+          for file in felucca.map felucca.symbols.txt felucca.sections.txt; do
+            if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-size0-${file}"; fi
+          done
+          test -s build/packed24-size0-felucca.map
+          exit 0
+      - name: Upload diagnostic linker reports only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-packed24-size0-probe-${{ github.sha }}
+          path: |
+            build/packed24-size0-link.log
+            build/packed24-size0-felucca.map
+            build/packed24-size0-felucca.symbols.txt
+            build/packed24-size0-felucca.sections.txt
+          if-no-files-found: warn
+          retention-days: 14
