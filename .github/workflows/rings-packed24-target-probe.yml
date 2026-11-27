@@ -175,6 +175,11 @@ jobs:
             echo "===== $f =====" >> "$STAGE/reports/object-symbols.txt"
             "$TC/nm" -S --size-sort --defined-only "$f" >> "$STAGE/reports/object-symbols.txt" 2>&1
           done
+          # Host-side analysis of object symbols, retained tables, string relocations and SMP_DATA.
+          python3 -m pip install --quiet pyelftools
+          mapfile -d '' OBJECTS < <(find build -type f -name '*.o' -print0)
+          python3 tools/xip_audit.py --objects "${OBJECTS[@]}" --root . > "$STAGE/reports/table-analysis.log" 2>&1
+          cp -f xip-table-hashes.txt xip-identical-duplicates.txt xip-subsets.txt xip-symmetry.txt xip-table-readers.txt xip-strings.txt xip-smp-data-estimates.txt "$STAGE/reports/" 2>/dev/null
           # Remove any accidental image/package outputs from the staging tree.
           find "$STAGE" -type f \( -name '*.elf' -o -name '*.bin' -o -name '*.fwsc' -o -name '*.ufw' \) -delete
           printf 'Branch=%s\nCommit=%s\nStrategy=%s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "${{ matrix.size_strategy }}" > "$STAGE/reports/build-identity.txt"
