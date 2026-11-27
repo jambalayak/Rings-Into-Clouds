@@ -6,6 +6,7 @@ on:
       - rings-xip-audit-capture
       - rings-sine-table-fold-probe
       - rings-clouds-engine-trim-probe
+      - rings-clouds-no-sample-float-probe
 permissions:
   contents: read
 concurrency:
@@ -100,8 +101,6 @@ jobs:
         run: python3 tools/check_ric_pool_init.py
       - name: Generate approved five-model baseline overlay and target size probe
         run: python3 tools/check_upstream_dsp_compile.py
-      - name: Compile packed-24 Rings and measure target object sizes
-        run: python3 tools/check_packed24_target.py
       - name: Install firmware build dependencies
         run: python3 -m pip install --upgrade Pillow fonttools
       - name: Install pinned AC79 SDK
@@ -116,7 +115,9 @@ jobs:
         run: python3 tools/prepare_diagnostic_build.py
       - name: Apply temporary Rings/Clouds engine trim overlay
         run: python3 tools/rings_clouds_engine_trim_probe.py
-      - name: Link FM-1 firmware with packed-24 Rings (${{ matrix.size_strategy }}, diagnostic only)
+      - name: Remove selectable SAMPLE engine, retain shared SLICE data
+        run: python3 tools/rings_clouds_no_sample_probe.py
+      - name: Link FM-1 firmware with upstream float Rings (${{ matrix.size_strategy }}, diagnostic only)
         shell: bash
         env:
           FELUCCA_DIAGNOSTIC_ONLY: "1"
@@ -152,6 +153,8 @@ jobs:
           cp -f build/packed24-target-probe/*.log "$STAGE/reports/" 2>/dev/null
           cp -f build/rings-clouds-engine-trim/* "$STAGE/reports/" 2>/dev/null
           cp -f build/packed24-target-probe/sizes.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/rings-clouds-no-sample/* "$STAGE/reports/" 2>/dev/null
+          cp -f build/rings-clouds-engine-trim/* "$STAGE/reports/" 2>/dev/null
           cp -f build/xip-function-probes/* "$STAGE/reports/" 2>/dev/null
           find build -type f -name '*.o' -print0 | while IFS= read -r -d '' f; do
             rel="${f#build/}"
@@ -182,6 +185,7 @@ jobs:
           done
           # Host-side analysis of object symbols, retained tables, string relocations and SMP_DATA.
           python3 -m pip install --quiet pyelftools
+          python3 tools/rings_clouds_pool_probe.py build/felucca.o > "$STAGE/reports/pool-probe.txt" 2>&1 || true
           OBJECTS=(build/felucca.o build/fm1_cpu1.o build/fm1_isr.o build/fm1_vec.o build/crt0.o)
           while IFS= read -r rel; do
             [ -n "$rel" ] && [ -f "$rel" ] && OBJECTS+=("$rel")
