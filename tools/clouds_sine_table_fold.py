@@ -73,7 +73,7 @@ def apply_sine_table_fold(root, patch_root):
         raise SystemExit("expected the phase-vocoder fast_p2r sine lookups exactly once")
     phase_patched = phase_original.replace(
         '#include "clouds/resources.h"',
-        '#include "clouds/resources.h"\\n#include "rings/resources.h"', 1)
+        '#include "clouds/resources.h"\n#include "rings/resources.h"', 1)
     phase_patched = phase_patched.replace(old_fast_p2r, new_fast_p2r, 1)
     if "lut_sin[" in phase_patched:
         raise SystemExit("phase-vocoder lut_sin lookup remains after overlay")
