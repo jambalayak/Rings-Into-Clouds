@@ -137,7 +137,7 @@ def main():
     int n = lo;"""
     if upper_bound_call not in marbles_dist:
         raise SystemExit("expected Marbles std::upper_bound call not found")
-    marbles_dist_patched.write_text(marbles_dist.replace(upper_bound_call, binary_search))
+    marbles_dist = marbles_dist.replace(upper_bound_call, binary_search)
 
     # Q15 experiment: encode the 45 inverse-CDF tables as signed 16-bit values.
     # They are monotonic values in [0, 1]. Keep the three unrelated float LUTs intact.
