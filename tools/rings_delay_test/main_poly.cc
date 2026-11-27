@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
   fprintf(meta, "start,frames,model,profile,saturation_count,max_abs_delay_value,polyphony,strums\n");
   uint64_t cursor = 0, total_sat = 0;
   float global_max = 0.0f;
-  for (int model = 0; model < 5; ++model) {
+  for (int config = 0; config < 2; ++config) {\n    const int polyphony = config == 0 ? 1 : 4;\n    for (int model = 0; model < 5; ++model) {
     for (size_t pi = 0; pi < sizeof(kProfiles)/sizeof(kProfiles[0]); ++pi) {
       const Profile &p = kProfiles[pi];
       rings::qn_saturation_count = 0;
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
       rings::Part part;
       part.Init();
       part.set_model(static_cast<rings::ResonatorModel>(model));
-      part.set_polyphony(8);
+      part.set_polyphony(polyphony);
       rings::Patch patch = {p.structure, p.brightness, p.damping, p.position};
       rings::PerformanceState ps = {};
       ps.internal_exciter = true;
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         float in[kBlock] = {}, out[kBlock] = {}, aux[kBlock] = {};
         const size_t n = static_cast<size_t>(std::min<uint64_t>(kBlock, frames-offset));
         ps.strum = false;
-        if (next_strum < 8 && offset >= kStrumFrames[next_strum]) {
+        if (next_strum < static_cast<size_t>(polyphony) && offset >= kStrumFrames[next_strum]) {
           ps.note = static_cast<float>(kNotes[next_strum]);
           ps.strum = true;
           ++next_strum;
