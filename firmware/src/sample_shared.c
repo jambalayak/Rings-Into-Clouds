@@ -49,6 +49,7 @@ static void smp_sine(int32_t *out, uint32_t n, const vmod_t *m, int32_t d16, int
 #define SMP_USER_SIZE 0x14000u
 #define SMP_USER_DATA 512u
 #define SMP_USER_MAGIC 0x504D5346u                  /* "FSMP" */
+#define SMP_NALL (SMP_NSETS + SMP_USER_SLOTS)
 typedef struct {
     uint32_t magic;
     uint16_t version;
@@ -99,4 +100,13 @@ static void smp_user_scan(uint32_t k)
         return;
     usr_nz[k] = (uint8_t)nz;
     slc_user_scan(k, 1);
+}
+
+/* Shared source validation for optional SAMPLE/GRAIN builds when their slot
+ * metadata is supplied by this file rather than eng_sample.c. */
+static int smp_set_missing(uint32_t si)
+{
+    if (si < SMP_NSETS)
+        return !SMP_ZONES[SMP_SETS[si].z0].n;
+    return !usr_nz[(si - SMP_NSETS) % SMP_USER_SLOTS];
 }
