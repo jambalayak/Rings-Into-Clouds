@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * RINGS INTO CLOUDS C ABI.
  *
- * This translation unit reserves one five-model Rings instance and one stock
- * stereo Clouds instance. The boot anchor retains the objects, buffers and
+ * This translation unit reserves one five-model Rings instance and one compact
+ * stereo Clouds experiment. The boot anchor retains the objects, buffers and
  * processing entry points, but never constructs or runs the DSP. */
 #include <stdint.h>
 #include <stddef.h>
@@ -27,13 +27,15 @@ unsigned char ric_rings_strummer_storage[sizeof(rings::Strummer)];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_processor_storage[sizeof(clouds::GranularProcessor)];
 
-/* Stock stereo layout: 118,784 B large buffer (sample + workspace) in POOL,
- * 65,408 B small buffer in ordinary RAM. The buffers are deliberately full
- * sized at this measurement gate; no shortened recording profile is assumed. */
+/* Isolated, user-approved compact stereo layout in POOL:
+ * 86,144 B large allocation = 32,768 B recording + 53,376 B workspace;
+ * 32,768 B small allocation = the second 32,768 B recording channel.
+ * Workspace remains 53,376 B. Both buffers are aligned and POOL-zeroed at boot.
+ * This remains a diagnostic-only experiment; it is not a product merge. */
 __attribute__((used, section(".pool"), aligned(16)))
-unsigned char ric_clouds_large_buffer[118784];
-__attribute__((used, section(".bss.ric_clouds_small"), aligned(16)))
-unsigned char ric_clouds_small_buffer[65408];
+unsigned char ric_clouds_large_buffer[86144];
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_clouds_small_buffer[32768];
 }
 
 static uint8_t ric_dsp_constructed;
