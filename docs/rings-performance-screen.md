@@ -16,7 +16,7 @@ The four physical K1–K4 encoders edit four parameters at a time. SELECT cycles
 
 ## DSP parameter mapping
 
-The pinned Mutable Instruments Rings `Patch` contains `structure`, `brightness`, `damping` and `position`. The fifth control, Frequency, is pitch/frequency input and belongs to the Rings performance/note state rather than the four-field Patch. Do not fake Frequency by changing Structure or another Patch field.
+The pinned Mutable Instruments Rings `Patch` contains `structure`, `brightness`, `damping` and `position`. The fifth control, Frequency, is pitch/frequency input: `Part::Process` consumes `PerformanceState.note` (then combines it with tonic and FM) to derive the resonator frequency. For the FM-1 performance screen, Frequency should therefore act as a semitone offset on the incoming note, preserving the sequencer/MIDI note as the baseline; its final range and scaling must be calibrated against FM-1 pitch handling. Do not fake Frequency by changing Structure or another Patch field.
 
 The screen must preserve the existing Rings model selection and each instance's independent Patch and PerformanceState. It must not change the approved five-model set or the full eight-string sound design.
 
