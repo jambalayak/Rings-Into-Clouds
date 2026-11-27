@@ -667,16 +667,15 @@ static void layer_key(uint32_t l, uint32_t k)
         TSEL->p[P_ROOT] = (int16_t)((k + 5u) % 12u);    /* the key's note name (F3 = F) */
     } else if (l == LAYER_EDIT && !key_black(k)) {
         uint32_t n = eng_track_count(TSEL);
-        if (n > LY_INIT) n = LY_INIT;
-        if (p < n)
+        if (p < n && p < LY_INIT)
             edit_load(eng_track_vis(p, TSEL), 0);
-        else if (p == n && chain_busy())
+        else if (p == LY_INIT && chain_busy())
             ui_message("STOP TO EDIT");
-        else if (p == n)
+        else if (p == LY_INIT)
             confirm_open(CF_INIT_SOUND, song.sel);      /* (the dialog closes the layer) */
-        else if (p == n + 1u && chain_busy())
+        else if (p == LY_CLEAN && chain_busy())
             ui_message("STOP TO EDIT");
-        else if (p == n + 1u)
+        else if (p == LY_CLEAN)
             confirm_open(CF_CLEAN_SOUND, song.sel);
     } else if (l == LAYER_EDIT) {
         eqa_key(k, p);                                  /* (black keys: the engine's quick actions) */
@@ -871,7 +870,7 @@ static uint32_t layer_leds(uint32_t *br)
             can = (mask >> e) & 1u;
         } else if (l == LAYER_EDIT && !b) {             /* the engine lit, the others and INIT breathe */
             on = p < edit_n && eng_track_vis(p, TSEL) == TSEL->eng_req % NENGINES;
-            can = p < edit_n ? 1u : (p == edit_n || p == edit_n + 1u) && !chain_busy();
+            can = p < edit_n ? 1u : (p == LY_INIT || p == LY_CLEAN) && !chain_busy();
         } else if (l == LAYER_EDIT && (a = eqa_of(TSEL, p)) != 0) {   /* the quick actions: on lit (DRUM: sounding), */
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
@@ -1066,17 +1065,19 @@ static void eqa_row(uint32_t n)
 static void layer_edit(void)                            /* the engines from F3, INIT next (LY_INIT), CLEAN INIT after */
 {                                                        /* it (1.5.5), the sound under them (cells show the engine's
                                                          * icon, not the key's note) */
-    uint32_t n = eng_track_count(TSEL) < LY_INIT ? eng_track_count(TSEL) : LY_INIT;
+    uint32_t n = LY_INIT, available = eng_track_count(TSEL);
     uint32_t cells = n + 2u, i, h = cells > 12u ? 20u : 28u;   /* 4 rows of 20: 8 px clear above the sound row */
     uint32_t na = eqa_count(TSEL);
     for (i = 0; i < cells; i++) {
         int32_t x = LC_X(i % 4u), y = 4 + (int32_t)(h + 4u) * (int32_t)(i / 4u);
         uint32_t e = eng_track_vis(i, TSEL);
         const engine_t *en = e < NENGINES ? ENGINES[e] : 0;
-        if (i < n && en)
+        if (i < n && i < available && en)
             lcell(x, y, (int32_t)h, 0, engine_icon(en->name), 0, h > 24u ? en->name : eng_abbr(en->name),
                   e == TSEL->eng_req % NENGINES ? LS_SEL : LS_OFF, 0);
-        else if (i >= n)
+        else if (i < n)
+            lcell(x, y, (int32_t)h, 0, ICON_NONE, 0, "", LS_DIM, 0);
+        else
             lcell(x, y, (int32_t)h, 0, i == n ? ICON_X_WARN : ICON_COUNT, 0, i == n ? "INIT" : "CLEAN",   /* (CLEAN: no
                                                                                     * icon, the word fills the cell) */
                   chain_busy() ? LS_DIM : LS_OFF, 0);
