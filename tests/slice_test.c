@@ -277,7 +277,11 @@ static sine_run_t sine_run(uint32_t eng, int16_t src, uint32_t note)
     t->p[P_REL] = 10;
     trk_note_on(t, note, 100);
     v = voice_of(t, note);
+#if FELUCCA_SAMPLE_ENGINE
     r.sine = v && (eng == SLC_ENG ? ((uint32_t)v->s[4] & 7u) == SLC_SINE : eng == 8u ? v->s[0] == GR_SINE : v->s[6] == 2);
+#else
+    r.sine = v && eng == SLC_ENG && ((uint32_t)v->s[4] & 7u) == SLC_SINE;
+#endif
     for (k = 0; k < FS / 2u / CTL; k++) {
         int32_t o[2 * CTL];
         mix_block(o, CTL);
