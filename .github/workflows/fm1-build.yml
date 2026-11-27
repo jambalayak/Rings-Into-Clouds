@@ -125,9 +125,9 @@ jobs:
         if: always()
         run: FELUCCA_SAMPLE_ENGINE=0 FELUCCA_GRAIN_ENGINE=0 FELUCCA_SLICE=1 FELUCCA_RINGS_DELAY_SCALE=8388 FELUCCA_RIC=1 ./build.sh
 
-      - name: Build lean FM-1 firmware for memory diagnostics (Slicer excluded)
+      - name: Build lean FM-1 firmware for memory diagnostics (SLICE retained)
         if: always()
-        run: FELUCCA_SAMPLE_ENGINE=0 FELUCCA_GRAIN_ENGINE=0 FELUCCA_SLICE=0 ./build.sh
+        run: FELUCCA_SAMPLE_ENGINE=0 FELUCCA_GRAIN_ENGINE=0 FELUCCA_SLICE=1 ./build.sh
 
       - name: Upload linker diagnostics (not a firmware release)
         if: always()
