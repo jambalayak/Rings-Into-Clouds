@@ -172,8 +172,7 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
 #endif
 };
 
-/* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), the n-th of them
- * eng_vis(n), e's place among them eng_rank(e), the next / previous one eng_step(e, dir) (wraps) */
+/* the engines one can pick (engine 1 only with FELUCCA_FM4), in ENGINE_ORDER: eng_ok(e), eng_vis(n). */
 static int eng_ok(uint32_t e)
 {
     if (e >= NENGINES || (!FELUCCA_FM4 && e == ENGI_DIGITAL)) return 0;
@@ -182,18 +181,39 @@ static int eng_ok(uint32_t e)
     return 1;
 }
 static uint32_t eng_vis(uint32_t n) { return ENGINE_ORDER[n % NENG_SHOWN]; }
-static uint32_t eng_rank(uint32_t e)
+/* New projects use a dedicated DRUM part on track 4. The project loader deliberately
+ * bypasses these selection helpers, so older projects retain their saved assignments. */
+static int eng_track_allowed(uint32_t e, const track_t *t)
 {
-    uint32_t n;
-    if (!eng_ok(e))
-        e = ENGI_DRUM;                           /* removed engine indices are not selectable in this experiment */
-    for (n = 0; n < NENG_SHOWN && ENGINE_ORDER[n] != e; n++)
-        ;
-    return n < NENG_SHOWN ? n : 0u;
+    uint32_t p = (uint32_t)(t - trk);
+    if (!eng_ok(e) || p >= NPART)
+        return 0;
+    return p == TRK_DRUM ? e == ENGI_DRUM : e != ENGI_DRUM;
 }
-static uint32_t eng_step(uint32_t e, int32_t dir)
+static uint32_t eng_track_count(const track_t *t)
 {
-    return eng_vis((eng_rank(e % NENGINES) + (dir > 0 ? 1u : NENG_SHOWN - 1u)) % NENG_SHOWN);
+    return (uint32_t)(t - trk) == TRK_DRUM ? 1u : NENG_SHOWN - 1u;
+}
+static uint32_t eng_track_vis(uint32_t n, const track_t *t)
+{
+    uint32_t i, seen = 0;
+    for (i = 0; i < NENG_SHOWN; i++) {
+        uint32_t e = eng_vis(i);
+        if (!eng_track_allowed(e, t))
+            continue;
+        if (seen++ == n)
+            return e;
+    }
+    return NENGINES;
+}
+static uint32_t eng_track_step(uint32_t e, int32_t dir, const track_t *t)
+{
+    uint32_t i, n = eng_track_count(t), rank = n;
+    for (i = 0; i < n; i++)
+        if (eng_track_vis(i, t) == e) { rank = i; break; }
+    if (rank == n)
+        return eng_track_vis(dir > 0 ? 0u : n - 1u, t);
+    return eng_track_vis((rank + (dir > 0 ? 1u : n - 1u)) % n, t);
 }
 
 /* factory sequence patterns: SAVE > PHRASES loads one into the selected track (ui.c pat_load); a preset
