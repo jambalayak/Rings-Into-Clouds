@@ -29,7 +29,7 @@ jobs:
         run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
       - name: Compile pinned DSP and run packed-24 versus float audio comparison
         run: |
-          python3 tools/check_upstream_dsp_compile.py
+          FELUCCA_RINGS_DELAY_PACKED24=1 python3 tools/check_upstream_dsp_compile.py
           python3 tools/rings_delay_packed24_test.py
       - name: Upload audio and metrics
         if: always()
