@@ -396,7 +396,9 @@ static int clean_init(void)
         song.playing = 0;
         t = TSEL;
         e = eng_vis(r);
-        set_engine(e);
+        /* Exercise CLEAN INIT for every engine, including DRUM, independently of
+         * the UI's new-project track-selection restriction. */
+        set_engine_of(t, e);
         dress(t);
         my_steps(t);
         memcpy(st, t->step, sizeof st);
