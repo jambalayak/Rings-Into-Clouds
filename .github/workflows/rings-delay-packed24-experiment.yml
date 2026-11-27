@@ -1,0 +1,41 @@
+name: Rings packed-24 delay audio comparison (experiment only)
+
+on:
+  push:
+    branches:
+      - rings-delay-packed24-exp
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rings-delay-packed24-exp
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out firmware and pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade numpy
+      - name: Install JieLi target toolchain for shared five-model overlay
+        run: tools/get_toolchain.sh
+      - name: Prepare target compiler environment
+        run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Compile pinned DSP and run packed-24 versus float audio comparison
+        run: |
+          python3 tools/check_upstream_dsp_compile.py
+          python3 tools/rings_delay_packed24_test.py
+      - name: Upload audio and metrics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-delay-packed24-${{ github.sha }}
+          path: build/rings-delay-packed24-experiment/results/
+          if-no-files-found: warn
+          retention-days: 14
