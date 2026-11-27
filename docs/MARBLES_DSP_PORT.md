@@ -83,8 +83,20 @@ The intended virtual Marbles-to-Rings signal routing is:
 - T2 gate -> Rings instance 2 strum trigger.
 - X3 -> user-selectable modulation destination on either Rings 1 or Rings 2.
 - Y output(s) -> user-selectable modulation destination(s) on either Rings 1 or Rings 2.
-- T3 -> reserved for a selectable destination elsewhere in the instrument if the selected Marbles implementation exposes a distinct T3 gate/clock output. Confirm exact upstream output semantics before promising the routing; do not fabricate a third gate from the two-channel T generator.
+- T3 -> user-selectable modulation/trigger destination elsewhere in the instrument. Upstream T1 and T3 are the two derived gate streams; T2 is the jittered master-clock output (the master ramp/gate), so the three physical outputs are all accounted for by the two slave ramps plus the master ramp.
 
 Marbles must follow the FM-1 master tempo/transport, with selectable rhythmic subdivisions. It must not free-run independently when tempo sync is selected. The subdivision setting should drive the Marbles master clock/rate and T gate generation coherently, with reset/transport start behaviour aligned to the FM-1 sequencer. Preserve Marbles' own random timing, bias/spread, Deja Vu and gate behaviour within the selected tempo grid.
 
-Important upstream implementation detail to resolve before integration: the pinned upstream XY generator declares three X channels and one Y channel; the T generator declares two T channels. Inspect the complete upstream output/ramp API and Marbles app wiring to establish whether the panel's third T output corresponds to a master clock, a derived output, or another path. Do not silently conflate the T generator's two slave gates with a third output.
+Confirmed upstream output semantics: the pinned XY generator declares three X channels and one Y channel. The T generator declares two slave gate channels (T1 and T3); T2 is the master clock ramp/output. Preserve this distinction when adapting its buffers to FM-1 event triggers. T2 is a valid strum trigger destination for Rings 2, as requested, even though it is the master clock rather than a second random gate.
+
+
+### Confirmed Marbles output semantics
+
+The upstream implementation's `Ramps` structure has a master ramp and two slave ramps. The physical outputs correspond to:
+- T1: first derived random gate stream (`slave[0]`)
+- T2: jittered master clock (`master`)
+- T3: second derived random gate stream (`slave[1]`)
+
+The X generator has three X channels and one Y channel. In its default internal T-clock mode, the three X outputs are associated with the three T timing streams; Y is a slower random modulation output (default rate 1/16 of X2, with its own division control in the original UI). FM-1 routing should preserve this timing relationship unless the user deliberately selects another clocking mode.
+
+The requested T1 -> Rings 1 strum and T2 -> Rings 2 strum mapping is intentional and valid: Rings 2 is clocked from the Marbles master pulse, while Rings 1 receives the T1 random gate stream. T3 remains available as a selectable auxiliary gate destination.
