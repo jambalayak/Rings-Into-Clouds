@@ -387,7 +387,7 @@ static int clean_sounds(track_t *t, uint32_t note)
 static int clean_init(void)
 {
     int bad = 0, ok = 1, ok2 = 1, ok3 = 1;
-    uint32_t r, e;
+    uint32_t r, e, clean_key;
     track_t *t;
     char a[24], b[24];
     for (r = 0; r < NENG_SHOWN; r++) {                 /* every engine one can pick: TOOLS' KNOB 2 on, CLEAN */
@@ -441,9 +441,10 @@ static int clean_init(void)
 
     ui_power_on();
     go_home(); frame();
-    lay_combo(B_EDIT, white(LY_CLEAN));
-    ok = ui.confirm == CF_CLEAN_SOUND && LY_CLEAN == LY_INIT + 1u && LY_CLEAN < 16u;
-    key_up(white(LY_CLEAN)); btn_up(B_EDIT); frame();
+    clean_key = eng_track_count(TSEL) + 1u;          /* CLEAN follows this track's available engine list */
+    lay_combo(B_EDIT, white(clean_key));
+    ok = ui.confirm == CF_CLEAN_SOUND && clean_key < 16u && LY_CLEAN == LY_INIT + 1u && LY_CLEAN < 16u;
+    key_up(white(clean_key)); btn_up(B_EDIT); frame();
     confirm_text(a, b);
     ok &= str_eq(a, "CLEAN INIT T1 SOUND?") && a[12] == (char)('1' + song.sel) && str_eq(b, "NO FX, NO MOD");
     dress(TSEL);
