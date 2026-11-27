@@ -379,8 +379,10 @@ def check(img, syms, dis, rt):
     if RIC_LINK:
         required = (
             "ric_dsp_link_anchor", "ric_dsp_construct", "ric_dsp_init",
-            "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
-            "ric_clouds_processor_storage", "ric_clouds_large_buffer",
+            "ric_rings_part_storage", "ric_rings2_mono_storage",
+            "ric_rings2_performance_storage", "ric_rings2_patch_storage",
+            "ric_rings_strummer_storage", "ric_rings_strummer_process",
+            "ric_rings2_process", "ric_clouds_processor_storage", "ric_clouds_large_buffer",
             "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
             "ric_marbles_size_anchor", "ric_marbles_t_generator_storage",
             "ric_marbles_xy_generator_storage", "ric_marbles_random_stream_storage",
@@ -400,7 +402,10 @@ def check(img, syms, dis, rt):
                             pass
                 return 0
             measured = {
-                "Rings Part": symbol_size("ric_rings_part_storage"),
+                "Rings 1 Part": symbol_size("ric_rings_part_storage"),
+                "Rings 2 mono Part": symbol_size("ric_rings2_mono_storage"),
+                "Rings 2 PerformanceState": symbol_size("ric_rings2_performance_storage"),
+                "Rings 2 Patch": symbol_size("ric_rings2_patch_storage"),
                 "Rings Strummer": symbol_size("ric_rings_strummer_storage"),
                 "Clouds processor": symbol_size("ric_clouds_processor_storage"),
                 "Clouds large buffer": symbol_size("ric_clouds_large_buffer"),
