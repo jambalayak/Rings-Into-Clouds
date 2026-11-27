@@ -263,7 +263,10 @@ static void slc_scan(slc_src_t *s, uint32_t len)
 static void slc_user_scan(uint32_t k, int valid)
 {
     slc_src_t *s = &slc_usr[k];
-    uint32_t i, j, at = 0, base;
+    uint32_t i, j, at = 0;
+#if FELUCCA_SAMPLE_ENGINE
+    uint32_t base;
+#endif
     s->len = 0;
     RING_PUBLISH();
     slc_man[k][0].n = slc_man[k][1].n = 0;          /* new material: its MAN slices are gone (slc_man_load: the stored) */
@@ -274,8 +277,6 @@ static void slc_user_scan(uint32_t k, int valid)
      * shared scanner keeps them relative to the slot's own data area. */
 #if FELUCCA_SAMPLE_ENGINE
     base = (uint32_t)(uintptr_t)(smp_user_xip(k) + SMP_USER_DATA) - (uint32_t)(uintptr_t)SMP_DATA;
-#else
-    base = 0;
 #endif
     for (i = 0; i < usr_nz[k] && i < SLC_SEGS; i++) {
         const smp_zone_t *z = &usr_zone[k][i];
