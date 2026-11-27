@@ -150,12 +150,12 @@ def main():
     resources_patched.parent.mkdir(parents=True, exist_ok=True)
     resources_text = resources_original.read_text()
     table_pattern = re.compile(
-        r"const float (dist_icdf_\\d+_\\d+)\\[\\] = \\{([\\s\\S]*?)\\};"
+        r"const float (dist_icdf_\d+_\d+)\[\] = \{([\s\S]*?)\};"
     )
     q15_table_count = 0
     def encode_q15_table(match):
-        global q15_table_count
-        values = re.findall(r"[-+]?(?:\\d+\\.\\d*|\\.\\d+|\\d+)(?:[eE][-+]?\\d+)?", match.group(2))
+        nonlocal q15_table_count
+        values = re.findall(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?", match.group(2))
         encoded = []
         for value in values:
             sample = float(value)
@@ -163,9 +163,9 @@ def main():
                 raise SystemExit("Marbles inverse-CDF table value outside [0, 1]")
             encoded.append(str(int(math.floor(sample * 32767.0 + 0.5))))
         q15_table_count += 1
-        body = "\\n  " + ", ".join(
+        body = "\n  " + ", ".join(
             ", ".join(encoded[i:i + 12]) for i in range(0, len(encoded), 12)
-        ) + "\\n"
+        ) + "\n"
         return "const int16_t " + match.group(1) + "[] = {" + body + "};"
     resources_text = table_pattern.sub(encode_q15_table, resources_text)
     if q15_table_count != 45:
@@ -182,8 +182,8 @@ def main():
         "extern const int16_t* distributions_table[];"
     )
     resources_h = re.sub(
-        r"extern const float (dist_icdf_\\d+_\\d+)\\[\\];",
-        r"extern const int16_t \\1[];",
+        r"extern const float (dist_icdf_\d+_\d+)\[\];",
+        r"extern const int16_t \1[];",
         resources_h
     )
     if resources_h.count("extern const int16_t dist_icdf_") != 45:
@@ -200,23 +200,23 @@ def main():
 }
 """
     marbles_dist = marbles_dist.replace(
-        "const float kIcdfTableSize = 128.0f;\\n",
-        "const float kIcdfTableSize = 128.0f;\\n\\n" + q15_interpolator
+        "const float kIcdfTableSize = 128.0f;\n",
+        "const float kIcdfTableSize = 128.0f;\n\n" + q15_interpolator
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\\n      distributions_table[cell] + offset,\\n      uniform,\\n      kIcdfTableSize)",
+        "stmlib::Interpolate(\n      distributions_table[cell] + offset,\n      uniform,\n      kIcdfTableSize)"
         "InterpolateQ15(distributions_table[cell] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\\n      distributions_table[cell + 1] + offset,\\n      uniform,\\n      kIcdfTableSize)",
+        "stmlib::Interpolate(\n      distributions_table[cell + 1] + offset,\n      uniform,\n      kIcdfTableSize)"
         "InterpolateQ15(distributions_table[cell + 1] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\\n      distributions_table[cell + kNumRangeValues + 1] + offset,\\n      uniform,\\n      kIcdfTableSize)",
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 1] + offset,\n      uniform,\n      kIcdfTableSize)"
         "InterpolateQ15(distributions_table[cell + kNumRangeValues + 1] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
-        "stmlib::Interpolate(\\n      distributions_table[cell + kNumRangeValues + 2] + offset,\\n      uniform,\\n      kIcdfTableSize)",
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 2] + offset,\n      uniform,\n      kIcdfTableSize)"
         "InterpolateQ15(distributions_table[cell + kNumRangeValues + 2] + offset, uniform)"
     )
     marbles_dist = marbles_dist.replace(
