@@ -116,8 +116,15 @@ def main():
     if old_copy not in part_cc:
         raise SystemExit("expected active-voice external input copy not found")
     part_cc = part_cc.replace(old_copy, new_copy, 1)
-    if re.search(r"\bin\b", part_cc[part_cc.index("void Part::Process("):]):
-        raise SystemExit("external input identifier remains in Part::Process")
+    process_tail = part_cc[part_cc.index("void Part::Process("):]
+    if re.search(r"\bin\s*[,)]", process_tail):
+        raise SystemExit("external input parameter remains in Part::Process")
+    part_cc = part_cc.replace("// Copy inputs to outputs when bypass mode is enabled.",
+                               "// Bypass produces silence because this target has no external input.")
+    part_cc = part_cc.replace("// Process external input.",
+                               "// Filter the excitation signal before adding the internal pluck.")
+    part_cc = part_cc.replace("// Process input with excitation filter. Inactive voices receive silence.",
+                               "// Process the excitation signal with the filter. Inactive voices receive silence.")
 
     (NOINPUT / "rings/dsp/part.h").write_text(part_h)
     (NOINPUT / "rings/dsp/part.cc").write_text(part_cc)
