@@ -63,9 +63,7 @@ def main():
     # Pinned third_party submodules remain untouched.
     from clouds_compact_profile import apply_compact_profile
     apply_compact_profile(ROOT, patch_root)
-    from clouds_sine_table_fold import apply_sine_table_fold
-    apply_sine_table_fold(ROOT, patch_root)
-    clouds_original = eur / "clouds/dsp/granular_processor.cc"
+    # Use the pinned upstream Clouds sine tables; the previous stride-4 fold is reverted.\n    clouds_original = eur / "clouds/dsp/granular_processor.cc"
     clouds_patched = patch_root / "clouds/dsp/granular_processor.cc"
     phase_vocoder_original = eur / "clouds/dsp/pvoc/phase_vocoder.cc"
     phase_vocoder_patched = patch_root / "clouds/dsp/pvoc/phase_vocoder.cc"
