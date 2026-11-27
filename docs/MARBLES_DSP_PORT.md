@@ -72,3 +72,19 @@ The target compiler now builds the Marbles translation units, but no Marbles obj
 A deterministic 200,000-sample numerical comparison was run against the upstream float inverse-CDF tables. With the 45 tables quantized to signed Q15 and linearly interpolated after conversion back to float, the observed maximum output difference was 0.00001501 and the mean absolute difference was 0.00000391. This is a source-data simulation, not yet a compiled C++ host regression or a listening test.
 
 The target overlay now generates Q15 versions of the 45 inverse-CDF tables and changes the Marbles interpolation helper to decode them. The three 257-entry float LUTs are left unchanged. A fresh target build is running to verify the patch and measure the actual image/resource reduction. No firmware behaviour is connected by this experiment.
+
+
+## FM-1 Marbles routing and clock requirements (user-approved design direction)
+
+The intended virtual Marbles-to-Rings signal routing is:
+- X1 -> Rings instance 1 pitch.
+- X2 -> Rings instance 2 pitch.
+- T1 gate -> Rings instance 1 strum trigger.
+- T2 gate -> Rings instance 2 strum trigger.
+- X3 -> user-selectable modulation destination on either Rings 1 or Rings 2.
+- Y output(s) -> user-selectable modulation destination(s) on either Rings 1 or Rings 2.
+- T3 -> reserved for a selectable destination elsewhere in the instrument if the selected Marbles implementation exposes a distinct T3 gate/clock output. Confirm exact upstream output semantics before promising the routing; do not fabricate a third gate from the two-channel T generator.
+
+Marbles must follow the FM-1 master tempo/transport, with selectable rhythmic subdivisions. It must not free-run independently when tempo sync is selected. The subdivision setting should drive the Marbles master clock/rate and T gate generation coherently, with reset/transport start behaviour aligned to the FM-1 sequencer. Preserve Marbles' own random timing, bias/spread, Deja Vu and gate behaviour within the selected tempo grid.
+
+Important upstream implementation detail to resolve before integration: the pinned upstream XY generator declares three X channels and one Y channel; the T generator declares two T channels. Inspect the complete upstream output/ramp API and Marbles app wiring to establish whether the panel's third T output corresponds to a master clock, a derived output, or another path. Do not silently conflate the T generator's two slave gates with a third output.
