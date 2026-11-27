@@ -15,9 +15,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        optimization: ["-Os", "-Oz"]
+        include:
+          - optimization: "-Os"
+            size_strategy: function-minsize
+            size_flag: "1"
+          - optimization: "-Oz"
+            size_strategy: function-minsize
+            size_flag: "1"
+          - optimization: "-Oz"
+            size_strategy: whole-file
+            size_flag: "0"
     env:
       FELUCCA_CODE_OPT: ${{ matrix.optimization }}
+      FELUCCA_SIZE: ${{ matrix.size_flag }}
       FELUCCA_DATA_SECTIONS: "1"
     steps:
       - name: Check out pinned DSP submodules
@@ -46,13 +56,13 @@ jobs:
           git config --global http.version HTTP/1.1
           git clone --depth 1 --single-branch --branch "${SDK_TAG}" "${SDK_URL}" "${SDK_DIR}"
           echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
-      - name: Link FM-1 firmware with packed-24 Rings (diagnostic only)
+      - name: Link FM-1 firmware with packed-24 Rings (${{ matrix.size_strategy }}, diagnostic only)
         shell: bash
         run: |
           set +e
-          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" ./build.sh 2>&1 | tee "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}.log"
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" FELUCCA_SIZE="${FELUCCA_SIZE}" ./build.sh 2>&1 | tee "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
           status=${PIPESTATUS[0]}
-          echo "firmware build exit status: ${status}" | tee -a "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}.log"
+          echo "firmware build exit status: ${status}" | tee -a "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
           for file in rings-clouds.felucca.map rings-clouds.felucca.symbols.txt rings-clouds.felucca.sections.txt; do
             if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-target-probe/${file}"; fi
           done
@@ -65,7 +75,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rings-packed24-target-probe-${{ matrix.optimization }}-${{ github.sha }}
+          name: rings-packed24-target-probe-${{ matrix.optimization }}-${{ matrix.size_strategy }}-${{ github.sha }}
           path: build/packed24-target-probe/
           if-no-files-found: warn
           retention-days: 14
