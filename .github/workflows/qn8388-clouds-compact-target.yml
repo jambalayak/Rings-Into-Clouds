@@ -1,0 +1,112 @@
+name: QN8388 Rings plus compact Clouds FM-1 target memory probe
+
+on:
+  push:
+    branches:
+      - rings-delay-qn8388-clouds-compact-probe
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qn8388-clouds-compact-target
+  cancel-in-progress: true
+
+jobs:
+  target-memory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out firmware and pinned submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Prepare Python build dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install Pillow fonttools
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          for attempt in 1 2 3; do
+            rm -rf "${SDK_DIR}"
+            if git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 clone \
+              --depth 1 --single-branch --branch "${SDK_TAG}" \
+              "${SDK_URL}" "${SDK_DIR}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 3 ]; then
+              echo "Unable to fetch pinned AC79 SDK after 3 attempts" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+          test -d "${SDK_DIR}/.git"
+          echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+
+      - name: Verify POOL initialisation and approved Clouds allocation
+        run: python3 tools/check_ric_pool_init.py
+
+      - name: Run float and QN8388 target linker diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          RESULTS="${GITHUB_WORKSPACE}/target-memory-results"
+          mkdir -p "${RESULTS}"
+
+          run_profile() {
+            local name="$1"
+            local scale="$2"
+            local opt="$3"
+            rm -rf build
+            mkdir -p build
+            echo "=== ${name}: delay scale ${scale:-float}, ${opt}, GC+data sections ==="
+            set +e
+            if [ -n "${scale}" ]; then
+              FELUCCA_RINGS_DELAY_SCALE="${scale}" FELUCCA_CODE_OPT="${opt}" \
+                FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 \
+                FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              status=${PIPESTATUS[0]}
+            else
+              env -u FELUCCA_RINGS_DELAY_SCALE FELUCCA_CODE_OPT="${opt}" \
+                FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 \
+                FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              status=${PIPESTATUS[0]}
+            fi
+            set -e
+            echo "${status}" > "${RESULTS}/${name}.exit-code"
+            if [ -f build/rings-clouds.felucca.map ]; then
+              cp build/rings-clouds.felucca.map "${RESULTS}/${name}.map"
+              cp build/rings-clouds.felucca.symbols.txt "${RESULTS}/${name}.symbols.txt"
+              cp build/rings-clouds.felucca.sections.txt "${RESULTS}/${name}.sections.txt"
+              echo "Saved target map for ${name}."
+            else
+              echo "No target map produced for ${name}."
+              return 1
+            fi
+            grep -E "TARGET SIZE|TARGET DELAY STORAGE|image [0-9]+ B|RAM|POOL|Rings/Clouds" "${RESULTS}/${name}.log" > "${RESULTS}/${name}.summary.txt" || true
+          }
+
+          run_profile float-os "" "-Os"
+          run_profile qn8388-os "8388" "-Os"
+          run_profile qn8388-oz "8388" "-Oz"
+
+      - name: Upload target linker diagnostics only (no firmware)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qn8388-clouds-compact-target-memory-${{ github.sha }}
+          path: target-memory-results/
+          if-no-files-found: warn
+          retention-days: 14
