@@ -332,6 +332,20 @@ def main():
             invoke([*link_common, "-Ifirmware/src", "-c", str(rel),
                     "-o", str(obj.relative_to(ROOT))])
             link_objects.append(obj)
+
+        for src in marbles_sources:
+            rel = src.relative_to(ROOT)
+            obj = link_build / ("marbles__" + str(rel).replace("/", "__") + ".o")
+            obj.parent.mkdir(parents=True, exist_ok=True)
+            invoke([*link_common, "-Ifirmware/src", "-c", str(rel),
+                    "-o", str(obj.relative_to(ROOT))])
+            link_objects.append(obj)
+        marbles_bridge_src = ROOT / "firmware" / "cxx" / "marbles_sizing_abi.cc"
+        marbles_bridge_obj = link_build / "marbles_sizing_abi.o"
+        invoke([*link_common, "-Ifirmware/src", "-c",
+                str(marbles_bridge_src.relative_to(ROOT)),
+                "-o", str(marbles_bridge_obj.relative_to(ROOT))])
+        link_objects.append(marbles_bridge_obj)
         bridge_src = ROOT / "firmware" / "cxx" / "rings_clouds_abi.cc"
         bridge_obj = link_build / "rings_clouds_abi.o"
         invoke([*link_common, "-Ifirmware/src", "-c",
