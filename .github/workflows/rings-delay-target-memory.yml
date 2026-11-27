@@ -66,15 +66,17 @@ jobs:
             local name="$1"
             local scale="$2"
             local opt="${3:--Os}"
+            local gc="${4:-0}"
+            local data="${5:-0}"
             rm -rf build
             mkdir -p build
-            echo "=== ${name} (delay scale: ${scale:-float}, optimization: ${opt}) ==="
+            echo "=== ${name} (delay scale: ${scale:-float}, optimization: ${opt}, GC: ${gc}, data sections: ${data}) ==="
             set +e
             if [ -n "${scale}" ]; then
-              FELUCCA_RINGS_DELAY_SCALE="${scale}" FELUCCA_CODE_OPT="${opt}" FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              FELUCCA_RINGS_DELAY_SCALE="${scale}" FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
               status=${PIPESTATUS[0]}
             else
-              env -u FELUCCA_RINGS_DELAY_SCALE FELUCCA_CODE_OPT="${opt}" FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
+              env -u FELUCCA_RINGS_DELAY_SCALE FELUCCA_CODE_OPT="${opt}" FELUCCA_GC_SECTIONS="${gc}" FELUCCA_DATA_SECTIONS="${data}" FELUCCA_SIZE=1 FELUCCA_SLICE=1 FELUCCA_RIC=1 ./build.sh 2>&1 | tee "${RESULTS}/${name}.log"
               status=${PIPESTATUS[0]}
             fi
             set -e
@@ -94,6 +96,7 @@ jobs:
           run_profile float ""
           run_profile scale-8388 "8388" "-Os"
           run_profile scale-8388-oz "8388" "-Oz"
+          run_profile scale-8388-oz-gc-data "8388" "-Oz" "1" "1"
 
       - name: Upload target linker diagnostics (not firmware)
         if: always()
