@@ -1,0 +1,34 @@
+name: Clouds compact-buffer host safety and audio comparison
+on:
+  push:
+    branches:
+      - rings-delay-qn8388-clouds-compact-probe
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qn8388-clouds-compact-host-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install host compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ python3
+      - name: Run compact Clouds ASan and UBSan matrix and WAV comparison
+        run: python3 tools/clouds_compact_profile_test.py
+      - name: Upload host test report and same-gain WAVs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clouds-compact-profile-host-results-${{ github.sha }}
+          path: build/clouds-compact-profile/
+          if-no-files-found: error
+          retention-days: 14
