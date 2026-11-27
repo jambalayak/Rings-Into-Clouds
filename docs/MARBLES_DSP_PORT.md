@@ -138,3 +138,13 @@ Use sample-offset trigger events (or split the Rings processing block at event o
 The existing Rings C ABI currently exposes one Rings Part, one Strummer and one Clouds processor; its setters for Marbles routing, per-Rings parameters, pitch/strum state and modulation destinations still need to be designed. The present `events_block`/mix ordering also has a performance-FX early return, so decide deliberately whether the Rings/Clouds instrument is inserted before the performance layer or only on the normal master path. Do not leave one path silently bypassing the instrument.
 
 CPU has not been measured. Run the Marbles T/XY processing in a target audio-budget experiment before turning it on in the real-time mix path.
+
+
+## Output-to-parameter mapping defaults to prototype
+
+- X1 and X2 are pitch CV sources. Convert Marbles volts to Rings semitones at 12 semitones per volt, with a selectable base/root note and range. The original Marbles voltage ranges are +2 V, +5 V, and +/-5 V; use +2 V as the initial pitch-range default to avoid an unnecessarily wide ten-octave spread, while retaining selectable ranges and Marbles scale quantization.
+- X3 is a bipolar/unipolar CV source according to its selected range. Give it one destination selector for Rings 1 or Rings 2, a parameter selector (Structure, Brightness, Damping, Position, and any exposed performance parameter), and an amount control.
+- Y is one independent, slow CV output (not multiple Y channels). Give it its own destination and amount controls, independently selectable for Rings 1 or Rings 2.
+- T3 is a gate/trigger source with a selectable destination elsewhere in the instrument. Candidate destinations include a drum trigger, SLICE trigger, or a Clouds control event, but do not wire any destination without checking that module's event semantics and protecting the audio thread.
+- T1/T2 routing to the two Rings strum inputs remains fixed as requested. T1 is a derived random gate; T2 is the master 50%-duty clock pulse.
+- Provide host-tempo subdivisions in musical terms, including straight, dotted and triplet choices. The selected subdivision changes the T2 master pulse rate; T1/T3 remain derived from that same master and retain Marbles' jitter/rhythm models. Keep an unsynced/free-rate option if sync is disabled.
