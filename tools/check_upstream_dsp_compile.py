@@ -63,6 +63,8 @@ def main():
     ]))
     if not sources:
         raise SystemExit("No pinned DSP translation units found.")
+    if not marbles_sources:
+        raise SystemExit("No pinned Marbles DSP translation units found.")
 
     # Apply reviewed FM-1 source overlays without modifying either pinned submodule.
     patch_root = BUILD / "source-patches"
