@@ -207,7 +207,9 @@ static int eng_track_allowed(uint32_t e, const track_t *t)
 static uint32_t eng_track_count(const track_t *t)
 {
     uint32_t p = (uint32_t)(t - trk), current = t->eng_req % NENGINES;
-    return current == ENGI_DRUM && p != (NTRK - 1u) ? NENG_SHOWN : NENG_SHOWN - 1u;
+    if (p == (NTRK - 1u) && current == ENGI_DRUM)
+        return 1u;
+    return current == ENGI_DRUM ? NENG_SHOWN : NENG_SHOWN - 1u;
 }
 static uint32_t eng_track_vis(uint32_t n, const track_t *t)
 {
