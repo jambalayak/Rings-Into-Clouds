@@ -319,7 +319,7 @@ def main():
         "#define RINGS_MONO_DSP_PART_H_"
     ).replace(
         "namespace rings {",
-        "namespace rings_mono {\\n\\nusing namespace rings;"
+        "namespace rings_mono {\n\nusing namespace rings;"
     ).replace(
         "const int32_t kMaxPolyphony = 4;",
         "const int32_t kMaxPolyphony = 1;"
