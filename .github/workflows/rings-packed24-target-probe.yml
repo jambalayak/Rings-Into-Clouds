@@ -239,6 +239,26 @@ jobs:
         run: |
           python3 tests/slice_loop.py build/host/LOOP
           python3 tools/fm1_sample_upload.py build LOOP build/host/LOOP build/host/LOOP.wav
+          # SAMPLE and GRAIN are deliberately tombstoned in this profile; keep
+          # the SLICE PIANO/BREAK/user-slot checks, but skip their engine-only
+          # fallback checks in this host test copy.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("tests/slice_test.c")
+          s = p.read_text()
+          for old in (
+              '    sine_ok("SAMPLE on an empty USR2: A4", sine_run(4u, (int16_t)(SMP_NSETS + 1), 69), 440.0);\n',
+              '    sine_ok("GRAIN on an empty USR3: C5", sine_run(8u, (int16_t)(SMP_NSETS + 2), 72), 523.25);\n',
+              '    check("SLICE on USR1 (a sample), SAMPLE on PIANO: not the sine", !sine_run(SLC_ENG, 1, 60).sine &&\n          !sine_run(4u, 0, 60).sine, 0);'
+          ):
+              if old not in s:
+                  raise SystemExit("expected SAMPLE/GRAIN-only test case not found")
+              if old.startswith('    check('):
+                  s = s.replace(old, '    check("SLICE on USR1 (a sample): not the sine", !sine_run(SLC_ENG, 1, 60).sine, 0);', 1)
+              else:
+                  s = s.replace(old, '', 1)
+          p.write_text(s)
+          PY
           cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/slice_test tests/slice_test.c -lm
           build/host/slice_test build/host/LOOP build/slice-demo
       - name: Run Clouds compact-profile ASan/UBSan and audio tests
