@@ -4,6 +4,7 @@ on:
     branches:
       - rings-delay-packed24-target-probe
       - rings-xip-audit-capture
+      - rings-sine-table-fold-probe
 permissions:
   contents: read
 concurrency:
