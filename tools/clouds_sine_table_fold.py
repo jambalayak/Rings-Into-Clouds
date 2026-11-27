@@ -7,10 +7,10 @@ from pathlib import Path
 
 def values(path, symbol):
     text = path.read_text()
-    m = re.search(r"const\\s+float\\s+" + re.escape(symbol) + r"\\s*\\[\\s*\\]\\s*=\\s*\\{(.*?)\\};", text, re.S)
+    m = re.search(r"const\s+float\s+" + re.escape(symbol) + r"\s*\[\s*\]\s*=\s*\{(.*?)\};", text, re.S)
     if not m:
         raise SystemExit("could not locate source table " + symbol + " in " + str(path))
-    tokens = re.findall(r"[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?", m.group(1))
+    tokens = re.findall(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?", m.group(1))
     return [struct.pack("<f", float(x)) for x in tokens]
 
 def apply_sine_table_fold(root, patch_root):
@@ -29,7 +29,7 @@ def apply_sine_table_fold(root, patch_root):
     if original.count(old_left) != 1 or original.count(old_right) != 1:
         raise SystemExit("expected the two original Clouds sine interpolation callsites exactly once")
     patched = original.replace('#include "clouds/resources.h"',
-                               '#include "clouds/resources.h"\\n#include "rings/resources.h"', 1)
+                               '#include "clouds/resources.h"\n#include "rings/resources.h"', 1)
     marker = "const int32_t kMaxNumGrains = 64;"
     helper = """// Exact stride-4 view of Clouds' original 1281-entry lut_sin table.
  // Keep the original index scaling, truncation, fraction and linear interpolation.
@@ -55,12 +55,12 @@ def apply_sine_table_fold(root, patch_root):
     destination.write_text(patched)
     report = patch_root.parent / "sine-table-fold-verification.txt"
     report.write_text(
-        "Clouds lut_sin entries: 1281\\n"
-        "Rings lut_sine entries: 5121\\n"
-        "Float32 bit-identical stride-4 comparison: PASS (1281/1281 entries)\\n"
-        "Clouds original callsites: 2 (mono left offset 0; mono right offset 256)\\n"
-        "Replacement Rings offsets: 0 and 1024 entries; original index scale 256 preserved\\n"
-        "Original Interpolate arithmetic preserved: index multiply, int32 truncation, fraction, a+(b-a)*fraction\\n"
-        "Overlay only: pinned submodules and production firmware source untouched\\n"
+        "Clouds lut_sin entries: 1281\n"
+        "Rings lut_sine entries: 5121\n"
+        "Float32 bit-identical stride-4 comparison: PASS (1281/1281 entries)\n"
+        "Clouds original callsites: 2 (mono left offset 0; mono right offset 256)\n"
+        "Replacement Rings offsets: 0 and 1024 entries; original index scale 256 preserved\n"
+        "Original Interpolate arithmetic preserved: index multiply, int32 truncation, fraction, a+(b-a)*fraction\n"
+        "Overlay only: pinned submodules and production firmware source untouched\n"
     )
     print(report.read_text(), end="")
