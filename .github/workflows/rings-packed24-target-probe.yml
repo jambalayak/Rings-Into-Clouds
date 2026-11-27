@@ -209,6 +209,66 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+
+  sample-retained-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out pinned DSP submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade numpy
+      - name: Install JieLi target toolchain
+        run: tools/get_toolchain.sh
+      - name: Prepare target compiler environment
+        run: echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
+      - name: Verify POOL startup initialisation
+        run: python3 tools/check_ric_pool_init.py
+      - name: Generate approved five-model and compact Clouds overlays
+        run: python3 tools/check_upstream_dsp_compile.py
+      - name: Apply packed-24 Rings delay storage required by current POOL budget
+        run: python3 tools/check_packed24_target.py
+      - name: Install firmware build dependencies
+        run: python3 -m pip install --upgrade Pillow fonttools
+      - name: Install pinned AC79 SDK
+        run: |
+          SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
+          SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
+          SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
+          git config --global http.version HTTP/1.1
+          git clone --depth 1 --single-branch --branch "${SDK_TAG}" "${SDK_URL}" "${SDK_DIR}"
+          echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
+      - name: Prepare diagnostic-only build
+        run: python3 tools/prepare_diagnostic_build.py
+      - name: Apply engine trim, retaining SAMPLE for matched comparison
+        run: python3 tools/rings_clouds_engine_trim_probe.py
+      - name: Link SAMPLE-retained comparison build (no installable outputs)
+        shell: bash
+        env:
+          FELUCCA_DIAGNOSTIC_ONLY: "1"
+          FELUCCA_CODE_OPT: "-Oz"
+          FELUCCA_SIZE: "1"
+          FELUCCA_NO_UNWIND: "1"
+        run: |
+          set +e
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" FELUCCA_SIZE="${FELUCCA_SIZE}" FELUCCA_NO_UNWIND="${FELUCCA_NO_UNWIND}" ./build.sh 2>&1 | tee build/sample-retained-baseline.log
+          status=${PIPESTATUS[0]}
+          echo "firmware build exit status: ${status}" | tee -a build/sample-retained-baseline.log
+          mkdir -p build/sample-retained-baseline
+          cp -f build/rings-clouds.felucca.map build/rings-clouds.felucca.symbols.txt build/rings-clouds.felucca.sections.txt build/sample-retained-baseline/ 2>/dev/null
+          cp -f build/sample-retained-baseline.log build/sample-retained-baseline/
+          exit 0
+      - name: Upload SAMPLE-retained diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rings-sample-retained-baseline-${{ github.sha }}
+          path: build/sample-retained-baseline/
+          if-no-files-found: warn
+          retention-days: 14
+
   retained-host-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 120
