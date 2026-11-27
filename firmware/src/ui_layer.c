@@ -666,15 +666,17 @@ static void layer_key(uint32_t l, uint32_t k)
     } else if (l == LAYER_SCL) {
         TSEL->p[P_ROOT] = (int16_t)((k + 5u) % 12u);    /* the key's note name (F3 = F) */
     } else if (l == LAYER_EDIT && !key_black(k)) {
-        if (p < NENG_SHOWN && p < LY_INIT && eng_track_vis(p, TSEL) < NENGINES)
+        uint32_t n = eng_track_count(TSEL);
+        if (n > LY_INIT) n = LY_INIT;
+        if (p < n)
             edit_load(eng_track_vis(p, TSEL), 0);
-        else if (p == LY_INIT && chain_busy())
+        else if (p == n && chain_busy())
             ui_message("STOP TO EDIT");
-        else if (p == LY_INIT)
+        else if (p == n)
             confirm_open(CF_INIT_SOUND, song.sel);      /* (the dialog closes the layer) */
-        else if (p == LY_CLEAN && chain_busy())
+        else if (p == n + 1u && chain_busy())
             ui_message("STOP TO EDIT");
-        else if (p == LY_CLEAN)
+        else if (p == n + 1u)
             confirm_open(CF_CLEAN_SOUND, song.sel);
     } else if (l == LAYER_EDIT) {
         eqa_key(k, p);                                  /* (black keys: the engine's quick actions) */
@@ -850,6 +852,8 @@ static uint32_t layer_leds(uint32_t *br)
 {
     uint32_t k, m = 0, n = 0, l = ui.layer, held = perf_held | perf_latched, ok = perf_avail();
     uint32_t mask = scale_mask(TSEL), root = (uint32_t)TSEL->p[P_ROOT] % 12u;
+    uint32_t edit_n = eng_track_count(TSEL);
+    if (edit_n > LY_INIT) edit_n = LY_INIT;
     const eqa_t *a;
     for (k = 0; k < 27u; k++) {
         uint32_t p = key_place(k), b = (uint32_t)key_black(k), on = 0, can = 0, e;
@@ -866,9 +870,8 @@ static uint32_t layer_leds(uint32_t *br)
             on = e == 0u;
             can = (mask >> e) & 1u;
         } else if (l == LAYER_EDIT && !b) {             /* the engine lit, the others and INIT breathe */
-            on = p < NENG_SHOWN && p < LY_INIT && eng_track_vis(p, TSEL) == TSEL->eng_req % NENGINES;
-            can = p < NENG_SHOWN && p < LY_INIT && eng_track_vis(p, TSEL) < NENGINES ? 1u :
-                  (p == LY_INIT || p == LY_CLEAN) && !chain_busy();
+            on = p < edit_n && eng_track_vis(p, TSEL) == TSEL->eng_req % NENGINES;
+            can = p < edit_n ? 1u : (p == edit_n || p == edit_n + 1u) && !chain_busy();
         } else if (l == LAYER_EDIT && (a = eqa_of(TSEL, p)) != 0) {   /* the quick actions: on lit (DRUM: sounding), */
             on = a->on(TSEL, a->arg) != 0u;             /* a HOLD one off breathes, none dark */
             can = a->kind == LK_HOLD;
