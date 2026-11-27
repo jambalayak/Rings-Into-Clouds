@@ -301,12 +301,14 @@ jobs:
           from pathlib import Path
           p = Path("tests/drum_test.c")
           s = p.read_text()
-          old = '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM || ENGINES[ENGI_PHYS] != &ENG_PHYS || ENG_PHYS.keys != 0;\n    printf("drum_test: keys: the GM drum map, the first C plays KICK, KICK picks the kick; DRUM is engine " \\\n           "%u, PHYS (%u) keeps the keyboard: %s\\n", ENGI_DRUM, ENGI_PHYS, bad ? "FAIL" : "ok");'
-          new = '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM;\n    printf("drum_test: keys: the GM drum map, the first C plays KICK, KICK picks the kick; DRUM is engine %u: %s\\n", ENGI_DRUM, bad ? "FAIL" : "ok");'
-          if old not in s:
+          line = '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM || ENGINES[ENGI_PHYS] != &ENG_PHYS || ENG_PHYS.keys != 0;'
+          if line not in s:
               raise SystemExit("expected PHYS-only assertion not found")
-          p.write_text(s.replace(old, new, 1))
-          PY
+          s = s.replace(line, '    bad += ENGINES[ENGI_DRUM] != &ENG_DRUM;', 1)
+          start = s.index('    printf("drum_test: keys: the GM drum map')
+          end = s.index('\\n    fails += bad != 0;', start)
+          s = s[:start] + '    printf("drum_test: keys: the GM drum map, first C plays KICK, KICK picks the kick; DRUM is engine %u: %s\\n", ENGI_DRUM, bad ? "FAIL" : "ok");' + s[end:]
+          p.write_text(s)
           cc -O2 -w -Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src -Ibuild/gen -o build/host/drum_test tests/drum_test.c -lm
           build/host/drum_test build/drum-demo
       - name: Run SLICE host tests and user-slot upload round trip
