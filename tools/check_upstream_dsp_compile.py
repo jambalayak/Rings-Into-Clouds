@@ -367,6 +367,15 @@ def main():
     mono_part_h_path.parent.mkdir(parents=True, exist_ok=True)
     mono_part_h_path.write_text(mono_part_h)
 
+    # Diagnostic-only alternate: two sympathetic strings instead of the full eight.
+    # This is strictly a sizeof probe, not the runtime mono class or a sound proposal.
+    mono2_part_h = mono_part_h.replace("RINGS_MONO_DSP_PART_H_", "RINGS_MONO2_DSP_PART_H_")
+    mono2_part_h = mono2_part_h.replace("namespace rings_mono {", "namespace rings_mono2 {")
+    mono2_part_h = mono2_part_h.replace("}  // namespace rings_mono", "}  // namespace rings_mono2")
+    mono2_part_h = mono2_part_h.replace("const int32_t kNumStrings = 8;", "const int32_t kNumStrings = 2;")
+    mono2_part_h_path = patch_root / "rings_mono2" / "dsp" / "part.h"
+    mono2_part_h_path.parent.mkdir(parents=True, exist_ok=True)
+    mono2_part_h_path.write_text(mono2_part_h)
 
     # Optional isolated target-memory probe: replace only Rings' two delay
     # storage typedefs with signed int16 storage. DSP math/interpolation remains float.
@@ -440,6 +449,10 @@ def main():
     mono_size_obj = BUILD / "rings_mono_size_probe.o"
     invoke([*common, "-c", str(mono_size_src.relative_to(ROOT)),
             "-o", str(mono_size_obj.relative_to(ROOT))])
+    mono2_size_src = ROOT / "tools" / "cpp_smoke" / "rings_mono2_size_probe.cc"
+    mono2_size_obj = BUILD / "rings_mono2_size_probe.o"
+    invoke([*common, "-c", str(mono2_size_src.relative_to(ROOT)),
+            "-o", str(mono2_size_obj.relative_to(ROOT))])
     invoke([*common, "-c", str(five_size_src.relative_to(ROOT)),
             "-o", str(five_size_obj.relative_to(ROOT))])
 
@@ -459,9 +472,9 @@ def main():
         "ric_marbles_size_t_generator", "ric_marbles_size_xy_generator",
         "ric_marbles_size_output_channel", "ric_marbles_size_random_sequence",
         "ric_marbles_size_random_stream", "ric_marbles_size_random_generator",
-        "ric_marbles2_size_rings_mono_part",
+        "ric_marbles2_size_rings_mono_part", "ric_marbles2_size_rings_mono2_part",
     }
-    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj, mono_size_obj):
+    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj, mono_size_obj, mono2_size_obj):
         dumped = subprocess.run([*dump_prefix, str(obj.relative_to(ROOT))],
                                 cwd=ROOT, text=True, capture_output=True)
         if dumped.returncode:
