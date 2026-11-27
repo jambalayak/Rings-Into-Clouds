@@ -395,34 +395,43 @@ def main():
     mono2_part_h_path.parent.mkdir(parents=True, exist_ok=True)
     mono2_part_h_path.write_text(mono2_part_h)
 
-    # Optional isolated target-memory probe: replace only Rings' two delay
-    # storage typedefs with signed int16 storage. DSP math/interpolation remains float.
+    # Optional isolated target-memory probe: packed signed-24 delay storage.
+    # This changes only the generated source overlay; pinned upstream files stay intact.
+    packed24 = os.environ.get("FELUCCA_RINGS_DELAY_PACKED24") == "1"
     delay_scale = os.environ.get("FELUCCA_RINGS_DELAY_SCALE")
-    if delay_scale:
-        scale = int(delay_scale)
-        if scale < 1 or scale > 32768:
-            raise SystemExit("FELUCCA_RINGS_DELAY_SCALE must be in 1..32768")
+    if packed24 and delay_scale:
+        raise SystemExit("select either packed-24 or signed-int16 delay storage, not both")
+    if packed24 or delay_scale:
         string_original = eur / "rings/dsp/string.h"
         string_patched = patch_root / "rings/dsp/string.h"
         string_text = string_original.read_text()
-        old_typedefs = ("typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\n"
+        old_typedefs = ("typedef stmlib::DelayLine<float, kDelayLineSize> StringDelayLine;\\n"
                         "typedef stmlib::DelayLine<float, kDelayLineSize / 2> StiffnessDelayLine;")
-        new_typedefs = ("typedef QNDelayLine<kDelayLineSize> StringDelayLine;\n"
-                        "typedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
-        if old_typedefs not in string_text:
-            raise SystemExit("expected Rings delay-line typedefs not found")
         include_line = '#include "stmlib/stmlib.h"'
-        if include_line not in string_text:
-            raise SystemExit("expected Rings stmlib include not found")
-        qn_header = (ROOT / "tools/rings_delay_test/qn_delay_line.h").read_text()
-        qn_path = patch_root / "rings/dsp/qn_delay_line.h"
-        qn_path.parent.mkdir(parents=True, exist_ok=True)
-        qn_path.write_text(qn_header)
-        string_text = string_text.replace(include_line, include_line + '\n#include "rings/dsp/qn_delay_line.h"')
+        if old_typedefs not in string_text or include_line not in string_text:
+            raise SystemExit("expected Rings delay-line declarations not found")
+        if packed24:
+            new_typedefs = ("typedef Q24DelayLine<kDelayLineSize> StringDelayLine;\\n"
+                            "typedef Q24DelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
+            header_name = "q24_delay_line.h"
+            status = "packed signed-24, Q3.21; float DSP math retained"
+        else:
+            scale = int(delay_scale)
+            if scale < 1 or scale > 32768:
+                raise SystemExit("FELUCCA_RINGS_DELAY_SCALE must be in 1..32768")
+            new_typedefs = ("typedef QNDelayLine<kDelayLineSize> StringDelayLine;\\n"
+                            "typedef QNDelayLine<kDelayLineSize / 2> StiffnessDelayLine;")
+            header_name = "qn_delay_line.h"
+            status = f"signed int16, scale={scale}; float DSP math retained"
+        header_path = ROOT / "tools/rings_delay_test" / header_name
+        overlay_header = patch_root / "rings/dsp" / header_name
+        overlay_header.parent.mkdir(parents=True, exist_ok=True)
+        overlay_header.write_text(header_path.read_text())
+        string_text = string_text.replace(include_line, include_line + f'\\n#include "rings/dsp/{header_name}"')
         string_text = string_text.replace(old_typedefs, new_typedefs)
         string_patched.parent.mkdir(parents=True, exist_ok=True)
         string_patched.write_text(string_text)
-        print(f"TARGET DELAY STORAGE: signed int16, scale={scale}; float DSP math retained")
+        print("TARGET DELAY STORAGE: " + status)
 
     sources = [clouds_patched if p == clouds_original else
                part_cc_patched if p == part_cc_original else p for p in sources]
