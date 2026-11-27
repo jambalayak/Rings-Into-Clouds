@@ -149,7 +149,8 @@ for name, scale in variants[1:]:
             "packed24_peak_max": max(r["packed24_peak"] for r in cases),
             "reference_over_full_scale_samples": sum(r["reference_samples_over_full_scale"] for r in cases),
             "packed24_over_full_scale_samples": sum(r["packed24_samples_over_full_scale"] for r in cases),
-            "delay_saturation_count": sum(r["delay_saturation_count"] for r in cases)
+            "delay_saturation_count": sum(r["delay_saturation_count"] for r in cases),
+            "max_abs_delay_value": max(r["max_abs_delay_value"] for r in cases)
         })
     stats = {}
     for line in (WORK / name / "delay_stats.txt").read_text().splitlines():
@@ -161,8 +162,8 @@ for name, scale in variants[1:]:
         "negative_range": -8388608.0 / scale,
         "overall_snr_db": snr(reference, rendered),
         "overall_rms_error": rms(rendered - reference),
-        "delay_saturation_count": int(stats["qn_saturation_count"]),
-        "max_abs_delay_value": float(stats["qn_max_abs"]),
+        "delay_saturation_count": int(sum(r["delay_saturation_count"] for r in rows)),
+        "max_abs_delay_value": float(max(r["max_abs_delay_value"] for r in rows)),
         "host_part_size_bytes": int(stats["part_size_bytes"]),
         "host_string_size_bytes": int(stats["string_size_bytes"]),
         "per_model": per_model,

@@ -42,6 +42,8 @@ int main(int argc, char **argv) {
   if (!audio || !meta) return 3;
   fprintf(meta, "start,frames,model,profile,damping,external_peak,saturation_count,max_abs_delay_value,polyphony,strums\n");
   uint64_t cursor = 0;
+  uint64_t total_saturations = 0;
+  float global_max_abs = 0.0f;
 
   for (int model = 0; model < 5; ++model) {
     for (size_t pi = 0; pi < sizeof(kProfiles) / sizeof(kProfiles[0]); ++pi) {
@@ -87,6 +89,8 @@ int main(int argc, char **argv) {
           if (fwrite(pair, sizeof(float), 2, audio) != 2) return 4;
         }
       }
+      total_saturations += rings::qn_saturation_count;
+      if (rings::qn_max_abs > global_max_abs) global_max_abs = rings::qn_max_abs;
       fprintf(meta, "%llu,%llu,%d,%s,%.7f,%.4f,%llu,%.9g,4,%u\n",
         static_cast<unsigned long long>(start),
         static_cast<unsigned long long>(frames), model, p.name,
@@ -102,7 +106,7 @@ int main(int argc, char **argv) {
   if (!stats) return 5;
   fprintf(stats, "part_size_bytes=%zu\nstring_size_bytes=%zu\nqn_saturation_count=%llu\nqn_max_abs=%.9g\n",
     sizeof(rings::Part), sizeof(rings::String),
-    static_cast<unsigned long long>(rings::qn_saturation_count), rings::qn_max_abs);
+    static_cast<unsigned long long>(total_saturations), global_max_abs);
   fclose(stats);
   return 0;
 }
