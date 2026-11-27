@@ -382,6 +382,9 @@ def check(img, syms, dis, rt):
             "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
             "ric_clouds_processor_storage", "ric_clouds_large_buffer",
             "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
+            "ric_marbles_size_anchor", "ric_marbles_t_generator_storage",
+            "ric_marbles_xy_generator_storage", "ric_marbles_random_stream_storage",
+            "ric_marbles_random_generator_storage",
         )
         missing = [name for name in required if not symv_in(syms, name)]
         if missing:
@@ -402,6 +405,10 @@ def check(img, syms, dis, rt):
                 "Clouds processor": symbol_size("ric_clouds_processor_storage"),
                 "Clouds large buffer": symbol_size("ric_clouds_large_buffer"),
                 "Clouds small buffer": symbol_size("ric_clouds_small_buffer"),
+                "Marbles TGenerator": symbol_size("ric_marbles_t_generator_storage"),
+                "Marbles XYGenerator": symbol_size("ric_marbles_xy_generator_storage"),
+                "Marbles RandomStream": symbol_size("ric_marbles_random_stream_storage"),
+                "Marbles RandomGenerator": symbol_size("ric_marbles_random_generator_storage"),
             }
             notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
             if not (OUT / "rings-clouds.felucca.map").is_file():
