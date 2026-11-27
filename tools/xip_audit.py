@@ -109,7 +109,7 @@ def main():
     for p,n,s,d in allrows:
         names.add(n)
         names.update(re.findall(r"(?:lut_[A-Za-z0-9_]+|SMP_DATA|[A-Z][A-Z0-9_]{3,})",n))
-    pat=re.compile(r"\\b(?:"+"|".join(re.escape(n) for n in sorted(names,key=len,reverse=True) if n)+r")\\b")
+    pat=re.compile(r"\b(?:"+"|".join(re.escape(n) for n in sorted(names,key=len,reverse=True) if n)+r")\\b")
     with open("xip-table-readers.txt","w") as f:
         roots=[pathlib.Path(a.root)/"firmware",pathlib.Path(a.root)/"third_party/eurorack/rings",pathlib.Path(a.root)/"third_party/eurorack/clouds",pathlib.Path(a.root)/"third_party/stmlib"]
         sources=[]
