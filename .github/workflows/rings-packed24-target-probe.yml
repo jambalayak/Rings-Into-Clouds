@@ -1,4 +1,4 @@
-name: Rings packed-24 target compiler and size probe
+name: Rings upstream float-delay target compiler and size probe
 on:
   push:
     branches:
@@ -8,10 +8,11 @@ on:
       - rings-clouds-engine-trim-probe
       - rings-clouds-no-sample-float-probe
       - rings-clouds-pool-trim-probe
+      - rings-clouds-float-delay-probe
 permissions:
   contents: read
 concurrency:
-  group: rings-delay-packed24-target-probe
+  group: rings-delay-float-target-probe
   cancel-in-progress: true
 jobs:
 
@@ -104,8 +105,8 @@ jobs:
         run: python3 tools/check_upstream_dsp_compile.py
       - name: Install firmware build dependencies
         run: python3 -m pip install --upgrade Pillow fonttools
-      - name: Compile packed-24 Rings and measure target object sizes
-        run: python3 tools/check_packed24_target.py
+      - name: Verify upstream float Rings delays and measure target object sizes
+        run: python3 tools/check_float_delay_target.py
       - name: Install pinned AC79 SDK
         run: |
           SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
@@ -122,19 +123,19 @@ jobs:
         run: python3 tools/rings_clouds_no_sample_probe.py
       - name: Reduce shared engine memory to retained DRUM and SLICE requirements
         run: python3 tools/rings_clouds_pool_trim_probe.py
-      - name: Link FM-1 firmware with packed-24 Rings (${{ matrix.size_strategy }}, diagnostic only)
+      - name: Link FM-1 firmware with upstream float Rings (${{ matrix.size_strategy }}, diagnostic only)
         shell: bash
         env:
           FELUCCA_DIAGNOSTIC_ONLY: "1"
         run: |
           set +e
-          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" FELUCCA_SIZE="${FELUCCA_SIZE}" ./build.sh 2>&1 | tee "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
+          FELUCCA_RIC=1 FELUCCA_GC_SECTIONS=1 FELUCCA_DATA_SECTIONS=1 FELUCCA_CODE_OPT="${FELUCCA_CODE_OPT}" FELUCCA_SIZE="${FELUCCA_SIZE}" ./build.sh 2>&1 | tee "build/float-delay-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
           status=${PIPESTATUS[0]}
-          echo "firmware build exit status: ${status}" | tee -a "build/packed24-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
+          echo "firmware build exit status: ${status}" | tee -a "build/float-delay-target-probe/firmware-link-${FELUCCA_CODE_OPT#-}-${{ matrix.size_strategy }}.log"
           for file in rings-clouds.felucca.map rings-clouds.felucca.symbols.txt rings-clouds.felucca.sections.txt; do
-            if [ -f "build/${file}" ]; then cp "build/${file}" "build/packed24-target-probe/${file}"; fi
+            if [ -f "build/${file}" ]; then cp "build/${file}" "build/float-delay-target-probe/${file}"; fi
           done
-          if [ ! -s "build/packed24-target-probe/rings-clouds.felucca.map" ]; then
+          if [ ! -s "build/float-delay-target-probe/rings-clouds.felucca.map" ]; then
             echo "No combined linker map was produced" >&2
             exit "${status:-1}"
           fi
@@ -158,9 +159,9 @@ jobs:
           cp -f build/rings-clouds.felucca.sections.txt "$STAGE/reports/" 2>/dev/null
           cp -f build/felucca.o "$STAGE/objects/" 2>/dev/null
           cp -f build/rings-clouds-link/objects.txt "$STAGE/reports/" 2>/dev/null
-          cp -f build/packed24-target-probe/*.log "$STAGE/reports/" 2>/dev/null
+          cp -f build/float-delay-target-probe/*.log "$STAGE/reports/" 2>/dev/null
           cp -f build/rings-clouds-engine-trim/* "$STAGE/reports/" 2>/dev/null
-          cp -f build/packed24-target-probe/sizes.txt "$STAGE/reports/" 2>/dev/null
+          cp -f build/float-delay-target-probe/sizes.txt "$STAGE/reports/" 2>/dev/null
           cp -f build/rings-clouds-no-sample/* "$STAGE/reports/" 2>/dev/null
           cp -f build/rings-clouds-engine-trim/* "$STAGE/reports/" 2>/dev/null
           cp -f build/xip-function-probes/* "$STAGE/reports/" 2>/dev/null
