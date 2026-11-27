@@ -16,6 +16,9 @@
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/dsp/frame.h"
 
+/* Definitions used only when the isolated compact Rings delay overlay is enabled. */
+namespace rings { uint64_t qn_saturation_count = 0; float qn_max_abs = 0.0f; }
+
 extern "C" {
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_part_storage[sizeof(rings::Part)];
