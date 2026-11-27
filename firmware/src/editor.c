@@ -561,6 +561,12 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_load_t b;
         if (na < 2u || a[0] >= NENGINES)
             return;
+        if (a[0] != TSEL->eng_req && !eng_track_allowed(a[0], TSEL)) {
+            ui_message("DRUM IS TRACK 4");
+            ed_b(ed_eng(TSEL));
+            ed_b(TSEL->preset);
+            break;
+        }
         ed_load_before(&b);
 #if !FELUCCA_FM4
         if (a[0] == ENGI_DIGITAL)                          /* a DIGITAL preset (retired): its sound, as FM6 */
