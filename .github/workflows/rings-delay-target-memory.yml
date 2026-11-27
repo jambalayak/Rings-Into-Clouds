@@ -1,4 +1,4 @@
-name: Rings no-SAMPLE FM-1 target memory probe
+name: Marbles DSP sizing and FM-1 target memory probe
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rings-no-sample-engine-exp
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           echo "JIELI_TOOLCHAIN=${HOME}/.jieli/toolchain" >> "${GITHUB_ENV}"
           echo "AC79_SDK=${SDK_DIR}" >> "${GITHUB_ENV}"
 
-      - name: Run compact Rings/Clouds + SLICE-only sample target diagnostics
+      - name: Run Marbles DSP compile/size probe and Rings/Clouds + SLICE target diagnostics
         shell: bash
         run: |
           set -uo pipefail
