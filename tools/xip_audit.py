@@ -37,12 +37,12 @@ def symmetries(d):
         a=struct.unpack("<"+fmt*(len(d)//w),d); n=len(a)
         if n<4:continue
         eq=lambda x,y: (abs(x-y)<1e-6 if fmt=="f" else x==y)
-        if all(eq(a[i],a[n-1-i]) for i in range(n//2)):out.append(label+" mirror exact")
-        if all(eq(a[i],-a[n-1-i]) for i in range(n//2)):out.append(label+" sign-mirror exact")
-        if n%2==0 and all(eq(a[i],-a[i+n//2]) for i in range(n//2)):out.append(label+" half-wave sign flip exact")
+        if all(eq(a[i],a[n-1-i]) for i in range(n//2)):out.append(label+(" mirror approximate" if fmt=="f" else " mirror exact"))
+        if all(eq(a[i],-a[n-1-i]) for i in range(n//2)):out.append(label+(" sign-mirror approximate" if fmt=="f" else " sign-mirror exact"))
+        if n%2==0 and all(eq(a[i],-a[i+n//2]) for i in range(n//2)):out.append(label+(" half-wave sign flip approximate" if fmt=="f" else " half-wave sign flip exact"))
         if n%4==0:
             q=n//4
-            if all(eq(a[i],a[q-i]) for i in range(1,q)):out.append(label+" quarter-wave mirror exact")
+            if all(eq(a[i],a[q-i]) for i in range(1,q)):out.append(label+(" quarter-wave mirror approximate" if fmt=="f" else " quarter-wave mirror exact"))
     return out or ["no tested exact symmetry"]
 def string_rows(path,elf,tab,sec):
     idx=next(i for i in range(elf.num_sections()) if elf.get_section(i).name==sec.name)
@@ -105,10 +105,17 @@ def main():
     with open("xip-symmetry.txt","w") as f:
         for p,n,s,d in allrows:
             if any(k in n.lower() for k in ("sine","window")):f.write(f"{p} {n} {len(d)} B: {', '.join(symmetries(d))}\n")
-    names=sorted({n for p,n,s,d in allrows})
-    pat=re.compile("|".join(re.escape(n) for n in names if n))
+    names=set()
+    for p,n,s,d in allrows:
+        names.add(n)
+        names.update(re.findall(r"(?:lut_[A-Za-z0-9_]+|SMP_DATA|[A-Z][A-Z0-9_]{3,})",n))
+    pat=re.compile(r"\\b(?:"+"|".join(re.escape(n) for n in sorted(names,key=len,reverse=True) if n)+r")\\b")
     with open("xip-table-readers.txt","w") as f:
-        for src in pathlib.Path(a.root).rglob("*"):
+        roots=[pathlib.Path(a.root)/"firmware",pathlib.Path(a.root)/"third_party/eurorack/rings",pathlib.Path(a.root)/"third_party/eurorack/clouds",pathlib.Path(a.root)/"third_party/stmlib"]
+        sources=[]
+        for base in roots:
+            if base.exists():sources.extend(base.rglob("*"))
+        for src in sources:
             if not src.is_file() or src.suffix not in EXT:continue
             try:lines=src.read_text(errors="replace").splitlines()
             except OSError:continue
