@@ -247,7 +247,7 @@ static bool RenderWav(const std::string& path) {
   params->position = 0.5f;
   params->size = 0.5f;
   params->pitch = 0.0f;
-  params->density = 0.5f;  // deterministic refresh, no phase randomization
+  params->density = 0.4949495f;  // refresh_rate=0.5, deterministic phase history
   params->texture = 0.5f;
   params->dry_wet = 1.0f;
   params->feedback = 0.0f;

@@ -56,10 +56,10 @@ def apply_compact_profile(root, patch_root):
       (largest_fft_size != 2048 && largest_fft_size != 4096)) {
     return false;
   }
-  const size_t texture_size = (largest_fft_size >> 1) - kHighFrequencyTruncation;
+  const size_t preflight_texture_size = (largest_fft_size >> 1) - kHighFrequencyTruncation;
   const size_t base_bytes = (num_channels == 1 ? 14u : 10u) * largest_fft_size;
   const size_t required_bytes =
-      base_bytes + 3u * texture_size * sizeof(float);
+      base_bytes + 3u * preflight_texture_size * sizeof(float);
   for (int32_t i = 0; i < num_channels; ++i) {
     if (buffer[i] == NULL || buffer_size[i] < required_bytes) {
       return false;
