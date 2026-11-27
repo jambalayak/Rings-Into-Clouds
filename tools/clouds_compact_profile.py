@@ -115,6 +115,23 @@ def apply_compact_profile(root, patch_root):
     (out / "pvoc/phase_vocoder.cc").write_text(pc)
     (out / "pvoc/phase_vocoder.h").write_text(ph)
 
+    # The pinned correlator shifts by (32 - offset_bits). At offset_bits == 0
+    # this is a shift by the type width, which is undefined in C/C++. Preserve
+    # the intended word-aligned result without changing the nonzero-bit path.
+    correlator = (clouds / "correlator.cc").read_text()
+    correlator = replace_once(
+        correlator,
+        "    destination_bits |= destination[i] << offset_bits;\n"
+        "    destination_bits |= destination[i + 1] >> (32 - offset_bits);",
+        """    if (offset_bits == 0) {
+      destination_bits = destination[i];
+    } else {
+      destination_bits |= destination[i] << offset_bits;
+      destination_bits |= destination[i + 1] >> (32 - offset_bits);
+    }""",
+        "word-aligned correlator shift")
+    (out / "correlator.cc").write_text(correlator)
+
     # Replace Prepare() with an explicitly partitioned, preflighted profile.
     start = gp.index("void GranularProcessor::Prepare() {")
     end = gp.rfind("\n}  // namespace clouds")

@@ -79,6 +79,8 @@ def build(name, patch, compact):
             selected = patch / "clouds/dsp/granular_processor.cc"
         elif compact and source == EUR / "clouds/dsp/pvoc/phase_vocoder.cc":
             selected = patch / "clouds/dsp/pvoc/phase_vocoder.cc"
+        elif compact and source == EUR / "clouds/dsp/correlator.cc":
+            selected = patch / "clouds/dsp/correlator.cc"
         command.append(str(selected))
     command += ["-o", str(binary)]
     print("BUILD", name, flush=True)

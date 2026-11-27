@@ -67,6 +67,8 @@ def main():
     clouds_patched = patch_root / "clouds/dsp/granular_processor.cc"
     phase_vocoder_original = eur / "clouds/dsp/pvoc/phase_vocoder.cc"
     phase_vocoder_patched = patch_root / "clouds/dsp/pvoc/phase_vocoder.cc"
+    correlator_original = eur / "clouds/dsp/correlator.cc"
+    correlator_patched = patch_root / "clouds/dsp/correlator.cc"
 
     # The pinned stmlib header contains ARM/NEON inline assembly (ssat/usat/vsqrt),
     # which is not valid for the FM-1 pi32v2 target. Use the same saturating C and
@@ -183,6 +185,7 @@ def main():
 
     sources = [clouds_patched if p == clouds_original else
                phase_vocoder_patched if p == phase_vocoder_original else
+               correlator_patched if p == correlator_original else
                part_cc_patched if p == part_cc_original else p for p in sources]
     BUILD.mkdir(parents=True, exist_ok=True)
     common = [
