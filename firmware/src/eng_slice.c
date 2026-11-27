@@ -6,7 +6,7 @@
  * from Felucca's generated drums, stored after the SAMPLE sets), a user slot USR1..3 (the same
  * slots as SAMPLE's, eng_sample.c), whose zones are played one after the other as one recording
  * (a zone that shares its data with an earlier one is skipped), or PIANO (SRC 4, since 1.0.4: one
- * note, the SAMPLE engine's PIANO zone of middle C, played from its data in SMP_DATA: no copy).
+ * note, the SAMPLE engine's PIANO zone of middle C, played from its data in SLC_DATA: no copy).
  * A source with no material (an empty or invalid slot; PIANO in a build without the CC0 samples)
  * plays a plain sine at the key's pitch (+ PTCH) instead, through DCAY, TONE and the ADSR (MODE ONE
  * acts as GATE there: no slice end), and the UI says so (ui_input.c sample_notice).
@@ -132,7 +132,7 @@ static inline int32_t slc_dec_next(const slc_src_t *s, slc_dec_t *d)
         d->pred = 0;
         d->idx = 0;
     }
-    b = g->data ? g->data[rel >> 1] : SMP_DATA[g->off + (rel >> 1)];
+    b = g->data ? g->data[rel >> 1] : SLC_DATA[g->off + (rel >> 1)];
     code = (rel & 1u) ? (b >> 4) : (b & 15u);
     step = IMA_STEP[d->idx];
     vd = step >> 3;
@@ -270,9 +270,13 @@ static void slc_user_scan(uint32_t k, int valid)
     if (!valid)
         return;
     s->nseg = 0;
-    /* User zones are rebased onto SMP_DATA for the SAMPLE engine's XIP view.
-     * Keep SLICE's host and target reads defined by retaining the real slot pointer. */
+    /* SAMPLE stores user-zone offsets rebased onto SMP_DATA; the no-SAMPLE
+     * shared scanner keeps them relative to the slot's own data area. */
+#if FELUCCA_SAMPLE_ENGINE
     base = (uint32_t)(uintptr_t)(smp_user_xip(k) + SMP_USER_DATA) - (uint32_t)(uintptr_t)SMP_DATA;
+#else
+    base = 0;
+#endif
     for (i = 0; i < usr_nz[k] && i < SLC_SEGS; i++) {
         const smp_zone_t *z = &usr_zone[k][i];
         for (j = 0; j < i && usr_zone[k][j].off != z->off; j++)
@@ -284,7 +288,11 @@ static void slc_user_scan(uint32_t k, int valid)
         s->seg[s->nseg].off = z->off;
         s->seg[s->nseg].at = at;
         s->seg[s->nseg].n = z->n;
+#if FELUCCA_SAMPLE_ENGINE
         s->seg[s->nseg].data = smp_user_xip(k) + SMP_USER_DATA + (z->off - base);
+#else
+        s->seg[s->nseg].data = smp_user_xip(k) + SMP_USER_DATA + z->off;
+#endif
         s->nseg++;
         at += z->n;
     }
