@@ -24,7 +24,7 @@ q24_string = orig_string.replace(
     '#include "stmlib/stmlib.h"',
     '#include "stmlib/stmlib.h"\n#include "rings/dsp/q24_delay_line.h"').replace(needle, replacement)
 if q24_string == orig_string:
-    raise SystemExit("Could not apply signed-16 delay typedef overlay")
+    raise SystemExit("Could not apply packed-24 delay typedef overlay")
 (PATCH / "rings/dsp/string.h").write_text(orig_string)
 (PATCH / "rings/dsp/q24_delay_line.h").write_text((ROOT / "tools/rings_delay_test/q24_delay_line.h").read_text())
 
@@ -42,7 +42,7 @@ for variant, scale in variants:
     build = WORK / variant
     build.mkdir(parents=True, exist_ok=True)
     objects = []
-    extra = [] if scale is None else [[]]
+    extra = []
     if scale is not None:
         (PATCH / "rings/dsp/string.h").write_text(q24_string)
     else:
