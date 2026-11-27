@@ -16,14 +16,14 @@ float qn_max_abs = 0.0f;
 
 static const float kRate = 24000000.0f / 544.0f;
 static const size_t kBlock = rings::kMaxBlockSize;
-static const int kNotes[4] = {36, 48, 60, 72};
+static const int kNotes[8] = {36, 43, 48, 55, 60, 64, 67, 72};
 struct Profile { const char *name; float structure, brightness, damping, position, seconds; };
 static const Profile kProfiles[] = {
   {"neutral", 0.50f, 0.50f, 0.50f, 0.50f, 8.0f},
   {"bright", 0.86f, 0.96f, 0.30f, 0.90f, 8.0f},
   {"long_decay", 0.55f, 0.78f, 0.995f, 0.55f, 12.0f}
 };
-static const uint64_t kStrumFrames[4] = {0, 11029, 22058, 33087};
+static const uint64_t kStrumFrames[8] = {0, 5514, 11029, 16543, 22058, 27572, 33087, 38601};
 
 int main(int argc, char **argv) {
   if (argc != 2) return 2;
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
       rings::Part part;
       part.Init();
       part.set_model(static_cast<rings::ResonatorModel>(model));
-      part.set_polyphony(4);
+      part.set_polyphony(8);
       rings::Patch patch = {p.structure, p.brightness, p.damping, p.position};
       rings::PerformanceState ps = {};
       ps.internal_exciter = true;
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         float in[kBlock] = {}, out[kBlock] = {}, aux[kBlock] = {};
         const size_t n = static_cast<size_t>(std::min<uint64_t>(kBlock, frames-offset));
         ps.strum = false;
-        if (next_strum < 4 && offset >= kStrumFrames[next_strum]) {
+        if (next_strum < 8 && offset >= kStrumFrames[next_strum]) {
           ps.note = static_cast<float>(kNotes[next_strum]);
           ps.strum = true;
           ++next_strum;
