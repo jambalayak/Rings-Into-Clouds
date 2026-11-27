@@ -198,8 +198,8 @@ static int eng_track_allowed(uint32_t e, const track_t *t)
     uint32_t p = (uint32_t)(t - trk), current = t->eng_req % NENGINES;
     if (!eng_ok(e) || p >= NPART)
         return 0;
-    /* DRUM is selectable only when already present in a legacy project. New projects
-     * start with it on track 4; loading a project never silently relocates it. */
+    /* DRUM is selectable only on a track that already has it. New projects start
+     * with it on track 4; loading a project never silently relocates it. */
     if (e == ENGI_DRUM)
         return current == ENGI_DRUM;
     return p != (NTRK - 1u) || current != ENGI_DRUM;

@@ -2277,7 +2277,7 @@ static int test_roll(void)
         if (k == 0) { page_over = 0; go_title("ENV"); }
         else if (k == 1) turn(EN_ALGO, 1);
         else if (k == 2) { settings.palette = 1; palette_set(1); }          /* (no ui.force) */
-        else if (k == 3) set_engine_of(TSEL, eng_step(TSEL->eng_req, 1));   /* (no ui.force) */
+        else if (k == 3) set_engine_of(TSEL, eng_track_step(TSEL->eng_req, 1, TSEL));   /* (no ui.force) */
         else ui.force = 1;
         frame();
         ok &= !ui.roll[3].from[0] && !ui.roll[ROLL_BPM].from[0];
