@@ -316,9 +316,11 @@ class Builder:
         self.alias[len(self.sets)] = orig
         self.sets.append(self.sets[orig])
 
-    def cc0_set(self, name, kind):
+    def cc0_set(self, name, kind, roots=None):
         entries = []
         for k, (_, s, loop, root) in enumerate(cc0_entries(name, kind)):
+            if roots is not None and int(round(root)) not in roots:
+                continue
             ls, le = loop if loop else (len(s), len(s))
             off, st = self.add(s, ls)
             entries.append(dict(off=off, n=len(s), ls=ls, le=le, looped=bool(loop), sr=TR,
@@ -483,7 +485,7 @@ def main(out):
                 b.cc0_set(name, kind)
     elif have_cc0 and slice_on():
         # SLICE's PIANO source needs only the middle-C zone, not the whole SAMPLE set.
-        b.cc0_set("PIANO", "oneshot")
+        b.cc0_set("PIANO", "oneshot", roots={60})
     if slice_on():                                  # SLICE's BREAK: only when that engine is built
         b.slice_break()                             # last: the sets' offsets stay as they were
         b.slice_piano()                             # (no data of its own: the PIANO set's)
