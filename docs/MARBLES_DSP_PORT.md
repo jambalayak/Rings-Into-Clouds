@@ -77,10 +77,10 @@ The target overlay now generates Q15 versions of the 45 inverse-CDF tables and c
 ## FM-1 Marbles routing and clock requirements (user-approved design direction)
 
 The intended virtual Marbles-to-Rings signal routing is:
-- X1 -> Rings instance 1 pitch.
-- X2 -> Rings instance 2 pitch.
-- T1 gate -> Rings instance 1 strum trigger.
-- T2 gate -> Rings instance 2 strum trigger.
+- X1 -> user-selectable Rings instance 1 or 2 pitch input.
+- X2 -> user-selectable Rings instance 1 or 2 pitch input.
+- T1 gate -> user-selectable Rings instance 1 or 2 strum input.
+- T2 master-clock pulse -> user-selectable Rings instance 1 or 2 strum input.
 - X3 -> user-selectable modulation destination on either Rings 1 or Rings 2.
 - Y output(s) -> user-selectable modulation destination(s) on either Rings 1 or Rings 2.
 - T3 -> user-selectable modulation/trigger destination elsewhere in the instrument. Upstream T1 and T3 are the two derived gate streams; T2 is the jittered master-clock output (the master ramp/gate), so the three physical outputs are all accounted for by the two slave ramps plus the master ramp.
@@ -99,7 +99,7 @@ The upstream implementation's `Ramps` structure has a master ramp and two slave 
 
 The X generator has three X channels and one Y channel. In its default internal T-clock mode, the three X outputs are associated with the three T timing streams; Y is a slower random modulation output (default rate 1/16 of X2, with its own division control in the original UI). FM-1 routing should preserve this timing relationship unless the user deliberately selects another clocking mode.
 
-The requested T1 -> Rings 1 strum and T2 -> Rings 2 strum mapping is intentional and valid: Rings 2 is clocked from the Marbles master pulse, while Rings 1 receives the T1 random gate stream. T3 remains available as a selectable auxiliary gate destination.
+The user's initial T1 -> Rings 1 strum and T2 -> Rings 2 strum mapping is valid as a default, but both T1 and T2 must have independent destination selectors. Each can target either Rings 1 or Rings 2; both may target the same instance or be split. T2 remains the master 50%-duty clock pulse, while T1 remains a derived random gate stream. T3 remains available as a selectable auxiliary gate destination.
 
 
 ## Q15 target-link result (run 45961122280)
@@ -146,5 +146,24 @@ CPU has not been measured. Run the Marbles T/XY processing in a target audio-bud
 - X3 is a bipolar/unipolar CV source according to its selected range. Give it one destination selector for Rings 1 or Rings 2, a parameter selector (Structure, Brightness, Damping, Position, and any exposed performance parameter), and an amount control.
 - Y is one independent, slow CV output (not multiple Y channels). Give it its own destination and amount controls, independently selectable for Rings 1 or Rings 2.
 - T3 is a gate/trigger source with a selectable destination elsewhere in the instrument. Candidate destinations include a drum trigger, SLICE trigger, or a Clouds control event, but do not wire any destination without checking that module's event semantics and protecting the audio thread.
-- T1/T2 routing to the two Rings strum inputs remains fixed as requested. T1 is a derived random gate; T2 is the master 50%-duty clock pulse.
+- T1 and T2 each have an independent strum destination selector for Rings 1 or Rings 2. Both may target the same Rings instance or be split. T1 is a derived random gate; T2 is the master 50%-duty clock pulse.
 - Provide host-tempo subdivisions in musical terms, including straight, dotted and triplet choices. The selected subdivision changes the T2 master pulse rate; T1/T3 remain derived from that same master and retain Marbles' jitter/rhythm models. Keep an unsynced/free-rate option if sync is disabled.
+
+
+## Independent Marbles routing selectors (user-approved, 2026-11-27)
+
+X1, X2, T1 and T2 each require their own independent destination selector:
+- X1 destination: Rings 1 pitch or Rings 2 pitch.
+- X2 destination: Rings 1 pitch or Rings 2 pitch.
+- T1 destination: Rings 1 strum or Rings 2 strum.
+- T2 destination: Rings 1 strum or Rings 2 strum.
+
+Each pair is independently configurable: X1 and X2 may target the same Rings instance or be split; likewise T1 and T2 may target the same Rings instance or be split. Do not couple the pitch and strum selectors together. Changing a source's destination must not alter the other source's routing. The initial X1->Rings 1, X2->Rings 2, T1->Rings 1, T2->Rings 2 arrangement can be the default preset, not a fixed wiring rule. T2's source semantics remain the Marbles master-clock pulse; selecting its destination does not turn it into a derived random gate.
+
+## Compile-time mono Rings sizing result (run 45962003691)
+
+The corrected target compile-time mono `Part` probe succeeded for the `pi32v2` target. It reports `rings_mono::Part` at **15,776 bytes**, compared with the normal five-model Rings `Part` at **61,232 bytes**. This is a compile-time state-size result, not yet a full runtime implementation or proof that a second Rings instance fits in the complete firmware.
+
+The diagnostic image reports 25,264 bytes of POOL free before adding a real second mono Rings runtime path. A 15,776-byte mono Part would nominally leave 9,488 bytes before its own patch/performance state, any additional buffers, alignment, event/control state and runtime integration overhead. The mono specialization is promising but still requires compiling and linking its actual processing implementation and measuring complete POOL, XIP, RAM and CPU budgets. Do not infer final fit from `sizeof` alone.
+
+The same diagnostic run passed the existing SLICE and DRUM host regression suites. It remains a diagnostic build, not an installable firmware package; no Rings/Clouds/Marbles runtime audio integration or device test has been completed.
