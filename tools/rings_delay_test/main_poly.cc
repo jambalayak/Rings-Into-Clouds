@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
           if (fwrite(pair, sizeof(float), 2, audio) != 2) return 4;
         }
       }
-      fprintf(meta, "%llu,%llu,%d,%s,%llu,%.9g,4,%u\n",
+      fprintf(meta, "%llu,%llu,%d,%s,%llu,%.9g,8,%u\n",
         static_cast<unsigned long long>(start), static_cast<unsigned long long>(frames),
         model, p.name, static_cast<unsigned long long>(rings::qn_saturation_count),
         rings::qn_max_abs, static_cast<unsigned>(next_strum));
