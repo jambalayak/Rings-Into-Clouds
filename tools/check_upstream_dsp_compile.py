@@ -257,7 +257,8 @@ def main():
     signature = "  void Init(uint16_t* reverb_buffer);"
     if signature not in part_h:
         raise SystemExit("expected upstream Rings Init declaration not found")
-    part_h_patched.write_text(part_h.replace(signature, "  void Init();"))
+    part_h = part_h.replace(signature, "  void Init();")
+    part_h_patched.write_text(part_h)
 
     part_cc = part_cc_original.read_text()
     part_cc = part_cc.replace("void Part::Init(uint16_t* reverb_buffer) {", "void Part::Init() {")
@@ -344,6 +345,9 @@ def main():
     ).replace(
         "const int32_t kMaxPolyphony = 4;",
         "const int32_t kMaxPolyphony = 1;"
+    ).replace(
+        "const int32_t kNumStrings = kMaxPolyphony * 2;",
+        "const int32_t kNumStrings = 8;"
     ).replace(
         "}  // namespace rings",
         "}  // namespace rings_mono"
