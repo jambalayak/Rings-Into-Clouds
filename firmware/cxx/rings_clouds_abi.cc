@@ -13,6 +13,7 @@
 #include "rings/dsp/strummer.h"
 #include "rings/dsp/performance_state.h"
 #include "rings/dsp/patch.h"
+#include "rings_mono2/dsp/part.h"
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/dsp/frame.h"
 
@@ -24,6 +25,14 @@ extern "C" uint32_t ric_marbles_size_anchor(void);
 extern "C" {
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_part_storage[sizeof(rings::Part)];
+/* Isolated second independent mono Rings Part. The two-string sympathetic
+ * bank is a sizing experiment only, not an approved sound configuration. */
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_rings2_mono_storage[sizeof(rings_mono2::Part)];
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_rings2_performance_storage[sizeof(rings::PerformanceState)];
+__attribute__((used, section(".pool"), aligned(16)))
+unsigned char ric_rings2_patch_storage[sizeof(rings::Patch)];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_strummer_storage[sizeof(rings::Strummer)];
 __attribute__((used, section(".pool"), aligned(16)))
@@ -47,6 +56,11 @@ static rings::Part *rings_part()
     return reinterpret_cast<rings::Part *>(ric_rings_part_storage);
 }
 
+static rings_mono2::Part *rings2_mono_part()
+{
+    return reinterpret_cast<rings_mono2::Part *>(ric_rings2_mono_storage);
+}
+
 static rings::Strummer *rings_strummer()
 {
     return reinterpret_cast<rings::Strummer *>(ric_rings_strummer_storage);
@@ -61,6 +75,7 @@ extern "C" int32_t ric_dsp_construct(void)
 {
     if (!ric_dsp_constructed) {
         new (ric_rings_part_storage) rings::Part();
+        new (ric_rings2_mono_storage) rings_mono2::Part();
         new (ric_rings_strummer_storage) rings::Strummer();
         new (ric_clouds_processor_storage) clouds::GranularProcessor();
         ric_dsp_constructed = 1;
@@ -73,6 +88,7 @@ extern "C" int32_t ric_dsp_init(uint32_t sample_rate_hz, uint32_t inter_onset_us
     if (ric_dsp_construct() != 0 || !sample_rate_hz)
         return -1;
     rings_part()->Init(); /* five-model FM-1 source overlay; no Rings reverb allocation */
+    rings2_mono_part()->Init(); /* independent mono experiment; no external-input Strummer */
     rings_strummer()->Init(static_cast<float>(inter_onset_us) * 0.000001f,
                            static_cast<float>(sample_rate_hz));
     clouds_processor()->Init(ric_clouds_large_buffer, sizeof ric_clouds_large_buffer,
@@ -151,11 +167,15 @@ extern "C" uint32_t ric_dsp_link_anchor(void)
 {
     uintptr_t roots = reinterpret_cast<uintptr_t>(&ric_dsp_code_roots[0]);
     uintptr_t part = reinterpret_cast<uintptr_t>(ric_rings_part_storage);
+    uintptr_t part2 = reinterpret_cast<uintptr_t>(ric_rings2_mono_storage);
+    uintptr_t part2_performance = reinterpret_cast<uintptr_t>(ric_rings2_performance_storage);
+    uintptr_t part2_patch = reinterpret_cast<uintptr_t>(ric_rings2_patch_storage);
     uintptr_t strummer = reinterpret_cast<uintptr_t>(ric_rings_strummer_storage);
     uintptr_t processor = reinterpret_cast<uintptr_t>(ric_clouds_processor_storage);
     uintptr_t large = reinterpret_cast<uintptr_t>(ric_clouds_large_buffer);
     uintptr_t small = reinterpret_cast<uintptr_t>(ric_clouds_small_buffer);
-    return static_cast<uint32_t>(roots ^ part ^ strummer ^ processor ^ large ^ small ^
+    return static_cast<uint32_t>(roots ^ part ^ part2 ^ part2_performance ^ part2_patch ^
+        strummer ^ processor ^ large ^ small ^
         sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor) ^
         ric_marbles_size_anchor());
 }
