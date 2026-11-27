@@ -46,7 +46,7 @@ MONO_RECORD = 45040''',
      "profile constants")
 once(profile,
 '''        buffer_size_[0] < 86144 || buffer_size_[1] < 32768''',
-'''        buffer_size_[0] < LARGE || buffer_size_[1] < SMALL''',
+'''        buffer_size_[0] < 98416 || buffer_size_[1] < 45040''',
      "buffer-size preflight")
 once(profile,
 '''        // Mono non-Spectral: 32 KiB recording followed by the full 53,376 B
