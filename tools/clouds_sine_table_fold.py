@@ -53,13 +53,44 @@ def apply_sine_table_fold(root, patch_root):
     destination = patch_root / "clouds/dsp/granular_sample_player.h"
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(patched)
+
+    # The Spectral-mode phase vocoder has a second, direct integer lookup in
+    # FrameTransformation::fast_p2r. Fold that access through the same exact
+    # stride-4 table mapping; preserve its angle quantisation and no-interp path.
+    phase_source = eur / "clouds/dsp/pvoc/frame_transformation.h"
+    phase_original = phase_source.read_text()
+    old_fast_p2r = """  inline void fast_p2r(float magnitude, uint16_t angle, float* re, float* im) {
+    angle >>= 6;
+    *re = magnitude * lut_sin[angle + 256];
+    *im = magnitude * lut_sin[angle];
+  }"""
+    new_fast_p2r = """  inline void fast_p2r(float magnitude, uint16_t angle, float* re, float* im) {
+    angle >>= 6;
+    *re = magnitude * rings::lut_sine[4 * angle + 1024];
+    *im = magnitude * rings::lut_sine[4 * angle];
+  }"""
+    if phase_original.count(old_fast_p2r) != 1:
+        raise SystemExit("expected the phase-vocoder fast_p2r sine lookups exactly once")
+    phase_patched = phase_original.replace(
+        '#include "clouds/resources.h"',
+        '#include "clouds/resources.h"\\n#include "rings/resources.h"', 1)
+    phase_patched = phase_patched.replace(old_fast_p2r, new_fast_p2r, 1)
+    if "lut_sin[" in phase_patched:
+        raise SystemExit("phase-vocoder lut_sin lookup remains after overlay")
+    phase_destination = patch_root / "clouds/dsp/pvoc/frame_transformation.h"
+    phase_destination.parent.mkdir(parents=True, exist_ok=True)
+    phase_destination.write_text(phase_patched)
+
+    if "lut_sin[" in patched:
+        raise SystemExit("granular-player lut_sin lookup remains after overlay")
     report = patch_root.parent / "sine-table-fold-verification.txt"
     report.write_text(
         "Clouds lut_sin entries: 1281\n"
         "Rings lut_sine entries: 5121\n"
         "Float32 bit-identical stride-4 comparison: PASS (1281/1281 entries)\n"
-        "Clouds original callsites: 2 (mono left offset 0; mono right offset 256)\n"
-        "Replacement Rings offsets: 0 and 1024 entries; original index scale 256 preserved\n"
+        "Granular player lookups: left offset 0; right offset 256; original scale 256 preserved\n"
+        "Phase-vocoder fast_p2r lookups: lut_sin[angle] -> rings[4*angle]; lut_sin[angle+256] -> rings[4*angle+1024]\n"
+        "Phase-vocoder angle domain: uint16 >> 6 gives 0..1023; maximum mapped index 5116 within 5121 entries\n"
         "Original Interpolate arithmetic preserved: index multiply, int32 truncation, fraction, a+(b-a)*fraction\n"
         "Overlay only: pinned submodules and production firmware source untouched\n"
     )
