@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - rings-delay-packed24-target-probe
+      - rings-xip-audit-capture
 permissions:
   contents: read
 concurrency:
