@@ -191,6 +191,12 @@ static uint32_t eng_rank(uint32_t e)
         ;
     return n < NENG_SHOWN ? n : 0u;
 }
+/* Retained for host regression helpers and non-track-specific status code. Track
+ * selection in the UI must use eng_track_step() instead. */
+static uint32_t eng_step(uint32_t e, int32_t dir)
+{
+    return eng_vis((eng_rank(e % NENGINES) + (dir > 0 ? 1u : NENG_SHOWN - 1u)) % NENG_SHOWN);
+}
 /* New projects use a dedicated DRUM part on track 4. The project loader deliberately
  * bypasses these selection helpers, so older projects retain their saved assignments. */
 static int eng_track_allowed(uint32_t e, const track_t *t)
