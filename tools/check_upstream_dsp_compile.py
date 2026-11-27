@@ -308,6 +308,27 @@ def main():
         raise SystemExit("Rings Reverb references remain in five-model source overlay")
     part_cc_patched.write_text(part_cc)
 
+    # Compile a true mono Part implementation in a private namespace.
+    mono_part_cc = part_cc.replace(
+        '#include "rings/dsp/part.h"',
+        '#include "rings_mono/dsp/part.h"'
+    )
+    if mono_part_cc.count("namespace rings {") != 1 or mono_part_cc.count("}  // namespace rings") != 1:
+        raise SystemExit("unexpected Rings Part namespace layout for mono implementation")
+    mono_part_cc = mono_part_cc.replace(
+        "namespace rings {",
+        "namespace rings_mono {" + chr(10) + "using namespace rings;",
+        1
+    ).replace(
+        "}  // namespace rings",
+        "}  // namespace rings_mono",
+        1
+    )
+    mono_part_cc_path = patch_root / "rings_mono" / "dsp" / "part.cc"
+    mono_part_cc_path.parent.mkdir(parents=True, exist_ok=True)
+    mono_part_cc_path.write_text(mono_part_cc)
+    sources.append(mono_part_cc_path)
+
     # Compile-time-only second Rings instance experiment: clone the five-model Part
     # declaration into a private namespace and reduce its compile-time polyphony to 1.
     # It shares stateless DSP component types, but owns its own mono resonator state.
