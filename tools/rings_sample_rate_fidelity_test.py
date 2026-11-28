@@ -118,7 +118,7 @@ def feature_metrics(reference, target):
                 t[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
                 axis=1))
             coarse_corr = float(np.corrcoef(re_coarse, te_coarse)[0, 1])
-            # Search up to 5 seconds: several long-tail cases still hit the 2-second bound.
+            # Search up to 5 seconds where the capture is long enough; never use more than half the capture.
             max_lag = min(50, max(0, coarse_count // 2))
             aligned = []
             for lag in range(-max_lag, max_lag + 1):
@@ -178,8 +178,8 @@ ref_audio = np.fromfile(WORK / "eurorack_48k/audio.f32", dtype=np.float32).resha
 target_audio = np.fromfile(WORK / "fm1_codec_rate/audio.f32", dtype=np.float32).reshape(-1, 2)
 ref_segments = load_segments(WORK / "eurorack_48k/segments.csv")
 target_segments = load_segments(WORK / "fm1_codec_rate/segments.csv")
-if len(ref_segments) != 75 or len(target_segments) != 75:
-    raise SystemExit("Expected 75 aligned Rings test cases")
+if len(ref_segments) != 150 or len(target_segments) != 150:
+    raise SystemExit("Expected 150 aligned Rings test cases (5 models x 6 notes x 5 profiles)")
 if [(s["model"], s["note"], s["profile"]) for s in ref_segments] != [
     (s["model"], s["note"], s["profile"]) for s in target_segments
 ]:
