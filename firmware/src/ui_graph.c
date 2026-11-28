@@ -2205,6 +2205,28 @@ static void graph_song(void)
                      i < 4u ? "[K3] ADD SECTION" : "[SAVE] PROJECT A-D", T_MID, T_SURF, x0 - 10 - SG_X0);
     }
 }
+static void graph_marbles(void)
+{
+    static const char *const clock_name[4] = {"RATE", "JITTER", "LENGTH", "STEPS"};
+    static const char *const random_name[4] = {"DEJA VU", "SPREAD", "BIAS", "t"};
+    const char *const *names = marbles_ui.bank == MARBLES_BANK_CLOCK ? clock_name : random_name;
+    uint32_t k, y = 27u;
+    char value[12];
+    cv_text_on(14, 10, &AF_M, marbles_ui.bank == MARBLES_BANK_CLOCK ? "MARBLES / CLOCK" : "MARBLES / RANDOM",
+               T_TEXT, T_SURF);
+    cv_text_r(226, 10 + AF_M.asc - AF_S.asc, &AF_S,
+              marbles_ui.bank == MARBLES_BANK_CLOCK ? "[OCT+] RANDOM" : "[OCT-] CLOCK", T_MID, T_SURF);
+    for (k = 0; k < 4u; ++k) {
+        int32_t x = 14 + (int32_t)k * 55;
+        uint16_t v = marbles_ui.value[marbles_control_param(marbles_ui.bank, (uint8_t)k)];
+        cv_rrect(x, y, 48, 56, 4, T_BG, T_SURF);
+        cv_text_on(x + 4, y + 8, &AF_S, names[k], T_MID, T_BG);
+        fmt_int(value, (int32_t)((uint32_t)v * 100u / 65535u));
+        cv_text_on(x + 4, y + 29, &AF_M, value, T_ACCENT, T_BG);
+        cv_text_on(x + 4, y + 43, &AF_S, "%", T_DIM, T_BG);
+    }
+    cv_text_on(14, 94, &AF_S, "K1-K4 EDIT  |  OCT +/- BANK", T_MID, T_SURF);
+}
 static void draw_graph(void)
 {
     const page_t *pg = cur_page();
@@ -2297,6 +2319,11 @@ static void draw_graph(void)
         case GR_EVENTS:
             cv_oy = 0;
             graph_events();
+            break;
+        case GR_MARBLES:
+            cv_oy = 0;
+            marbles_ui_init();
+            graph_marbles();
             break;
         case GR_TOOLS:
             cv_oy = 0;
