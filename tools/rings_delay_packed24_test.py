@@ -37,6 +37,12 @@ include = ["-I" + str(PATCH), "-I" + str(ROOT / "tools/rings_delay_test"),
            "-I" + str(EUR), "-I" + str(STM)]
 common = ["g++", "-std=c++11", "-O2", "-D_GNU_SOURCE", "-DTEST", "-ffunction-sections", "-fdata-sections",
           "-Wno-unused-function", "-Wno-unused-variable", *include]
+# Check every delay-line operation against the pinned upstream float implementation.
+conformance = WORK / "q24_delay_conformance"
+subprocess.run([*common, str(ROOT / "tools/rings_delay_test/q24_delay_conformance.cc"),
+                "-o", str(conformance)], cwd=ROOT, check=True)
+subprocess.run([str(conformance)], cwd=ROOT, check=True)
+
 variants = [("float", None), ("packed24_q3_21", 2097152)]
 for variant, scale in variants:
     build = WORK / variant
