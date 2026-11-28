@@ -118,8 +118,8 @@ def feature_metrics(reference, target):
                 t[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
                 axis=1))
             coarse_corr = float(np.corrcoef(re_coarse, te_coarse)[0, 1])
-            # Search up to 2 seconds: the earlier 500 ms cap hit its boundary on long tails.
-            max_lag = min(20, max(0, coarse_count // 10))
+            # Search up to 5 seconds: several long-tail cases still hit the 2-second bound.
+            max_lag = min(50, max(0, coarse_count // 10))
             aligned = []
             for lag in range(-max_lag, max_lag + 1):
                 if lag < 0:
