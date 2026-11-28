@@ -118,7 +118,8 @@ def feature_metrics(reference, target):
                 t[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
                 axis=1))
             coarse_corr = float(np.corrcoef(re_coarse, te_coarse)[0, 1])
-            max_lag = min(5, max(0, coarse_count // 10))
+            # Search up to 2 seconds: the earlier 500 ms cap hit its boundary on long tails.
+            max_lag = min(20, max(0, coarse_count // 10))
             aligned = []
             for lag in range(-max_lag, max_lag + 1):
                 if lag < 0:
@@ -153,6 +154,9 @@ def feature_metrics(reference, target):
             "envelope_correlation_10ms": corr,
             "envelope_correlation_100ms": coarse_corr,
             "envelope_correlation_100ms_best_lag": best_coarse_corr,
+            "envelope_best_lag_100ms_max_search_seconds": (
+                float(max_lag * coarse_window / TARGET_RATE)
+                if max_lag else 0.0),
             "envelope_best_lag_100ms_seconds": (
                 float(best_coarse_lag * coarse_window / TARGET_RATE)
                 if best_coarse_lag is not None else None),
