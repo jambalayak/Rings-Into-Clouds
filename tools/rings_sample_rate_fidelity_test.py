@@ -111,6 +111,8 @@ if [(s["model"], s["note"], s["profile"]) for s in ref_segments] != [
 models = ["Modal", "Sympathetic Strings", "String",
           "FM Voice", "Quantized Sympathetic Strings"]
 cases = []
+all_reference = []
+all_target = []
 for sr, st in zip(ref_segments, target_segments):
     r0, rn = int(sr["start"]), int(sr["frames"])
     t0, tn = int(st["start"]), int(st["frames"])
@@ -121,6 +123,8 @@ for sr, st in zip(ref_segments, target_segments):
     converted = resample_poly(ref, UP, DOWN, axis=0)
     count = min(len(converted), len(target))
     converted, target = converted[:count], target[:count]
+    all_reference.append(converted)
+    all_target.append(target)
     if count < int(0.95 * min(rn * UP / DOWN, tn)):
         raise SystemExit("Unexpected resampler alignment loss")
     cases.append({
@@ -148,10 +152,7 @@ summary = {
     "resampler_ratio": f"{UP}/{DOWN}",
     "comparison": "original-float Rings 48 kHz reference resampled to FM-1 codec rate vs original-float Rings rendered at FM-1 codec rate",
     "cases": len(cases), "models": models, "per_model": per_model,
-    "overall_snr_db": snr_db(
-        resample_poly(ref_audio, UP, DOWN, axis=0)[:len(target_audio)],
-        target_audio[:len(resample_poly(ref_audio, UP, DOWN, axis=0)[:len(target_audio)])]
-    ),
+    "overall_snr_db": snr_db(np.concatenate(all_reference), np.concatenate(all_target)),
     "note": "A rate-change characterization, not proof of hardware equivalence. The FM-1 rate is calculated from the current clock divider and still requires hardware measurement."
 }
 (OUT / "sample_rate_metrics.json").write_text(json.dumps(summary, indent=2) + "\n")
