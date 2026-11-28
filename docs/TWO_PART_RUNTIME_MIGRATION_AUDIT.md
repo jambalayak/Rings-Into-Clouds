@@ -167,3 +167,34 @@ The workflow is **not green**:
 - Rings/Clouds symbols were retained in the diagnostic link (Rings Part 110,384 B, Strummer 524 B, Clouds processor 8,684 B, large buffer 86,144 B, small buffer 32,768 B). This is a diagnostic, not a release build.
 
 The two-part runtime should eventually reduce per-track RAM and engine POOL allocation, but the build must be remeasured after each step. The two-part reduction alone is not yet proven to solve the 17,108 B ordinary-RAM overage or the flash image overage. Keep full Rings quality and all five models; solve the budget through measured removal of non-Rings engines/state, not by weakening Rings DSP.
+
+
+## Follow-up source trace: motion automation and MIDI routing
+
+### Motion events embed the track index in the serialized event byte
+
+- A FUN10 motion event stores `place` as `(track_index << 6) | step_index`; the upper two bits identify one of the four serialized tracks and the lower six bits identify a step.
+- Motion state also has a four-bit `on` mask. Runtime helpers currently compare this encoded project index directly with `trk_index(t)`.
+- When runtime part 1 is Drums but serialized motion track index is 3, simply shrinking `trk[]` will cause Drums automation and parameter locks to be ignored or misread. Motion import/restore must project events for old tracks 0 and 3 onto live tracks 0 and 1, rewrite only the in-RAM event indices, and preserve the four-track event encoding when saving.
+- Old tracks 1 and 2 must be filtered out of the live motion store, not reassigned. Motion enable bits require the same 0/3 -> 0/1 translation.
+- Chain snapshots contain their own `motion_store_t`, so the same conversion is needed for every source snapshot and each section transition. `motion_step()`, lock lookup, lock count, snapshot, replace, clear and editor views all assume event indices equal runtime indices today.
+
+### MIDI IN TRACK uses project track identity in multiple subsystems
+
+- `song.mch[NTRK]` is four stored MIDI channel assignments. In TRACK routing, `midi_track(ch)` resolves a channel to a runtime `trk[]` index through `mch_get(i)`; note ownership, bend targets, Program Change requests, UI hints, and per-track MIDI activity all use that runtime index.
+- A two-part runtime must load saved MIDI assignments 0 and 3 into Rings and Drums respectively. Inactive project channels 1 and 2 must not resolve to either live part.
+- The per-track default channel fallback currently uses `i % NTRK`, while MIDI block routing maps four consecutive channels to four consecutive tracks. Both need an explicit two-part policy after migration; do not let old Track 2/3 channels wrap onto Rings or Drums.
+- MIDI ownership arrays, target masks, panic/forget paths, Program Change mailboxes, and UI indicators are indexed by live track. They must be resized/remapped together with `trk[]`, not just the note dispatch function.
+- The legacy four-track MIDI assignment bytes remain in FUN10 unchanged; conversion happens at project load/save boundaries.
+
+### Additional migration gates
+
+Before the runtime count changes, tests must prove:
+1. A motion file with distinct automation and locks on all four tracks loads only old Track 1 events into Rings and old Track 4 events into Drums; old Tracks 2/3 produce no live events.
+2. Saving after that load writes motion events back with serialized indices 0 and 3, and round-trips the same four-track FUN10 layout.
+3. Motion enable masks, lock-step masks, chain source motion and section transitions all preserve the same mapping.
+4. MIDI TRACK mode routes old Track 1's saved channel to Rings and old Track 4's saved channel to Drums; old Track 2/3 channels are ignored, not aliased.
+5. MIDI note-off, sustain pedal, bend, wheel, aftertouch, CC panic/reset, Program Change and channel-block changes release/reset the correct live part without stale ownership or hanging notes.
+6. MIDI block routing's existing four-channel groups and the two-part TRACK mode are deliberately distinguished; one must not accidentally inherit the other's index arithmetic.
+
+No runtime code changed in this audit-only step. The existing four-part runtime remains intact.
