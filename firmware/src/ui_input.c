@@ -994,6 +994,12 @@ static void edit_param(uint32_t slot, int32_t steps)
     const page_t *pg = cur_page();
     const param_desc_t *d;
     int32_t v;
+    if (pg->graph == GR_MARBLES) {                       /* Marbles lives in the sequencer section */
+        marbles_ui_init();
+        marbles_control_set(&marbles_ui, marbles_ui.bank, (uint8_t)slot, steps * 512);
+        ui.force = 1;
+        return;
+    }
     if (pg->graph == GR_EVENTS) {                         /* AUTOMATION (ui_events.c) */
         ev_knob(slot, steps);
         return;
@@ -1785,6 +1791,12 @@ static void ui_input(void)
         case B_OCTDN:
         case B_OCTUP: {
             uint32_t both = (1u << panel.btn[B_OCTDN]) | (1u << panel.btn[B_OCTUP]);
+            if (cur_page()->graph == GR_MARBLES) {
+                marbles_ui_init();
+                marbles_control_select_bank(&marbles_ui, b == B_OCTDN ? MARBLES_BANK_CLOCK : MARBLES_BANK_RANDOM);
+                ui.force = 1;
+                break;
+            }
             if (act_cols() || layer_set_open() || ui.ml.on)   /* action pages: enter / back (below); SET layers: OCT-; */
                 break;                                  /* MIDI LEARN: clear / done (below) */
             if ((fm1_in.buttons & both) == both)
