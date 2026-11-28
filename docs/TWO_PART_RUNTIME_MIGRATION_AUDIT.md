@@ -130,3 +130,40 @@ A second pass traced the concrete runtime boundary in `firmware/src/project.c` a
 The mapping helpers added to `core.h` are only a declared contract. They are not yet used by project capture/restore, song-chain preparation/execution, MIDI routing or motion playback. The runtime still has four `trk[]` objects and four engine-memory slots. Do not reduce `NPART` or `NTRK` until the projection is wired through every consumer and covered by host tests.
 
 No runtime behavior or serialized format changed in this follow-up audit.
+
+
+## Follow-up implementation gate: serialization shadows, song clock, and build budget
+
+The concrete restore path adds an important constraint beyond the earlier mapping summary.
+
+### Project loading and saving need an explicit four-track compatibility image
+
+- `project_restore_runtime()` first runs all legacy conversions on a complete four-track `project_t`, then restores every track, all four FM6 patches, all four MIDI channel assignments, and the selected-track index.
+- `project_capture()` currently serializes all four live tracks and all four FM6 patches directly. When the live runtime becomes two parts, it cannot keep doing this by index: live part 1 is old project Track 4, not project Track 2.
+- A two-part runtime therefore needs a deliberate project compatibility image:
+  - serialized record 0 is populated from live Rings part 0;
+  - serialized record 3 is populated from live Drums part 1;
+  - records 1 and 2 must follow a documented retirement policy (not copied from the wrong live part and not silently reinterpreted);
+  - the saved selection must translate live Rings/Drums to serialized 0/3 and translate back on load;
+  - MIDI channels and FM6 patch records must follow the same mapping, with inactive records set to safe defaults or retained in an explicitly bounded compatibility store.
+- This policy must be decided and tested before changing `project_capture()`. Simply mapping live indices in the restore loop is insufficient: autosave, project save/reload, new-project defaults and project summaries all share the four-record representation.
+- The legacy Track 4 GM-drum conversion must remain in the import layer before projection, so the old lane is normalized as DRUM and then copied to live part 1.
+
+### Song-chain runtime projection requirements
+
+- The stored FUN10 row is still four lane bytes plus repeat. The runtime needs to project row lane 0 to Rings and lane 3 to Drums; runtime lanes 1/2 must always be silent.
+- The chain clock must be selected only from the active legacy lanes 0 and 3. If both are silent, use the defined fixed silent-bar clock (Rings lane timing) rather than allowing old lane 1 or 2 to drive the section.
+- Chain source snapshots must project project tracks 0 and 3 into runtime tracks 0 and 1 for steps, timing, quantize, motion and locks.
+- `chain_start()` / `chain_stop()` must save and restore only the two runtime timing records after the array shrinks; the serialized chain config and project snapshots remain four-track.
+- The existing four-track chain implementation is internally consistent today; no live projection has been applied yet.
+
+### CI result for run 46142538236
+
+The workflow is **not green**:
+- Target ABI smoke probe, Rings/Clouds compile-only step, compact-delay host evaluation, and firmware regression-test build completed.
+- Host regression suite was marked cancelled, so it provides no pass result for this run.
+- The optional compact-effects golden-render/artifact steps failed.
+- The diagnostic firmware link exposed the already-known size constraints: image 595,920 B exceeds the app slot; `.data + .bss` is 90,836 B against 73,728 B (17,108 B over). POOL is 351,472 B of 368,640 B, leaving 17,168 B.
+- Rings/Clouds symbols were retained in the diagnostic link (Rings Part 110,384 B, Strummer 524 B, Clouds processor 8,684 B, large buffer 86,144 B, small buffer 32,768 B). This is a diagnostic, not a release build.
+
+The two-part runtime should eventually reduce per-track RAM and engine POOL allocation, but the build must be remeasured after each step. The two-part reduction alone is not yet proven to solve the 17,108 B ordinary-RAM overage or the flash image overage. Keep full Rings quality and all five models; solve the budget through measured removal of non-Rings engines/state, not by weakening Rings DSP.
