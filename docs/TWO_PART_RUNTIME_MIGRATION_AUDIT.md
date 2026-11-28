@@ -77,3 +77,29 @@ The live two-part mapping must be applied consistently to both the active sequen
 Do not change the FUN1..FUN10 struct definitions, offsets, magic values, checksums or fixed-size assertions as part of the live-part-count change. Require round-trip tests for all supported formats, legacy Track 4 drum migration tests, song-chain tests, MIDI/motion tests, sequencer regression tests, target RAM/POOL/flash diagnostics and full CI before considering this architecture complete.
 
 No firmware behavior, project format or binary was changed by this audit.
+
+
+## Existing regression-test coverage audit
+
+Inspected `tests/project_test.c`, `tests/fun10_test.c`, `tests/seq155_test.c` and `tests/motion_test.c`.
+
+Already covered and therefore important to preserve:
+
+- `project_test.c` verifies old FUN2/FUN3 Track 4 GM drums become part 4 / DRUM, and checks old drum levels, grid conversion, legacy PHYS/SAMPLE drum conversions, FUN5/FUN6 compatibility, FUN8/FUN10 parameter migration, FM6 patch placement and motion-event migration.
+- `fun10_test.c` checks the 3840-byte FUN10 layout, four-lane song-chain serialization, four-track motion records, MIDI IN TRACK serialization and routing, and older FUN6/FUN7/FUN8 conversions.
+- `seq155_test.c` exercises song-chain sections, silent lanes, boundary transitions, sequencer conditions, drum-grid behavior and MIDI program changes.
+- `motion_test.c` exercises motion capture, shared event capacity, project round trips, legacy motion IDs and song-chain automation.
+
+New tests required for the two-part architecture (not currently demonstrated by those existing four-part assertions):
+
+1. Import a current FUN10 project with distinct sounds/patterns on all four tracks. Verify live Rings receives only old Track 1, live Drums receives old Track 4, and old Tracks 2/3 are not rendered or mapped onto either live part.
+2. Repeat with a pre-1.0 project (`parts == 0`) where Track 4 is the legacy GM drum lane; verify drum grid, kit defaults, level and preserved step timing.
+3. Verify current four-part FUN10 data (`parts == 4`) and old GM-drum projects both migrate correctly without changing the serialized byte layout or checksum rules.
+4. Exercise every song-chain row combination for the two active mapped lanes, including either/both silent, and confirm inactive legacy lanes cannot become the section clock or emit notes.
+5. Verify song-chain snapshots pull old Track 1 and Track 4 from each project, not project tracks 1 and 2 by accident.
+6. Test motion events and locks encoded for all four old track indices. Only the mapped Rings and Drums events may play; inactive Track 2/3 events must not be reassigned.
+7. Verify MIDI IN TRACK assignments for old Tracks 1 and 4 map to the two live destinations, while old Tracks 2/3 remain inert. Test block routing, OMNI/OFF and program changes.
+8. Assert the live runtime has exactly two track objects and two engine-memory regions, while all serialized project structures and fixed FUN10 size/offset assertions remain unchanged.
+9. Add a regression test proving the Rings part remains Rings and the drum part remains DRUM after project load, autosave restore, project save/reload and chain playback.
+
+The existing tests are strong on the old four-track format; they do not yet establish the new two-part runtime mapping.
