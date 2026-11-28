@@ -300,17 +300,17 @@ _Static_assert(sizeof(motion_store_t) == 388u, "motion disk layout (FUN10)");
 #define CHAIN_SILENT 4u
 typedef struct { uint8_t slot[NTRK], repeat; } chain_row_t;
 
+/* Runtime chain rows have exactly two lanes; the FUN10 chain_row_t above remains four-lane. */
+typedef struct { uint8_t slot[NPART_LIVE], repeat; } chain_live_row_t;
 /* Convert a frozen FUN10 four-lane row to the two active runtime lanes.
- * Inactive runtime lanes are always silent; the stored row is never rewritten. */
-static inline void project_chain_row_to_live(const chain_row_t *project_row, chain_row_t *live_row)
+ * Inactive project lanes are not represented in the live row; the stored row is never rewritten. */
+static inline void project_chain_row_to_live(const chain_row_t *project_row, chain_live_row_t *live_row)
 {
-    uint32_t i;
-    for (i = 0; i < NTRK; i++) live_row->slot[i] = CHAIN_SILENT;
     live_row->slot[LIVE_PART_RINGS] = project_row->slot[PROJ_TRACK_RINGS];
     live_row->slot[LIVE_PART_DRUMS] = project_row->slot[PROJ_TRACK_DRUMS];
     live_row->repeat = project_row->repeat;
 }
-static inline void live_chain_row_to_project(const chain_row_t *live_row, chain_row_t *project_row)
+static inline void live_chain_row_to_project(const chain_live_row_t *live_row, chain_row_t *project_row)
 {
     uint32_t i;
     for (i = 0; i < NTRK; i++) project_row->slot[i] = CHAIN_SILENT;
