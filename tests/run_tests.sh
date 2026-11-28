@@ -197,6 +197,8 @@ run() { name=$1; shift; echo "== $name"; "$@"; rc=$?; if [ "$rc" -ne 0 ]; then e
 
 $CC -o "$OUT/marbles_control_test" tests/marbles_control_test.c
 run "Marbles control mapping, independent banks, clamping and bounded jitter" "$OUT/marbles_control_test"
+$CC -o "$OUT/marbles_engine_test" tests/marbles_engine_test.c
+run "Marbles event generator: deterministic notes, gates, clock and jitter bounds" "$OUT/marbles_engine_test"
 
 run "package flash boundaries (synthetic SDK)" python3 tests/fm1pkg_test.py
 run "package flash boundaries (Python -O, synthetic SDK)" python3 -O tests/fm1pkg_test.py
