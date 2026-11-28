@@ -46,7 +46,7 @@ This means a direct mapping of Rings' C++ `Part` to the Felucca `render` callbac
 1. Assign each part a stable Rings runtime slot, indexed by `track_t - trk`.
 2. Give each slot its own independent Rings `Part`, `Strummer`, mutable parameters, excitation state, model configuration, and any wrapper-owned scratch/state buffers.
 3. Never use a shared mutable Rings singleton. Static immutable tables/resources may be shared only where upstream code is read-only.
-4. The initial product configuration must support at least two simultaneous Rings slots on separate parts. It may support more only if measured target resources and CPU deadlines allow it.
+4. The selected product configuration has exactly one Rings slot. It is a per-track runtime assigned to the chosen Rings track; no second Rings Part or delay bank is reserved.
 5. Keep Rings state in a dedicated, explicitly budgeted allocation rather than the current engine-memory overlay. If the instrument later chooses suspend/reconstruct-on-engine-switch, that must be a deliberate, tested policy and must define tail handling; it is not the default.
 6. Keep each track's parameter and preset data in its existing track-owned state. The adapter translates those values into that track's Rings instance only.
 7. Preserve the global voice allocator. The Rings port must not silently claim eight additional voices per instance or bypass stealing/release rules.
@@ -88,7 +88,7 @@ The adapter must be validated against all of these cases:
 - Preset/model change while notes are held.
 - Two Rings tracks receiving simultaneous and interleaved events.
 
-The key invariant is isolation: an event or voice steal on RINGS A must never reset, retrigger, damp, retune or otherwise mutate RINGS B.
+The key invariant is ownership: only events belonging to the selected Rings track may retrigger, damp, retune or otherwise mutate the one Rings Part. Other tracks and their voice steals must not mutate it.
 
 A design choice is still required for how the eight global voice slots map into Rings' own resonator/strummer model. Compare at least:
 - one Rings `Part` per track, with Felucca voices represented as excitation events; and
@@ -96,27 +96,28 @@ A design choice is still required for how the eight global voice slots map into 
 
 Choose by source inspection and audio tests, not by naming similarity.
 
+## Product direction update (2026-11-28)
+
+The two-Rings proposal in earlier sections is superseded by `docs/SINGLE_RINGS_MARBLES_ROUTING.md`. The selected design has one Rings Part + one Strummer + one Clouds processor + one Marbles system. This update changes the product's resource target, not the upstream Rings DSP semantics or the need for a persistent part-level audio adapter.
+
 ## Resource and scheduling gates
 
 Measure target compiler sizes and linked allocations for:
-- one Rings runtime slot;
-- two independent slots;
-- four slots (informational upper bound);
-- two slots plus full Clouds;
-- two slots plus Clouds, patch routing, current effects and MIDI sync.
+- the one Rings runtime slot;
+- one slot plus full Clouds;
+- one slot plus Clouds, Marbles routing, current effects and MIDI sync.
 
-Report POOL, ordinary RAM, stack, flash image and worst-case block CPU separately. Include Strummer state, wrapper scratch buffers, any resampling history and all Rings auxiliary state. The two-instance case is the acceptance baseline.
+Report POOL, ordinary RAM, stack, flash image and worst-case block CPU separately. Include Strummer state, wrapper scratch buffers, any resampling history and all Rings auxiliary state. The single-instance case is the acceptance baseline.
 
 The current linker map reserves 72 KiB for ordinary RAM and 360 KiB for POOL, with build checks requiring at least 4 KiB RAM and 8 KiB POOL spare. These headroom checks are hard gates, not targets to consume. A linker success that leaves less headroom is a failed profile.
 
 ## Acceptance criteria
 
-- Two different parts can play Rings at the same time.
-- Their mutable DSP state and presets are independent.
-- Changing model, structure, brightness, damping, position, tune, excitation or modulation on A has no effect on B, and vice versa.
-- Note-off, steal, mute, retrigger and engine-switch events affect only their owning instance.
-- Both instances remain stable during long sustained/ringing passages.
-- The two-instance resource and worst-case CPU report passes the documented headroom and audio deadline requirements.
+- The selected track plays the one Rings Part while other tracks continue to play their own engines.
+- Rings parameters and preset data remain owned by that track.
+- Note-off, steal, mute, retrigger and engine-switch events are handled without corrupting the Rings tail or other tracks.
+- The one instance remains stable during long sustained/ringing passages.
+- The single-instance resource and worst-case CPU report passes the documented headroom and audio deadline requirements.
 - Existing non-Rings engines, sequencer, MIDI input and current effects remain functional.
 - Any omitted Rings model or altered behaviour is documented visibly and in the source patch manifest.
 
