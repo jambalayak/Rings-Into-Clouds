@@ -198,3 +198,14 @@ Before the runtime count changes, tests must prove:
 6. MIDI block routing's existing four-channel groups and the two-part TRACK mode are deliberately distinguished; one must not accidentally inherit the other's index arithmetic.
 
 No runtime code changed in this audit-only step. The existing four-part runtime remains intact.
+
+
+## Testable mapping helpers added (no runtime switch yet)
+
+The development branch now has pure, allocation-free conversion helpers and host assertions for two additional compatibility boundaries:
+
+- Motion event place bytes: project Tracks 1/4 map to live Rings/Drums; project Tracks 2/3 are rejected; conversion back writes serialized identities 0/3.
+- Motion enable masks: four-bit project masks project to the two live bits and back without aliasing inactive tracks.
+- Song-chain rows: only serialized lanes 0 and 3 project into the live Rings/Drums lanes; inactive live lanes are forced to `CHAIN_SILENT`; reverse conversion leaves inactive serialized lanes silent and preserves repeat count.
+
+These helpers do not change `motion_store_t`, `chain_row_t`, FUN10 byte layout, or any runtime loops. They are a tested conversion contract only. Production motion import/export, chain snapshot preparation and project capture/restore still need to call these helpers before runtime arrays can be reduced.
