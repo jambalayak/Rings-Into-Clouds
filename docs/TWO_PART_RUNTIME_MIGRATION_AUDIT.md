@@ -103,3 +103,30 @@ New tests required for the two-part architecture (not currently demonstrated by 
 9. Add a regression test proving the Rings part remains Rings and the drum part remains DRUM after project load, autosave restore, project save/reload and chain playback.
 
 The existing tests are strong on the old four-track format; they do not yet establish the new two-part runtime mapping.
+
+
+## Follow-up source trace: project capture/restore and section execution
+
+A second pass traced the concrete runtime boundary in `firmware/src/project.c` and `firmware/src/song_chain.c` (branch `rings-two-part-rings-drums-exp`).
+
+### Project capture and restore are currently identity-mapped four-track operations
+
+- `project_capture()` serializes `trk[i]` into `p->t[i]`, serializes each `fm6_patch[i]`, and copies all four `song.mch[i]` channel assignments. It writes `parts = NPART`.
+- `project_restore_runtime()` validates and migrates the project, then iterates all four indices. For each index it restores the engine request, parameters, preset, steps and FM6 patch into `trk[k]`; it also restores `song.mch[k]`.
+- The selected track is restored from `p->sel` against `NTRK`, so a future two-part UI selection must not reuse this old index directly without translating it.
+- Legacy GM drums are normalized by `proj_drums_to_part()` before restore. That function still writes project record 3 (old Track 4), not a live runtime slot.
+- Save, rename, erase, slot summaries and autosave-related capture still treat the serialized four-track project as the source of truth. The safe boundary is therefore a conversion between a four-track project object and two live runtime parts—not shrinking project structs.
+
+### Song-chain execution requires a lane projection, not just a smaller array
+
+- `chain_apply()` currently calls `seq_release()` and `motion_restore()` for every live `trk[i]`, then assigns each runtime track the same-index slot from the four-lane row and the corresponding source snapshot.
+- `chain_start()` and `chain_stop()` save/restore timing and quantize for every runtime track. `chain_tick()` uses `chain.clk`, which currently comes from the first non-silent stored lane.
+- `chain_clock()` scans all four row lanes and returns the first non-silent lane; if every lane is silent it returns index 0. This legacy behavior cannot be retained unchanged when the only live parts are old Track 1 and old Track 4: old Track 2 or 3 must never become the section clock, and the all-silent fallback must be the Rings lane (or the defined fixed silent-bar clock).
+- `seq_steps()` indexes the chain source with the runtime track pointer's index. Once runtime indices become 0=Rings and 1=Drums, source steps/timing/motion must be fetched from serialized indices 0 and 3 respectively.
+- Stored chain rows and source projects must remain four-lane/four-track in the compatibility representation. The runtime projection must translate the two active lanes and force the other two lanes silent without rewriting the saved row or snapshot.
+
+### Safe implementation boundary now established
+
+The mapping helpers added to `core.h` are only a declared contract. They are not yet used by project capture/restore, song-chain preparation/execution, MIDI routing or motion playback. The runtime still has four `trk[]` objects and four engine-memory slots. Do not reduce `NPART` or `NTRK` until the projection is wired through every consumer and covered by host tests.
+
+No runtime behavior or serialized format changed in this follow-up audit.
