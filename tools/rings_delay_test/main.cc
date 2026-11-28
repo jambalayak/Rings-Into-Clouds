@@ -11,6 +11,10 @@
 namespace rings {
 uint64_t q15_saturation_count = 0;
 float q15_max_abs = 0.0f;
+// The shared delay overlay also exports Q24 diagnostics. The original-float
+// sample-rate harness does not exercise them, but must satisfy those symbols.
+uint64_t q24_saturation_count = 0;
+float q24_max_abs = 0.0f;
 }
 
 #ifndef RINGS_TEST_SAMPLE_RATE
