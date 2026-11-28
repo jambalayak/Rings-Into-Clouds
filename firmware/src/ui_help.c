@@ -53,6 +53,7 @@ static const struct { const char *title, *hint; } HELP_PAGE[] = {
     {"STEP", "[REC]WRITE[K1]STEP[SEQ]DETAIL"},   /* (1.5.1: SEQ to DETAIL; 1.8: the keys write once armed) */
     {"DETAIL", "[PRESETS]STEP[K1]CHANCE, 1:4, FILL"},   /* (1.5.5: the conditions past 100 %) */
     {"AUTOMATION", "[K1]ROW[OCT+]DO[EDIT]DELETE"},
+    {"MARBLES", "[K1-4]EDIT[OCT-]CLOCK[OCT+]RANDOM"},
     {"MIXER", "[K4]MUTE[ALGO]TRACK[HOME]CLOCK"},
     {"CLOCK", "[SELECT]TEMPO[GLO]HOLD: TAP"},
 };
