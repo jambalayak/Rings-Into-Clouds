@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      FELUCCA_CODE_OPT: ${{ github.ref_name == 'rings-single-rings-oz-memory-exp' && '-Oz' || '-Os' }}
+      FELUCCA_CODE_OPT: ${{ (github.ref_name == 'rings-single-rings-oz-memory-exp' || github.ref_name == 'rings-single-rings-oz-clouds-buf-exp') && '-Oz' || '-Os' }}
     steps:
       - name: Check out firmware and submodules
         uses: actions/checkout@v7
