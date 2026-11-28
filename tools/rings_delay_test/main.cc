@@ -13,7 +13,10 @@ uint64_t q15_saturation_count = 0;
 float q15_max_abs = 0.0f;
 }
 
-static const float kRate = 24000000.0f / 544.0f;
+#ifndef RINGS_TEST_SAMPLE_RATE
+#define RINGS_TEST_SAMPLE_RATE (24000000.0f / 544.0f)
+#endif
+static const float kRate = RINGS_TEST_SAMPLE_RATE;
 static const size_t kBlock = rings::kMaxBlockSize;
 
 struct TestCase {
