@@ -179,6 +179,27 @@ int main(void)
     bad += check("two-part bridge: old Tracks 2/3 are explicitly inactive, invalid live indices rejected",
                  project_live_part(1u) == NPART_LIVE && project_live_part(2u) == NPART_LIVE &&
                  live_project_track(NPART_LIVE) == NTRK && NTRK == 4u);
+
+    {
+        uint8_t live_place = 0xFFu, project_place = 0xFFu;
+        bad += check("motion bridge: old Track 1 and Track 4 event places map to live Rings and Drums",
+                     project_motion_place_to_live((uint8_t)((0u << 6) | 37u), &live_place) &&
+                     live_place == (uint8_t)((LIVE_PART_RINGS << 6) | 37u) &&
+                     project_motion_place_to_live((uint8_t)((3u << 6) | 19u), &live_place) &&
+                     live_place == (uint8_t)((LIVE_PART_DRUMS << 6) | 19u));
+        bad += check("motion bridge: old Tracks 2/3 events are rejected, not aliased",
+                     !project_motion_place_to_live((uint8_t)((1u << 6) | 11u), &live_place) &&
+                     !project_motion_place_to_live((uint8_t)((2u << 6) | 12u), &live_place));
+        bad += check("motion bridge: live Rings/Drums event places serialize back to old Tracks 1/4",
+                     live_motion_place_to_project((uint8_t)((LIVE_PART_RINGS << 6) | 37u), &project_place) &&
+                     project_place == (uint8_t)((0u << 6) | 37u) &&
+                     live_motion_place_to_project((uint8_t)((LIVE_PART_DRUMS << 6) | 19u), &project_place) &&
+                     project_place == (uint8_t)((3u << 6) | 19u));
+        bad += check("motion bridge: enable masks project only old Tracks 1/4 and round-trip",
+                     project_motion_mask_to_live(0x0Fu) == 0x03u &&
+                     live_motion_mask_to_project(0x03u) == 0x09u &&
+                     project_motion_mask_to_live(0x06u) == 0x00u);
+    }
     bad += check("layout: SLICER after DETUNE, then the matrix just before P_E0",
                  P_SLCR == P_DETUNE + 1 && P_SLDEPTH + 1 == P_M1SRC && P_M4AMT + 1 == P_FM1_ATK && P_FM4_LEVEL + 1 == P_CHRD && P_VOIC + 1 == P_LN0 &&
                  P_LN7 + 1 == P_LSYNC && P_LSYNC + 3 == P_SQNT && P_SQNT + 1 == P_SPRD && P_SPRD + 1 == P_ITYPE &&
