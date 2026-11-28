@@ -200,6 +200,24 @@ int main(void)
                      live_motion_mask_to_project(0x03u) == 0x09u &&
                      project_motion_mask_to_live(0x06u) == 0x00u);
     }
+
+    {
+        chain_row_t project_row, live_row, restored_row;
+        project_row.slot[0] = 0u; project_row.slot[1] = 1u;
+        project_row.slot[2] = 2u; project_row.slot[3] = 3u;
+        project_row.repeat = 7u;
+        project_chain_row_to_live(&project_row, &live_row);
+        bad += check("song-chain bridge: only old Track 1 and Track 4 lanes reach live Rings and Drums",
+                     live_row.slot[LIVE_PART_RINGS] == 0u &&
+                     live_row.slot[LIVE_PART_DRUMS] == 3u &&
+                     live_row.slot[2] == CHAIN_SILENT &&
+                     live_row.slot[3] == CHAIN_SILENT && live_row.repeat == 7u);
+        live_chain_row_to_project(&live_row, &restored_row);
+        bad += check("song-chain bridge: reverse projection restores active lanes without aliasing inactive tracks",
+                     restored_row.slot[0] == 0u && restored_row.slot[3] == 3u &&
+                     restored_row.slot[1] == CHAIN_SILENT &&
+                     restored_row.slot[2] == CHAIN_SILENT && restored_row.repeat == 7u);
+    }
     bad += check("layout: SLICER after DETUNE, then the matrix just before P_E0",
                  P_SLCR == P_DETUNE + 1 && P_SLDEPTH + 1 == P_M1SRC && P_M4AMT + 1 == P_FM1_ATK && P_FM4_LEVEL + 1 == P_CHRD && P_VOIC + 1 == P_LN0 &&
                  P_LN7 + 1 == P_LSYNC && P_LSYNC + 3 == P_SQNT && P_SQNT + 1 == P_SPRD && P_SPRD + 1 == P_ITYPE &&
