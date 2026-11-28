@@ -33,7 +33,7 @@ unsigned char ric_clouds_processor_storage[sizeof(clouds::GranularProcessor)];
  * window per channel. Experimental sizing only, not the final quality choice. */
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_large_buffer[86144];
-__attribute__((used, section(".bss.ric_clouds_small"), aligned(16)))
+__attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_small_buffer[32768];
 }
 
