@@ -134,11 +134,102 @@ def main():
     int n = lo;"""
     if upper_bound_call not in marbles_dist:
         raise SystemExit("expected Marbles std::upper_bound call not found")
-    marbles_dist_patched.write_text(marbles_dist.replace(upper_bound_call, binary_search))
+    marbles_dist = marbles_dist.replace(upper_bound_call, binary_search)
+
+    # Q15 experiment: encode the 45 inverse-CDF tables as signed 16-bit values.
+    # They are monotonic values in [0, 1]. Keep the three unrelated float LUTs intact.
+    import re
+    import math
+    resources_original = eur / "marbles" / "resources.cc"
+    resources_patched = patch_root / "marbles" / "resources.cc"
+    resources_h_original = eur / "marbles" / "resources.h"
+    resources_h_patched = patch_root / "marbles" / "resources.h"
+    resources_patched.parent.mkdir(parents=True, exist_ok=True)
+    resources_text = resources_original.read_text()
+    table_pattern = re.compile(
+        r"const float (dist_icdf_\d+_\d+)\[\] = \{([\s\S]*?)\};"
+    )
+    q15_table_count = 0
+    def encode_q15_table(match):
+        nonlocal q15_table_count
+        values = re.findall(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?", match.group(2))
+        encoded = []
+        for value in values:
+            sample = float(value)
+            if sample < 0.0 or sample > 1.0:
+                raise SystemExit("Marbles inverse-CDF table value outside [0, 1]")
+            encoded.append(str(int(math.floor(sample * 32767.0 + 0.5))))
+        q15_table_count += 1
+        body = "\n  " + ", ".join(
+            ", ".join(encoded[i:i + 12]) for i in range(0, len(encoded), 12)
+        ) + "\n"
+        return "const int16_t " + match.group(1) + "[] = {" + body + "};"
+    resources_text = table_pattern.sub(encode_q15_table, resources_text)
+    if q15_table_count != 45:
+        raise SystemExit(f"expected 45 Marbles inverse-CDF tables, found {q15_table_count}")
+    resources_text = resources_text.replace(
+        "const float* distributions_table[] = {",
+        "const int16_t* distributions_table[] = {"
+    )
+    resources_patched.write_text(resources_text)
+
+    resources_h = resources_h_original.read_text()
+    resources_h = resources_h.replace(
+        "extern const float* distributions_table[];",
+        "extern const int16_t* distributions_table[];"
+    )
+    resources_h = re.sub(
+        r"extern const float (dist_icdf_\d+_\d+)\[\];",
+        r"extern const int16_t \1[];",
+        resources_h
+    )
+    if resources_h.count("extern const int16_t dist_icdf_") != 45:
+        raise SystemExit("Marbles Q15 resource header conversion did not cover all 45 tables")
+    resources_h_patched.write_text(resources_h)
+
+    q15_interpolator = """inline float InterpolateQ15(const int16_t* table, float phase) {
+  float position = phase * kIcdfTableSize;
+  size_t index = static_cast<size_t>(position);
+  float fraction = position - static_cast<float>(index);
+  float a = static_cast<float>(table[index]) * (1.0f / 32767.0f);
+  float b = static_cast<float>(table[index + 1]) * (1.0f / 32767.0f);
+  return a + (b - a) * fraction;
+}
+"""
+    marbles_dist = marbles_dist.replace(
+        "const float kIcdfTableSize = 128.0f;\n",
+        "const float kIcdfTableSize = 128.0f;\n\n" + q15_interpolator
+    )
+    marbles_dist = marbles_dist.replace(
+        "stmlib::Interpolate(\n      distributions_table[cell] + offset,\n      uniform,\n      kIcdfTableSize)",
+        "InterpolateQ15(distributions_table[cell] + offset, uniform)"
+    )
+    marbles_dist = marbles_dist.replace(
+        "stmlib::Interpolate(\n      distributions_table[cell + 1] + offset,\n      uniform,\n      kIcdfTableSize)",
+        "InterpolateQ15(distributions_table[cell + 1] + offset, uniform)"
+    )
+    marbles_dist = marbles_dist.replace(
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 1] + offset,\n      uniform,\n      kIcdfTableSize)",
+        "InterpolateQ15(distributions_table[cell + kNumRangeValues + 1] + offset, uniform)"
+    )
+    marbles_dist = marbles_dist.replace(
+        "stmlib::Interpolate(\n      distributions_table[cell + kNumRangeValues + 2] + offset,\n      uniform,\n      kIcdfTableSize)",
+        "InterpolateQ15(distributions_table[cell + kNumRangeValues + 2] + offset, uniform)"
+    )
+    marbles_dist = marbles_dist.replace(
+        "return stmlib::Interpolate(dist_icdf_4_3, uniform, kIcdfTableSize);",
+        "return InterpolateQ15(dist_icdf_4_3, uniform);"
+    )
+    if "stmlib::Interpolate(" in marbles_dist:
+        raise SystemExit("unconverted Marbles float interpolation call remains")
+    marbles_dist_patched.write_text(marbles_dist)
+
     marbles_sources = [
-        marbles_dist_patched if p == marbles_dist_original else p
+        resources_patched if p == resources_original else p
         for p in marbles_sources
     ]
+
+
 
     # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
     # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
