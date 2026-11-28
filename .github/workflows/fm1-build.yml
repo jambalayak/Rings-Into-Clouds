@@ -5,6 +5,7 @@ on:
     branches:
       - rings-into-clouds-development
       - rings-single-rings-development
+      - rings-single-rings-memory-exp
   workflow_dispatch:
 
 permissions:
@@ -62,7 +63,7 @@ jobs:
 
       - name: Verify target C/C++ ABI smoke probe
         run: python3 tools/check_cpp_toolchain.py
-      - name: Compile pinned Rings and Clouds DSP for FM-1 (compile-only)
+      - name: Compile pinned Rings, Clouds and Marbles DSP for FM-1 (compile-only)
         run: python3 tools/check_upstream_dsp_compile.py
 
       - name: Evaluate compact Rings delay-line prototype (host)
