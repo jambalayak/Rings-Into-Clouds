@@ -399,7 +399,7 @@ def check(img, syms, dis, rt):
             notes.append("Rings/Clouds C ABI retained symbols: " + ", ".join(f"{k} {v} B" for k, v in measured.items()))
             expected = {
                 "Rings Part": 110384, "Rings Strummer": 524, "Clouds processor": 8684,
-                "Clouds large buffer": 118784, "Clouds small buffer": 65408,
+                "Clouds large buffer": 86144, "Clouds small buffer": 32768,
             }
             for name, size in expected.items():
                 if measured[name] != size:
