@@ -36,7 +36,8 @@ static const TestCase kCases[] = {
   {"long_decay", 0.55f, 0.78f, 0.995f, 0.55f, 12.0f, false},
   {"loud_external", 0.70f, 0.92f, 0.55f, 0.45f, 1.25f, true}
 };
-static const int kNotes[] = {36, 60, 84};
+// Cover low, middle, and upper registers plus the previously untested edges.
+static const int kNotes[] = {36, 48, 60, 72, 84, 96};
 
 int main(int argc, char **argv) {
   if (argc != 2) return 2;
