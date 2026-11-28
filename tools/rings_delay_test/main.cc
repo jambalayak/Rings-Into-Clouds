@@ -33,7 +33,7 @@ static const TestCase kCases[] = {
   {"neutral", 0.50f, 0.50f, 0.50f, 0.50f, 1.25f, false},
   {"dark", 0.18f, 0.12f, 0.72f, 0.10f, 1.25f, false},
   {"bright", 0.86f, 0.96f, 0.30f, 0.90f, 1.25f, false},
-  {"long_decay", 0.55f, 0.78f, 0.995f, 0.55f, 6.0f, false},
+  {"long_decay", 0.55f, 0.78f, 0.995f, 0.55f, 12.0f, false},
   {"loud_external", 0.70f, 0.92f, 0.55f, 0.45f, 1.25f, true}
 };
 static const int kNotes[] = {36, 60, 84};
