@@ -7235,7 +7235,16 @@ static int test_layer_lock(void)
     ok &= str_eq(cur_page()->title, "AUTOMATION") && !ui.lock && !ui.layer;
     press(B_SEQ); frames(400);
     ok &= str_eq(cur_page()->title, "MARBLES") && !ui.lock && !ui.layer;
+    /* A tap advances once; a subsequent hold is only a peek and must not advance again. */
     press(B_SEQ);
+    ok &= str_eq(cur_page()->title, "STEP") && !ui.lock && !ui.layer;
+    btn_down(B_SEQ); frames(500);
+    ok &= ui.layer == LAYER_SEQ && !ui.lock;
+    btn_up(B_SEQ); frame();
+    ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "STEP");
+    /* The final page also supports a direct peek without changing the selected page. */
+    ui.page = page_index(GR_MARBLES);
+    page_entered();
     btn_down(B_SEQ); frames(500);
     ok &= ui.layer == LAYER_SEQ && !ui.lock;
     btn_up(B_SEQ); frame();
