@@ -169,7 +169,8 @@ for sr, st in zip(ref_segments, target_segments):
         "snr_db": snr_db(converted, target),
         "rms_error": rms(target - converted),
         "reference_rms": rms(converted), "target_rms": rms(target),
-        "peak_error": float(np.max(np.abs(target - converted))),\n        "features": feature_metrics(converted, target),
+        "peak_error": float(np.max(np.abs(target - converted))),
+        "features": feature_metrics(converted, target),
     })
 
 per_model = []
