@@ -2221,9 +2221,13 @@ static void graph_marbles(void)
         uint16_t v = marbles_ui.value[marbles_control_param(marbles_ui.bank, (uint8_t)k)];
         cv_rrect(x, y, 48, 56, 4, T_BG, T_SURF);
         cv_text_on(x + 4, y + 8, &AF_S, names[k], T_MID, T_BG);
-        fmt_int(value, (int32_t)((uint32_t)v * 100u / 65535u));
+        if (marbles_ui.bank == MARBLES_BANK_CLOCK && k == 3u)
+            fmt_int(value, (int32_t)marbles_control_steps(&marbles_ui));
+        else
+            fmt_int(value, (int32_t)((uint32_t)v * 100u / 65535u));
         cv_text_on(x + 4, y + 29, &AF_M, value, T_ACCENT, T_BG);
-        cv_text_on(x + 4, y + 43, &AF_S, "%", T_DIM, T_BG);
+        if (!(marbles_ui.bank == MARBLES_BANK_CLOCK && k == 3u))
+            cv_text_on(x + 4, y + 43, &AF_S, "%", T_DIM, T_BG);
     }
     cv_text_on(14, 94, &AF_S, "K1-K4 EDIT  |  OCT +/- BANK", T_MID, T_SURF);
 }
