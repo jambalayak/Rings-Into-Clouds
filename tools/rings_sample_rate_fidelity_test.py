@@ -119,7 +119,7 @@ def feature_metrics(reference, target):
                 axis=1))
             coarse_corr = float(np.corrcoef(re_coarse, te_coarse)[0, 1])
             # Search up to 5 seconds: several long-tail cases still hit the 2-second bound.
-            max_lag = min(50, max(0, coarse_count // 10))
+            max_lag = min(50, max(0, coarse_count // 2))
             aligned = []
             for lag in range(-max_lag, max_lag + 1):
                 if lag < 0:
