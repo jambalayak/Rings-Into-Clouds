@@ -109,6 +109,7 @@ def feature_metrics(reference, target):
         # masquerade as a change in the decay shape.
         coarse_window = max(1, int(TARGET_RATE * 0.100))
         coarse_count = usable // coarse_window
+        max_lag = 0
         if coarse_count > 2:
             re_coarse = np.sqrt(np.mean(
                 r[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
@@ -155,6 +156,9 @@ def feature_metrics(reference, target):
             "envelope_best_lag_100ms_seconds": (
                 float(best_coarse_lag * coarse_window / TARGET_RATE)
                 if best_coarse_lag is not None else None),
+            "envelope_best_lag_100ms_boundary_hit": (
+                bool(abs(best_coarse_lag) == max_lag)
+                if best_coarse_lag is not None and max_lag > 0 else False),
             "reference_t20_seconds": t20(re),
             "target_t20_seconds": t20(te),
             "reference_top_peaks_hz": rp,
