@@ -7224,20 +7224,22 @@ static int test_layer_lock(void)
         ok &= TSEL->p[P_ATK] == a + 1;                  /* (the page's knobs again after the quiet time) */
     }
     bad += check("  its button held after the lock: a peek, let go closes it; KNOB 1 is ENV's again", ok);
-    /* unchanged: a single tap, two slow taps, a tap and a peek, a tap and a combo, PLAY / REC in the lock */
+    /* Marbles extends the SEQ page cycle; a tap and a peek still never enter a parameter lock. */
     ui_power_on();
     go_page(GR_TRK); frame();
-    press(B_SEQ); frames(400);                          /* (1.2: SEQ, GLO's one page cycles no more) */
+    press(B_SEQ); frames(400);
     ok = str_eq(cur_page()->title, "STEP") && !ui.lock;
     press(B_SEQ); frames(400);
-    ok &= str_eq(cur_page()->title, "DETAIL") && !ui.lock && !ui.layer;   /* (1.5.1) */
+    ok &= str_eq(cur_page()->title, "DETAIL") && !ui.lock && !ui.layer;
     press(B_SEQ); frames(400);
     ok &= str_eq(cur_page()->title, "AUTOMATION") && !ui.lock && !ui.layer;
+    press(B_SEQ); frames(400);
+    ok &= str_eq(cur_page()->title, "MARBLES") && !ui.lock && !ui.layer;
     press(B_SEQ);
     btn_down(B_SEQ); frames(500);
     ok &= ui.layer == LAYER_SEQ && !ui.lock;
     btn_up(B_SEQ); frame();
-    ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "STEP");
+    ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "MARBLES");
     press(B_GLO); frames(400);
     ok &= str_eq(cur_page()->title, "SONG") && !ui.lock;
     press(B_GLO);
