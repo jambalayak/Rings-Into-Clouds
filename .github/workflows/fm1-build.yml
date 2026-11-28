@@ -6,6 +6,7 @@ on:
       - rings-into-clouds-development
       - rings-single-rings-development
       - rings-single-rings-memory-exp
+      - rings-single-rings-q15-memory-exp
   workflow_dispatch:
 
 permissions:
