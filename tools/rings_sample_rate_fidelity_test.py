@@ -104,6 +104,34 @@ def feature_metrics(reference, target):
         re = np.sqrt(np.mean(r[:usable].reshape(-1, window) ** 2, axis=1))
         te = np.sqrt(np.mean(t[:usable].reshape(-1, window) ** 2, axis=1))
         corr = float(np.corrcoef(re, te)[0, 1]) if len(re) > 2 else 0.0
+        # 100 ms envelopes reduce sensitivity to individual beating cycles.
+        # Also report the best bounded alignment so small onset offsets do not
+        # masquerade as a change in the decay shape.
+        coarse_window = max(1, int(TARGET_RATE * 0.100))
+        coarse_count = usable // coarse_window
+        if coarse_count > 2:
+            re_coarse = np.sqrt(np.mean(
+                r[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
+                axis=1))
+            te_coarse = np.sqrt(np.mean(
+                t[:coarse_count * coarse_window].reshape(-1, coarse_window) ** 2,
+                axis=1))
+            coarse_corr = float(np.corrcoef(re_coarse, te_coarse)[0, 1])
+            max_lag = min(5, max(0, coarse_count // 10))
+            aligned = []
+            for lag in range(-max_lag, max_lag + 1):
+                if lag < 0:
+                    a, b = re_coarse[-lag:], te_coarse[:lag]
+                elif lag > 0:
+                    a, b = re_coarse[:-lag], te_coarse[lag:]
+                else:
+                    a, b = re_coarse, te_coarse
+                if len(a) > 2 and np.std(a) > 1e-12 and np.std(b) > 1e-12:
+                    aligned.append((float(np.corrcoef(a, b)[0, 1]), lag))
+            best_coarse_corr, best_coarse_lag = (
+                max(aligned, key=lambda item: item[0]) if aligned else (None, None))
+        else:
+            coarse_corr, best_coarse_corr, best_coarse_lag = None, None, None
         def t20(env):
             if not len(env) or np.max(env) <= 1e-12:
                 return None
@@ -122,6 +150,11 @@ def feature_metrics(reference, target):
         result[label] = {
             "rms_ratio_target_to_reference": float(rms(t) / max(rms(r), 1e-12)),
             "envelope_correlation_10ms": corr,
+            "envelope_correlation_100ms": coarse_corr,
+            "envelope_correlation_100ms_best_lag": best_coarse_corr,
+            "envelope_best_lag_100ms_seconds": (
+                float(best_coarse_lag * coarse_window / TARGET_RATE)
+                if best_coarse_lag is not None else None),
             "reference_t20_seconds": t20(re),
             "target_t20_seconds": t20(te),
             "reference_top_peaks_hz": rp,
