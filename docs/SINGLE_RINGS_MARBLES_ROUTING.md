@@ -2,11 +2,11 @@
 
 ## Selected topology
 
-- One complete Rings instance (`rings_main`) feeds one Clouds processor by default.
+- One complete Rings instance (`rings_main`) feeds one optional, bypassable Clouds processor.
 - Rings keeps the five supported models, original eight-string capacity, natural decay and native stereo OUT/AUX.
 - Clouds remains a processor with its own state and buffer; it is not a second synth engine.
 - Marbles supplies pitch CV, parameter modulation and trigger events to the one Rings instance.
-- The dedicated DRUM engine remains on Track 4.
+- The live instrument exposes exactly two parts: Track 1 = Rings; Track 2 = Drums. The frozen FUN1..FUN10 file/protocol layout remains four tracks for compatibility; legacy project Track 4 maps to live Drums Track 2. Do not expose Tracks 2 or 3 from the old layout as additional live instruments.
 - The FM-1 keyboard, MIDI input and sequencer remain valid note sources for Rings.
 
 ## Marbles-to-Rings mapping
@@ -65,9 +65,9 @@
 5. X3 and Y independently modulate selected parameters with saved destination/amount settings.
 6. Clouds receives the intended stereo signal without channel swaps, FIFO drift, clipping or underruns.
 7. Preset save/recall restores Rings, Clouds, routing and Marbles assignments.
-8. Existing DRUM-on-Track-4 behaviour and legacy project compatibility remain intact.
+8. Live Drums is Track 2; legacy project Track 4 data is migrated to that live part without changing the frozen FUN1..FUN10 layout.
 9. Host regression, target linker, CPU, Harbor/emulator and physical FM-1 results are reported separately.
 
 ## Status
 
-This document records the selected architecture and routing contract. It does not claim that Marbles DSP, the Rings audio path, Clouds routing or the performance screen is already implemented or hardware-tested.
+This document records the selected architecture and routing contract. The current Marbles sequencer page and standalone event generator are partial UI/control-side work only; they are not yet connected to Rings. It does not claim that Marbles DSP, the Rings audio path, Clouds routing or the performance screen is already implemented or hardware-tested.
