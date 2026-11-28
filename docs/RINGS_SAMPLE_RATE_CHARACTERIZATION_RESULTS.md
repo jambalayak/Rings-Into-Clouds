@@ -62,10 +62,9 @@ The Rings C ABI remains outside the live audio path. This experiment is not a pl
 
 ## Follow-up
 
-- Correct the coarse-envelope lag metric so boundary hits are explicitly marked as unresolved and cannot be mistaken for measured offsets.
-- Inspect per-case envelope traces and resonant spectral evolution, especially Sympathetic Strings and Quantized Sympathetic Strings.
-- Expand pitch coverage to 48/60/72/84/96 and the supported range, then broaden excitation and parameter profiles.
-- Resolve the packed-24 target link symbols and POOL capacity without reducing the five models, eight-string bank, independent Rings instances or authentic decay.
+- Inspect per-case envelope traces and resonant spectral evolution, especially high-note Sympathetic Strings and Quantized Sympathetic Strings.
+- Expand excitation and parameter profiles, repeated-strum tests, and intended polyphony.
+- Resolve POOL capacity and the full second-Rings allocation without reducing the five models, eight-string bank, independent Rings instances or authentic decay.
 - Measure the physical FM-1 codec rate.
 - Keep all work experimental. Do not reduce the five models, eight-string bank, independent Rings instances or normal Clouds buffer to solve memory constraints.
 
@@ -92,3 +91,32 @@ The corrected search improves the aggregate best-lag metric, but does not resolv
 The separate packed signed-24 Q3.21 versus float comparison remains unchanged: 75 cases, 94.322 dB overall waveform SNR, 3.5754e-6 RMS error, zero delay saturation, and maximum absolute delay 2.60025. This is host-side precision evidence at the calculated target rate only.
 
 The target-link diagnostic in the same workflow reports image size 546,756 B, ordinary RAM .data+.bss 65,348 / 73,728 B (8,380 B free), and POOL 389,920 / 368,640 B (21,280 B overflow). Its Rings 2 sizing object remains a reduced two-string proxy, not the required full eight-string independent Rings instance. This is not a playable build and does not establish that the approved two-Rings-plus-Clouds configuration fits.
+
+
+## Expanded six-pitch sample-rate run
+
+Workflow [46123295859](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/46123295859), commit `c10e12af3e5d88292900f5d6320e67e298e2bfd2`, expanded the original-float sample-rate comparison to 150 cases: five resonator models, six pitches (MIDI 36, 48, 60, 72, 84, 96), and the same five profiles. The comparison remains 48 kHz original-float Rings resampled to the calculated 44,117.647 Hz target timebase versus original-float Rings rendered directly at that target rate.
+
+The overall waveform SNR was 0.491 dB. As before, this is phase-sensitive and must not be treated as a perceptual pass/fail score. The more useful 100 ms envelope and level summaries, averaged across 30 cases per model, are:
+
+| Model | OUT RMS ratio | OUT raw corr | OUT best-lag corr | AUX RMS ratio | AUX raw corr | AUX best-lag corr |
+|---|---:|---:|---:|---:|---:|---:|
+| Modal | 1.026 | 0.9995 | 0.9997 | 1.003 | 0.9920 | 0.9921 |
+| Sympathetic Strings | 1.070 | 0.8787 | 0.9553 | 1.064 | 0.8591 | 0.9539 |
+| String | 1.046 | 0.9768 | 0.9935 | 1.046 | 0.9766 | 0.9933 |
+| FM Voice | 1.015 | 0.9388 | 0.9693 | 0.999 | 0.9998 | 0.9998 |
+| Quantized Sympathetic Strings | 1.065 | 0.8952 | 0.9450 | 1.053 | 0.8773 | 0.9362 |
+
+The expanded pitch matrix confirms that Modal and FM Voice AUX remain comparatively stable, while the two sympathetic-string models are the most rate-sensitive in aggregate. Best-lag correlation improves many cases but must not hide level changes or large time offsets. Six channel comparisons hit their available search boundaries (OUT: 3; AUX: 3); boundary-limited values remain unresolved.
+
+High-register outliers deserve specific attention:
+- Sympathetic Strings, MIDI 96, dark profile: target/reference RMS ratio is approximately 2.552 on both OUT and AUX, despite 100 ms envelope correlations of approximately 0.995. The target T20 did not cross within the capture. This points to a large level/decay-shape discrepancy that a correlation score alone conceals.
+- Quantized Sympathetic Strings, MIDI 84, dark profile: OUT RMS ratio is approximately 3.083 and AUX approximately 3.063; raw 100 ms envelope correlations remain high (approximately 0.998 and 0.997), but target T20 did not cross within the capture.
+- Sympathetic Strings, MIDI 84, long-decay profile remains an important extended-tail case; the previous 75-case run measured a notable OUT/AUX level and T20 difference.
+- String's high-note and low-note level ratios also vary more than Modal; inspect the MIDI 36 dark and MIDI 96 dark cases before drawing conclusions about the entire register.
+
+These high-note amplitude differences are more actionable than aggregate waveform SNR. They are not yet proven to be audible hardware defects: the target sample rate is calculated, not measured on an FM-1, and the test has not been auditioned on hardware. Do not tune model coefficients to force these measurements to match until the physical codec rate, note calibration, excitation equivalence, and per-case spectral trajectories have been checked.
+
+The packed-24 comparison remains a separate 75-case test using MIDI 36/60/84; its host-side 94.322 dB result does not cover the expanded pitch matrix and does not validate packed-24 at MIDI 48/72/96.
+
+The target-link diagnostic in workflow 46123295859 remains unchanged: image 546,756 B; ordinary RAM .data+.bss 65,348 / 73,728 B (8,380 B free); POOL 389,920 / 368,640 B (21,280 B overflow). The second Rings object is still only a reduced two-string proxy. The diagnostic workflow completed successfully, but the target firmware link itself does not fit and the C ABI is still not in the live audio path.
