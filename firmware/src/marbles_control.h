@@ -24,7 +24,7 @@ typedef struct {
 static inline void marbles_control_init(marbles_control_t *m)
 {
     static const uint16_t defaults[MARBLES_PARAM_COUNT] = {
-        32768u, 0u, 65535u, 21845u, 0u, 32768u, 32768u, 0u
+        32768u, 0u, 65535u, 14745u, 0u, 32768u, 32768u, 0u
     };
     uint32_t i;
     for (i = 0; i < MARBLES_PARAM_COUNT; ++i) m->value[i] = defaults[i];
