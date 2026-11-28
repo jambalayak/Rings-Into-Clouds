@@ -19,6 +19,8 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      FELUCCA_CODE_OPT: ${{ github.ref_name == 'rings-single-rings-oz-memory-exp' && '-Oz' || '-Os' }}
     steps:
       - name: Check out firmware and submodules
         uses: actions/checkout@v7
@@ -40,8 +42,6 @@ jobs:
           SDK_DIR="${HOME}/fw-AC79_AIoT_SDK"
           SDK_URL="https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git"
           SDK_TAG="AC79NN_SDK_V1.2.1_2023-12-13"
-          # Gitee occasionally terminates large shallow fetches. Retry from a
-          # clean directory so a partial .git never gets mistaken for an SDK.
           git config --global http.version HTTP/1.1
           for attempt in 1 2 3; do
             rm -rf "${SDK_DIR}"
@@ -90,8 +90,6 @@ jobs:
             build/felucca.sections.txt
           if-no-files-found: error
           retention-days: 7
-      # One-time review artifact: capture the intentional compact-effects render baseline
-      # without changing the checked-in golden file or making this run pass by itself.
       - name: Export compact-effects golden renders for review
         if: always()
         run: |
@@ -120,8 +118,6 @@ jobs:
             echo "union_test was not built; diagnostic skipped"
           fi
 
-      # Always collect the lean profile's linker map, even when unrelated legacy
-      # host regressions fail. This is diagnostic only; it is never labelled as tested.
       - name: Link pinned Rings and Clouds behind C ABI (memory diagnostic only)
         if: always()
         run: FELUCCA_SLICE=0 FELUCCA_RIC=1 ./build.sh
@@ -144,4 +140,3 @@ jobs:
             build/rings-clouds.felucca.symbols.txt
           if-no-files-found: warn
           retention-days: 7
-
