@@ -211,7 +211,10 @@ def ld_regions():
 
 
 def build_app():
-    flags = [*CFLAGS, *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
+    code_opt = os.environ.get("FELUCCA_CODE_OPT", "-Os")
+    if code_opt not in ("-Os", "-Oz"):
+        raise SystemExit(f"unsupported code-size profile: {code_opt}")
+    flags = [*(code_opt if f == "-Os" else f for f in CFLAGS), *HAL_INC, "-Ifirmware/src", "-Ibuild/gen"]
     for flag in ("FELUCCA_FLASH", "FELUCCA_OTA", "FELUCCA_OTA_DRYRUN", "FELUCCA_OTA_RAMONLY", "FELUCCA_CDC",
                  "FELUCCA_UART", "FELUCCA_UAC", "FELUCCA_UAC_TONE", "FELUCCA_UAC_48K", "FELUCCA_ICONS", "FELUCCA_SLICE", "FELUCCA_FM4",
                  "FELUCCA_CDC_DEFAULT", "FELUCCA_UAC_AS_FIRST", "FELUCCA_UAC_MIDI_LAST", "FELUCCA_CPU2", "FELUCCA_ADPCM", "FELUCCA_RIC"):
