@@ -257,6 +257,41 @@ static void step_set_nudge(step_t *s, int32_t v)
 #define MOTION_ID(e) ((uint32_t)(e)->param & 0x7Fu)
 typedef struct { uint8_t place, param; int8_t value; } motion_event_t;
 typedef struct { uint8_t count, on, rsv[2]; motion_event_t event[MOTION_MAX]; } motion_store_t;
+
+/* Translate motion's serialized four-track identity at the project/runtime boundary.
+ * The on-disk place byte and FUN10 motion_store_t layout remain unchanged. */
+static inline int project_motion_place_to_live(uint8_t project_place, uint8_t *live_place)
+{
+    uint32_t live = project_live_part((uint32_t)project_place >> 6);
+    if (live >= NPART_LIVE || !live_place) return 0;
+    *live_place = (uint8_t)((live << 6) | (project_place & 0x3Fu));
+    return 1;
+}
+static inline int live_motion_place_to_project(uint8_t live_place, uint8_t *project_place)
+{
+    uint32_t live = (uint32_t)live_place >> 6;
+    if (live >= NPART_LIVE || !project_place) return 0;
+    *project_place = (uint8_t)((live_project_track(live) << 6) | (live_place & 0x3Fu));
+    return 1;
+}
+static inline uint8_t project_motion_mask_to_live(uint8_t project_on)
+{
+    uint8_t live_on = 0;
+    uint32_t i;
+    for (i = 0; i < NPART_LIVE; i++)
+        if (project_on & (uint8_t)(1u << live_project_track(i)))
+            live_on |= (uint8_t)(1u << i);
+    return live_on;
+}
+static inline uint8_t live_motion_mask_to_project(uint8_t live_on)
+{
+    uint8_t project_on = 0;
+    uint32_t i;
+    for (i = 0; i < NPART_LIVE; i++)
+        if (live_on & (uint8_t)(1u << i))
+            project_on |= (uint8_t)(1u << live_project_track(i));
+    return project_on;
+}
 _Static_assert(sizeof(motion_store_t) == 388u, "motion disk layout (FUN10)");
 #define CHAIN_ROWS 16u
 /* A song section (1.2, FUN10): the PROJECT slot each track plays (0..3, A..D; CHAIN_SILENT "-": that track plays
