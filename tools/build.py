@@ -374,6 +374,7 @@ def check(img, syms, dis, rt):
             "ric_rings_part_storage", "ric_rings_strummer_storage", "ric_rings_strummer_process",
             "ric_clouds_processor_storage", "ric_clouds_large_buffer",
             "ric_clouds_small_buffer", "ric_rings_process", "ric_clouds_process",
+            "ric_marbles_size_anchor",
         )
         missing = [name for name in required if not symv_in(syms, name)]
         if missing:
