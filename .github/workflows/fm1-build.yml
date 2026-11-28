@@ -8,6 +8,7 @@ on:
       - rings-single-rings-memory-exp
       - rings-single-rings-q15-memory-exp
       - rings-single-rings-gc-memory-exp
+      - rings-single-rings-pool-split-exp
   workflow_dispatch:
 
 permissions:
