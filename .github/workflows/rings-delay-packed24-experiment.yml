@@ -22,7 +22,7 @@ jobs:
         with:
           submodules: recursive
       - name: Install Python dependencies
-        run: python3 -m pip install --upgrade numpy Pillow fonttools
+        run: python3 -m pip install --upgrade numpy scipy Pillow fonttools
       - name: Install JieLi target toolchain for shared five-model overlay
         run: tools/get_toolchain.sh
       - name: Prepare target compiler environment
@@ -30,6 +30,7 @@ jobs:
       - name: Compile pinned DSP and run packed-24 versus float audio comparison
         run: |
           FELUCCA_RINGS_DELAY_PACKED24=1 python3 tools/check_upstream_dsp_compile.py
+          python3 tools/rings_sample_rate_fidelity_test.py
           python3 tools/rings_delay_packed24_test.py
       - name: Install pinned AC79 SDK for full POOL link diagnostic
         run: |
@@ -76,6 +77,7 @@ jobs:
           name: rings-delay-packed24-${{ github.sha }}
           path: |
             build/rings-delay-packed24-experiment/results/
+            build/rings-sample-rate-fidelity/results/
             build-packed24-full-link.log
             build/felucca.map
             build/felucca.symbols.txt
