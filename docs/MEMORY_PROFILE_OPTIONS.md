@@ -80,8 +80,8 @@ and is not included in this Rings-specific calculation.
 
 ## Possible architecture work (not yet implemented)
 
-1. **Prototype compact Rings delay-line storage.** Keep the original capacities, update order and Hermite interpolation, but test a fixed-point 16-bit backing store against upstream float reference renders. Do not accept it until all five retained models pass SNR, peak, decay and musical reference tests. Keep the single `rings_main` state and delay storage isolated from the legacy engine overlays.
-2. **Reuse the two selected tracks' engine overlays.** Replace their small engine unions with the Rings runtime only where ownership/lifetime is proven; keep A and B completely independent.
+1. **Prototype compact Rings delay-line storage.** Keep the original capacities, update order and Hermite interpolation, but test a fixed-point 16-bit backing store against upstream float reference renders. Do not accept it until all five retained models pass SNR, peak, decay and musical reference tests. Keep one Rings main state and delay storage isolated from the legacy engine overlays.
+2. **Reuse one selected track's engine overlay.** Replace only that track's small engine union with the single Rings runtime after ownership/lifetime is proven. There is no second Rings Part or second Rings delay bank in the selected product direction.
 3. **Place Clouds buffers deliberately.** Keep the exact reference buffer sizes and quality. Allocate large/small buffers to regions based on the final map, not assumptions.
 4. **Measure all remaining state.** Target `sizeof` for Part, Strummer and Clouds processor, plus FIFO, resampler, stereo bus, stack and CPU2 handoff.
 5. **Add reverb later as an optional graph node.** It must have an explicit instance count, buffer size, CPU ceiling, bypass/tail policy and patch-save format.
@@ -125,7 +125,7 @@ This inventory explains the earlier 89,304-byte POOL discrepancy: `cv_px` is 59,
 ### What this means for the next memory pass
 
 - Keep the four engine slots for now: the fourth part is the GM drum part and the DRUM engine has per-part lane state. Do not remove its slot without auditing the drum engine and track-switch tests.
-- The one Rings track can replace one of the four 12,888-byte engine slots.
+- The single Rings track can replace one of the four 12,888-byte engine slots; do not reserve a second Rings Part or delay bank.
 - The full-height UI canvas is not a quick 59 KiB win; a tiled renderer is a separate UI project.
 - The remaining 34.6 KiB of POOL outside `eng_mem` and `cv_px` supports user presets, project I/O, storage, editor, undo, scope and small state. Only reclaim it after an explicit feature/lifetime audit.
 - A custom Rings delay-line representation and a shorter Clouds recording buffer remain the DSP-side options to prototype and measure. No such reduction has been implemented or sound-validated yet.
@@ -215,3 +215,20 @@ The revised table above now includes those measured object sizes, the measured b
 In the FM1_Locus reference split, full stereo Clouds receives 118,784 B of POOL and 65,408 B of ordinary RAM. In stereo mode the processor uses 65,408 B per channel for recording (32,704 signed 16-bit samples, about 1.02 s at 32 kHz); the remaining 53,376 B in the large buffer is FX workspace. The workspace allocator requests 8,192 B for the diffuser, 32,768 B for the native Clouds reverb and 1,560 B for the correlator data. This workspace is independent of recording duration.
 
 A roughly 0.5 s full-quality recording uses 32,768 B per channel plus the unchanged 53,376 B workspace: 86,144 B large buffer + 32,768 B small buffer = 118,912 B total. Both buffers can be placed in POOL in the candidate profile. This preserves the 32 kHz processing bandwidth but halves the maximum captured duration. By contrast, 24 kHz with the original 1.02 s duration uses the same sample-storage bytes as a 25% shorter 32 kHz buffer and requires a different codec-to-Clouds resampler ratio. Shortening duration at 32 kHz is therefore the better first experiment; no buffer-size or sample-rate change has been applied.
+
+
+## Product direction decision — single Rings
+
+The selected product architecture is **one complete Mutable Instruments Rings engine, one Clouds processor and one Marbles sequencer/modulation engine**, with the dedicated DRUM engine remaining on Track 4. The previous two-independent-Rings concept is no longer the target for the FM-1.
+
+This is a scope decision, not a claim that the current target allocation already fits. The implementation must still pass a fresh target link with measured data, bss, POOL, RAMTEXT and stack headroom, including the actual Clouds buffers, Rings Part, Strummer, Marbles state, resampler/FIFO/routing buffers and UI allocations.
+
+The one Rings instance must retain all five supported resonator models, the original eight-string storage capacity, normal pitch range, authentic excitation/strum behaviour, full natural decay and stereo OUT/AUX. Do not shrink the resonator bank, alter model coefficients, shorten decay or remove a model as a memory shortcut.
+
+Clouds remains a processor for the Rings signal, not a second synth voice or a second Rings-like track. The original 32 kHz processing rate and 16-bit audio quality are the target. Full stock recording duration remains preferred; a shorter recording buffer is only an engineering candidate if a measured target link proves that it is necessary and the trade-off is reviewed before adoption. No buffer-duration reduction is approved by this decision.
+
+Marbles continues to provide the X CV, Y CV and T trigger streams, with its timing, jitter, Deja Vu and random-gate behaviour preserved. With only one Rings pitch/strum destination, the former Rings 1 / Rings 2 destination selectors become a single-Rings routing design. The precise X1/X2 pitch-bus combination and attenuation defaults require a dedicated routing implementation and regression tests; do not silently sum two full-scale pitch streams without defining their scaling. T1/T2 may feed the single Rings strum input through an edge-preserving trigger combiner.
+
+The Rings performance screen remains the approved five-knob layout: Frequency, Structure, Brightness, Damping and Position. Frequency offsets the incoming note pitch; it is not a fabricated Rings Patch field. Four physical rotary controls edit four assigned parameters, and SELECT cycles the assignment so the fifth can be edited. All displayed controls must change the actual DSP state.
+
+The old dual-Rings experiments remain on rings-delay-packed24-exp as research history. Do not merge them into this branch. Future implementation and validation for the selected architecture proceeds on rings-single-rings-development.
