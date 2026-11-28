@@ -193,6 +193,8 @@ mkdir -p "$OUT"
 HALI="-Ifirmware/hal -Ifirmware/bsp/chip -Ifirmware/bsp/boards/fm1 -Ifirmware/src"   # (src: uac_fir.h, which bsp/chip/usb.c includes)
 CC="${CC:-cc} -O1 -Wall -Wno-unused-function $HALI"
 fail=0
+$CC -o "$OUT/marbles_control_test" tests/marbles_control_test.c
+run "Marbles control mapping, independent banks, clamping and bounded jitter" "$OUT/marbles_control_test"
 run() { name=$1; shift; echo "== $name"; "$@"; rc=$?; if [ "$rc" -ne 0 ]; then echo "FAILED ($rc): $name"; fail=1; else echo "PASS: $name"; fi; }
 
 run "package flash boundaries (synthetic SDK)" python3 tests/fm1pkg_test.py
