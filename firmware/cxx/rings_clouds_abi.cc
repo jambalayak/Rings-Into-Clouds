@@ -16,6 +16,8 @@
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/dsp/frame.h"
 
+extern "C" uint32_t ric_marbles_size_anchor(void);
+
 extern "C" {
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_rings_part_storage[sizeof(rings::Part)];
@@ -24,13 +26,15 @@ unsigned char ric_rings_strummer_storage[sizeof(rings::Strummer)];
 __attribute__((used, section(".pool"), aligned(16)))
 unsigned char ric_clouds_processor_storage[sizeof(clouds::GranularProcessor)];
 
-/* Stock stereo layout: 118,784 B large buffer (sample + workspace) in POOL,
- * 65,408 B small buffer in ordinary RAM. The buffers are deliberately full
- * sized at this measurement gate; no shortened recording profile is assumed. */
+/* User-approved experimental full-quality stereo layout: 86,144 B large
+ * buffer = 32,768 B recording + unchanged 53,376 B workspace; 32,768 B
+ * small buffer = the second 32,768 B recording channel. This preserves 32 kHz
+ * processing and 16-bit samples, with an approximately 0.512 s recording
+ * window per channel. Experimental sizing only, not the final quality choice. */
 __attribute__((used, section(".pool"), aligned(16)))
-unsigned char ric_clouds_large_buffer[118784];
+unsigned char ric_clouds_large_buffer[86144];
 __attribute__((used, section(".bss.ric_clouds_small"), aligned(16)))
-unsigned char ric_clouds_small_buffer[65408];
+unsigned char ric_clouds_small_buffer[32768];
 }
 
 static uint8_t ric_dsp_constructed;
@@ -149,5 +153,6 @@ extern "C" uint32_t ric_dsp_link_anchor(void)
     uintptr_t large = reinterpret_cast<uintptr_t>(ric_clouds_large_buffer);
     uintptr_t small = reinterpret_cast<uintptr_t>(ric_clouds_small_buffer);
     return static_cast<uint32_t>(roots ^ part ^ strummer ^ processor ^ large ^ small ^
-        sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor));
+        sizeof(rings::Part) ^ sizeof(rings::Strummer) ^ sizeof(clouds::GranularProcessor) ^
+        ric_marbles_size_anchor());
 }
