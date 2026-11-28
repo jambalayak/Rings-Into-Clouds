@@ -54,3 +54,11 @@ Even the optimistic 25,748 B combined spare-region arithmetic leaves a 59,956 B 
 ## Next viable decision
 
 A full two-instance implementation with all approved buffers and headroom needs a materially different memory budget or hardware memory resource. The current linker map exposes no such resource. Before further implementation, the remaining options are explicit product-level trade-offs (for example, a separate reduced-resource performance profile) or confirmation of a hardware revision with additional writable memory. No trade-off is selected here.
+
+## Normal Clouds allocation is a separate blocker
+
+The diagnostic ABI currently uses an experimental compact stereo layout: 86,144 B large plus 32,768 B small, both in POOL (118,912 B total). The stock full-quality stereo layout audited in `docs/CLOUDS_BUFFER_AUDIT.md` is 118,784 B in POOL plus 65,408 B in ordinary RAM (184,192 B total).
+
+Restoring the stock layout would move the second channel out of POOL and add 65,408 B to ordinary RAM, while reducing POOL use by only 128 B. Against the measured current ordinary-RAM use of 65,336 B, this would produce 130,744 B of `.data + .bss` in a 73,728 B region: 57,016 B over capacity, before the required 4,096 B headroom. Therefore the current diagnostic's compact Clouds allocation is not a valid proof that the user's normal Clouds buffer requirement fits.
+
+Combining both approved full eight-string Rings instances with stock Clouds is consequently further from fitting than the compact-layout POOL estimate above: it fails both the POOL and ordinary-RAM budgets. The current linker script exposes no additional writable memory large enough to bridge either deficit.
