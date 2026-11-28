@@ -22,7 +22,7 @@ jobs:
         with:
           submodules: recursive
       - name: Install Python dependencies
-        run: python3 -m pip install --upgrade numpy
+        run: python3 -m pip install --upgrade numpy Pillow
       - name: Install JieLi target toolchain for shared five-model overlay
         run: tools/get_toolchain.sh
       - name: Prepare target compiler environment
