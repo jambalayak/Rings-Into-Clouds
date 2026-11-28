@@ -53,8 +53,15 @@ def main():
         root = eur if pattern.startswith(("rings/", "clouds/")) else stm
         sources.extend(root.glob(pattern))
     sources = sorted(p for p in set(sources) if "string_synth" not in p.name)
+    marbles_sources = sorted(set([
+        *(eur / "marbles" / "random").glob("*.cc"),
+        *(eur / "marbles" / "ramp").glob("*.cc"),
+        eur / "marbles" / "resources.cc",
+    ]))
     if not sources:
         raise SystemExit("No pinned DSP translation units found.")
+    if not marbles_sources:
+        raise SystemExit("No pinned Marbles DSP translation units found.")
 
     # Apply reviewed FM-1 source overlays without modifying either pinned submodule.
     patch_root = BUILD / "source-patches"
@@ -106,6 +113,32 @@ def main():
   }"""
     stmlib_dsp = stmlib_dsp[:clip_start] + portable_clip_sqrt + stmlib_dsp[block_end:]
     stmlib_dsp_patched.write_text(stmlib_dsp)
+
+    # The target -nostdinc++ environment does not provide std::upper_bound.
+    # Replace the one Marbles call with an equivalent local binary search.
+    marbles_dist_original = eur / "marbles" / "random" / "distributions.h"
+    marbles_dist_patched = patch_root / "marbles" / "random" / "distributions.h"
+    marbles_dist_patched.parent.mkdir(parents=True, exist_ok=True)
+    marbles_dist = marbles_dist_original.read_text()
+    upper_bound_call = "int n = std::upper_bound(&cdf_[1], &cdf_[num_tokens_ + 1], u) - &cdf_[0];"
+    binary_search = """int lo = 1;
+    int hi = num_tokens_ + 1;
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (u < cdf_[mid]) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    int n = lo;"""
+    if upper_bound_call not in marbles_dist:
+        raise SystemExit("expected Marbles std::upper_bound call not found")
+    marbles_dist_patched.write_text(marbles_dist.replace(upper_bound_call, binary_search))
+    marbles_sources = [
+        marbles_dist_patched if p == marbles_dist_original else p
+        for p in marbles_sources
+    ]
 
     # Product-approved scope: five Rings models only. Remove the sixth String-and-Reverb
     # model and its embedded Reverb member; do not pass NULL or reserve a dummy 64 KiB buffer.
@@ -199,6 +232,15 @@ def main():
         obj = BUILD / (str(rel).replace("/", "__") + ".o")
         obj.parent.mkdir(parents=True, exist_ok=True)
         invoke([*common, "-c", str(rel), "-o", str(obj.relative_to(ROOT))])
+    for src in marbles_sources:
+        rel = src.relative_to(ROOT)
+        obj = BUILD / ("marbles__" + str(rel).replace("/", "__") + ".o")
+        obj.parent.mkdir(parents=True, exist_ok=True)
+        invoke([*common, "-c", str(rel), "-o", str(obj.relative_to(ROOT))])
+    marbles_size_src = ROOT / "tools" / "cpp_smoke" / "marbles_size_probe.cc"
+    marbles_size_obj = BUILD / "marbles_size_probe.o"
+    invoke([*common, "-c", str(marbles_size_src.relative_to(ROOT)),
+            "-o", str(marbles_size_obj.relative_to(ROOT))])
     # Measure both the untouched six-model upstream class and the five-model FM-1 overlay.
     # Each probe is compile-time symbol extent only; neither constructs a DSP object.
     upstream_size_src = ROOT / "tools" / "cpp_smoke" / "size_probe.cc"
@@ -225,8 +267,11 @@ def main():
         "ric_upstream_size_rings_strummer", "ric_upstream_size_clouds_processor",
         "ric_five_size_rings_part", "ric_five_size_rings_string",
         "ric_five_size_rings_strummer", "ric_five_size_clouds_processor",
+        "ric_marbles_size_t_generator", "ric_marbles_size_xy_generator",
+        "ric_marbles_size_output_channel", "ric_marbles_size_random_sequence",
+        "ric_marbles_size_random_stream", "ric_marbles_size_random_generator",
     }
-    for obj in (upstream_size_obj, five_size_obj):
+    for obj in (upstream_size_obj, five_size_obj, marbles_size_obj):
         dumped = subprocess.run([*dump_prefix, str(obj.relative_to(ROOT))],
                                 cwd=ROOT, text=True, capture_output=True)
         if dumped.returncode:
@@ -256,6 +301,18 @@ def main():
             invoke([*link_common, "-Ifirmware/src", "-c", str(rel),
                     "-o", str(obj.relative_to(ROOT))])
             link_objects.append(obj)
+        for src in marbles_sources:
+            rel = src.relative_to(ROOT)
+            obj = link_build / ("marbles__" + str(rel).replace("/", "__") + ".o")
+            obj.parent.mkdir(parents=True, exist_ok=True)
+            invoke([*link_common, "-Ifirmware/src", "-c", str(rel),
+                    "-o", str(obj.relative_to(ROOT))])
+            link_objects.append(obj)
+        bridge_src = ROOT / "firmware" / "cxx" / "marbles_sizing_abi.cc"
+        bridge_obj = link_build / "marbles_sizing_abi.o"
+        invoke([*link_common, "-Ifirmware/src", "-c",
+                str(bridge_src.relative_to(ROOT)), "-o", str(bridge_obj.relative_to(ROOT))])
+        link_objects.append(bridge_obj)
         bridge_src = ROOT / "firmware" / "cxx" / "rings_clouds_abi.cc"
         bridge_obj = link_build / "rings_clouds_abi.o"
         invoke([*link_common, "-Ifirmware/src", "-c",
@@ -264,7 +321,7 @@ def main():
         (link_build / "objects.txt").write_text(
             "\n".join(str(p.relative_to(ROOT)) for p in link_objects) + "\n")
         print(f"LINK OBJECTS: {len(link_objects)} pinned DSP and C ABI objects in build/rings-clouds-link/objects.txt")
-    print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units for pi32v2.")
+    print(f"PASS: compiled {len(sources)} pinned Rings/Clouds/stmlib C++ translation units and {len(marbles_sources)} Marbles DSP translation units for pi32v2.")
     if "--link-objects" in sys.argv:
         print("DSP link objects prepared for the FM-1 app link; no DSP objects are constructed or processed.")
     else:
