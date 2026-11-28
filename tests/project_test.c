@@ -202,18 +202,17 @@ int main(void)
     }
 
     {
-        chain_row_t project_row, live_row, restored_row;
+        chain_row_t project_row, restored_row;
+        chain_live_row_t live_row;
         project_row.slot[0] = 0u; project_row.slot[1] = 1u;
         project_row.slot[2] = 2u; project_row.slot[3] = 3u;
         project_row.repeat = 7u;
         project_chain_row_to_live(&project_row, &live_row);
         bad += check("song-chain bridge: only old Track 1 and Track 4 lanes reach live Rings and Drums",
                      live_row.slot[LIVE_PART_RINGS] == 0u &&
-                     live_row.slot[LIVE_PART_DRUMS] == 3u &&
-                     live_row.slot[2] == CHAIN_SILENT &&
-                     live_row.slot[3] == CHAIN_SILENT && live_row.repeat == 7u);
+                     live_row.slot[LIVE_PART_DRUMS] == 3u && live_row.repeat == 7u);
         live_chain_row_to_project(&live_row, &restored_row);
-        bad += check("song-chain bridge: reverse projection restores active lanes without aliasing inactive tracks",
+        bad += check("song-chain bridge: reverse projection restores active lanes and silences retired tracks",
                      restored_row.slot[0] == 0u && restored_row.slot[3] == 3u &&
                      restored_row.slot[1] == CHAIN_SILENT &&
                      restored_row.slot[2] == CHAIN_SILENT && restored_row.repeat == 7u);
