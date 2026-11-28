@@ -232,3 +232,26 @@ Marbles continues to provide the X CV, Y CV and T trigger streams, with its timi
 The Rings performance screen remains the approved five-knob layout: Frequency, Structure, Brightness, Damping and Position. Frequency offsets the incoming note pitch; it is not a fabricated Rings Patch field. Four physical rotary controls edit four assigned parameters, and SELECT cycles the assignment so the fifth can be edited. All displayed controls must change the actual DSP state.
 
 The old dual-Rings experiments remain on rings-delay-packed24-exp as research history. Do not merge them into this branch. Future implementation and validation for the selected architecture proceeds on rings-single-rings-development.
+
+
+## Measured one-Rings + full-Clouds target link (2026-11-28)
+
+A target linker diagnostic was produced from the pinned FM-1 toolchain with one original-float Rings Part, one Strummer, one Clouds processor and the full stock stereo Clouds buffers. This is a diagnostic link only: the C ABI objects are retained for measurement and are not attached to the live audio path. The diagnostic does not include the final Marbles/routing/resampler integration.
+
+Measured section sizes:
+
+| Section | Measured | Region capacity | Result |
+|---|---:|---:|---:|
+| .data + .bss (ordinary RAM) | 123,476 B | 73,728 B | 49,748 B over |
+| .pool | 384,112 B | 368,640 B | 15,472 B over |
+| .ram_text | 3,124 B | 24,576 B | 21,452 B free |
+
+The diagnostic includes the complete stock Clouds buffers: 65,408 B in ordinary .bss and 118,784 B in POOL. It also includes one Rings Part storage (110,384 B in this target build), one Strummer (524 B), one Clouds processor (8,684 B), and the existing firmware allocations. The measured base-only sections in the same artifact are .data 352 B, .bss 55,684 B and .pool 145,720 B.
+
+The large Clouds small buffer is the dominant ordinary-RAM overflow. Moving all 65,408 B out of ordinary RAM is necessary, not optional. The POOL is also over capacity, so simply moving that buffer into POOL cannot work. RAMTEXT has 21,452 B unused in this diagnostic, but it is a code region and must not be treated as general-purpose audio storage until flash-update execution, DMA access, startup clearing and linker placement are reviewed.
+
+The existing 59,520 B UI graph canvas (cv_px, 240 x 124 RGB565) and four 12,888 B per-track engine overlays (eng_mem) are the largest potentially relevant POOL allocations. They are not declared disposable. A smaller/tiled UI renderer and an explicit track-role memory plan are candidates for investigation, but both need feature and visual regression tests. The one Rings runtime must replace or deliberately reuse the selected track's engine overlay where safe; it must not allocate a second Rings Part.
+
+The experimental packed-24 Rings delay representation measured a 24,576 B reduction in the host Part size for 75 comparison cases (MIDI notes 36, 60 and 84). It is not yet integrated into this target link, has not yet been expanded to all six tested pitches, and is not accepted as the production representation. Do not treat the hypothetical 16-bit delay store as implemented.
+
+No memory profile is approved by this measurement. Do not shorten the Clouds recording buffer, reduce Rings' five models/eight-string capacity/natural decay, or change upstream DSP coefficients to force a fit. A viable profile must fit the full buffers and all actual routing/Marbles/resampling state while retaining at least 4 KiB ordinary-RAM and 8 KiB POOL headroom. It must also prove stack and CPU deadlines with CPU2 enabled and unavailable.
