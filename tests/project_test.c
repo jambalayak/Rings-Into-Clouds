@@ -172,6 +172,13 @@ int main(void)
     uint32_t i, t;
     int bad = 0, ok;
 
+    bad += check("two-part bridge: Rings reads old Track 1 and Drums reads old Track 4",
+                 NPART_LIVE == 2u && live_project_track(LIVE_PART_RINGS) == 0u &&
+                 live_project_track(LIVE_PART_DRUMS) == 3u &&
+                 project_live_part(0u) == LIVE_PART_RINGS && project_live_part(3u) == LIVE_PART_DRUMS);
+    bad += check("two-part bridge: old Tracks 2/3 are explicitly inactive, invalid live indices rejected",
+                 project_live_part(1u) == NPART_LIVE && project_live_part(2u) == NPART_LIVE &&
+                 live_project_track(NPART_LIVE) == NTRK && NTRK == 4u);
     bad += check("layout: SLICER after DETUNE, then the matrix just before P_E0",
                  P_SLCR == P_DETUNE + 1 && P_SLDEPTH + 1 == P_M1SRC && P_M4AMT + 1 == P_FM1_ATK && P_FM4_LEVEL + 1 == P_CHRD && P_VOIC + 1 == P_LN0 &&
                  P_LN7 + 1 == P_LSYNC && P_LSYNC + 3 == P_SQNT && P_SQNT + 1 == P_SPRD && P_SPRD + 1 == P_ITYPE &&
