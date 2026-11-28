@@ -1,41 +1,50 @@
-# Marbles FX page — implementation audit
+# Marbles sequencer — implementation audit
 
-Status: source audit only. The page controls and Marbles DSP are not yet implemented.
+Status: sequencer page, control model and a lightweight original event generator are implemented and host-test sources exist. The official Mutable Instruments Marbles DSP is not ported, and the generator is not connected to transport, MIDI clock, Rings note/strum routing or audio DSP.
 
-## Confirmed UI integration points
+## Implemented
 
-- `firmware/src/params.c` owns the `FAM_FX` page family and the `PAGES[]` table. Current FX pages are DRIVE, INSERT and INSERT 2. `page_t` supports four parameter IDs and one graph renderer.
-- `page_desc()` resolves ordinary page knobs to the selected track's stored parameters. A Marbles page must not pretend its controls are ordinary Rings parameters.
-- `firmware/src/ui_input.c:edit_param()` dispatches special graph types before ordinary parameter editing. A dedicated `GR_MARBLES` branch can edit the eight Marbles controls directly.
-- The main knob scan in `ui_input.c` already reads physical K1..K4 and calls `edit_param(k, s)`. The page therefore needs no separate hardware polling path; it needs a stable bank selector and a dedicated edit handler.
-- `firmware/src/ui_graph.c:draw_graph()` owns the graph panel and switches on `pg->graph`. A dedicated renderer belongs here; the existing `GR_FX` renderer is the Drive page visual and should not be repurposed.
-- `firmware/src/ui.c:page_visible()` is the visibility gate for pages and can keep the Marbles page visible only on the Rings part.
+- `firmware/src/params.c`: dedicated `GR_MARBLES` page in the Sequencer family, after AUTOMATION. Its control state is currently static runtime UI state; it is not persisted.
+- `firmware/src/ui_input.c`: K1–K4 edit the selected bank; OCT− selects CLOCK and OCT+ selects RANDOM.
+- `firmware/src/ui_graph.c`: dedicated compact CLOCK/RANDOM renderer. STEPS is shown as a step count.
+- `firmware/src/ui_help.c`: Marbles page help hint.
+- `firmware/src/marbles_control.h`: eight-control model, two banks and helper functions.
+- `firmware/src/marbles_engine.h`: deterministic, lightweight, control-rate event generator with bounded jitter, sequence memory/Deja Vu, pitch shaping and gate probability.
+- `tests/marbles_engine_test.c` and `tests/run_tests.sh`: host tests for the standalone generator. These do not establish firmware audio integration or target performance.
 
-## Existing gaps
+## Not implemented
 
-- There is no Marbles runtime state, generator, output routing or DSP consumer in `firmware/src`.
-- The official Mutable Instruments Eurorack repository is already declared as the `third_party/eurorack` submodule, but its Marbles module is not integrated into the FM-1 build or signal path.
-- There is no current page parameter descriptor or persistence mapping for RATE, JITTER, LENGTH, STEPS, DEJA VU, SPREAD, BIAS or t.
-- The current project format is frozen FUN10 at 3840 bytes. Its reserved tail is tightly accounted for: FM6 patches, MIDI channel metadata, project name and checksum occupy defined regions. Do not consume these bytes casually or change FUN10 size/checksum.
+- Official Mutable Instruments Marbles DSP port and upstream revision audit.
+- Clock/transport adapter, external-clock selection, event scheduler and gate/pulse duration routing.
+- Marbles-to-Rings pitch/strum/CV modulation routing.
+- Actual Rings DSP implementation in the live audio path; current generator output must not be routed into an unrelated legacy engine as a substitute.
+- RUN/enable interaction and explicit start/stop behaviour.
+- Versioned persistence for Marbles controls and modulation assignments.
+- Full FM-1 target validation of the latest UI and generator changes.
 
-## Required implementation sequence
+## Architecture constraints
 
-1. Add a dedicated FX-family Marbles page and `GR_MARBLES` graph type. It must be visible only while the Rings part is selected.
-2. Add a CLOCK / RANDOM bank state. Four physical knobs keep the same K1..K4 positions in either bank. Bank switching must not reset parameter values.
-3. Add a compact renderer in the graph panel: four legible knob arcs/cards, value readouts, RUN/HOLD, clock and output activity. Use existing palette tokens and canvas primitives; no new framebuffer.
-4. Port/integrate the official Marbles random generator under its upstream license and document the exact upstream revision. First establish its memory and CPU cost; do not claim Eurorack-identical behaviour until its algorithm and timing are validated.
-5. Add a host-testable FM-1 adapter for clock, random CV, trigger streams and output routing. Keep Marbles control-rate only: no third audio engine or voice allocation.
-6. Connect T1/T2/T3 independently to Rings trigger/strum and X/X1/X2/X3 to explicitly supported Rings modulation destinations.
-7. Define versioned persistence outside the frozen FUN10 byte layout. The existing FUN10 checksum and all historical import paths must remain unchanged. Until persistence is ready, do not imply settings survive project reload or power cycle.
-8. Add tests for all eight knob ranges and bank transitions, deterministic seeded output, jitter bounds, sequence memory/Deja Vu, steps, spread/bias, t gate probability, external-clock priority, independent T1/T2 routing, save/load migration and disabled-state silence.
+- The target live instrument has two parts: Rings (live part 1) and Drums (live part 2). The frozen FUN1..FUN10 project/protocol layout remains four tracks; legacy project Track 4 maps to live Drums part 2. Do not change `NPART`, `NTRK`, serialized layouts or checksum logic without completing the migration audit.
+- Marbles is a sequencer/modulation source for Rings, not an audio track or third voice engine.
+- Clouds is an optional/bypassable processor on Rings, not a separate track.
+- Keep the five Rings models, eight-string capacity and natural decay. Do not reduce sound quality to work around memory failures.
+- Do not consume FUN10 reserved bytes casually. Its 3840-byte size and checksum are frozen.
+- External clock must take priority when selected; RATE only controls internal clock. JITTER must remain bounded within the current step.
+- t controls Marbles gate probability; it must never randomly mute the Rings audio signal itself.
+- T1 and T2 must preserve independent trigger edges, including overlaps; a level-OR implementation is insufficient.
+- X1/X2 pitch offsets are summed with explicit bounded scaling. X3/Y modulation destinations, amount and polarity require defined mappings and persistence.
+- Keep all audio work bounded and allocation-free in the interrupt. Verify CPU2 enabled and unavailable.
 
-## Safety rails
+## Next implementation sequence
 
-- Never use retired track parameter IDs or reserved project bytes without a format audit.
-- Never route Marbles outputs to a third audio part.
-- Never let t randomly mute Rings audio.
-- External clock takes priority when selected; RATE only controls the internal clock.
-- JITTER must be bounded within its current step.
-- Keep Clouds independently bypassable.
-- Preserve old FUN1..FUN10 projects and existing Rings patterns.
-- Treat a successful host test as host validation only, not FM-1 hardware validation.
+1. Stabilise the current branch CI and confirm the UI regression tests and host generator tests pass.
+2. Complete a standalone host-testable clock/transport adapter with explicit RUN/STOP, external-clock priority, bounded jitter and pulse scheduling. Do not emit audio notes yet.
+3. Add tests for step count, repeatability, Deja Vu memory, pitch range, gate probability extremes, clock changes, pulse overlap and disabled silence.
+4. Complete the pinned upstream Rings source integration, then validate Rings alone against the FM-1 linker, RAM, POOL and CPU budgets. The current diagnostic profile has exceeded the app image and ordinary-RAM limits; resolve this with measured state/buffer savings, not reduced Rings fidelity.
+5. Only after Rings DSP is in the live path, connect Marbles events to its note/strummer and modulation inputs. Preserve keyboard, MIDI and ordinary sequencer note sources.
+6. Add versioned persistence outside the frozen FUN10 layout and migration tests.
+7. Validate host regression, target linker, CPU, Harbor/emulator and physical FM-1 separately. Never report emulator or host tests as hardware validation.
+
+## Current honest status
+
+The Marbles UI and standalone generator are partial implementation. They are not yet a working Marbles-to-Rings instrument. Rings/Clouds live audio integration and hardware validation remain incomplete.
