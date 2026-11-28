@@ -17,8 +17,13 @@
 #include "clouds/dsp/granular_processor.h"
 #include "clouds/dsp/frame.h"
 
-/* Definitions used only when the isolated compact Rings delay overlay is enabled. */
-namespace rings { uint64_t qn_saturation_count = 0; float qn_max_abs = 0.0f; }
+/* Delay-overlay diagnostics: keep both experimental formats linkable. */
+namespace rings {
+uint64_t qn_saturation_count = 0;
+float qn_max_abs = 0.0f;
+uint64_t q24_saturation_count = 0;
+float q24_max_abs = 0.0f;
+}
 
 extern "C" uint32_t ric_marbles_size_anchor(void);
 
