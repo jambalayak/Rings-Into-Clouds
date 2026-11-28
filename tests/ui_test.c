@@ -2788,7 +2788,7 @@ static int test_page_cycles(void)
     ok = 1;
     for (i = 0; i < NPAGES; i++) {                       /* every page in a family its button reaches, and its LED */
         uint32_t f = PAGES[i].fam;
-        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS;
+        ok &= f != FAM_SEQ || PAGES[i].graph == GR_ROLL || PAGES[i].graph == GR_EVENTS || PAGES[i].graph == GR_MARBLES;
         ok &= f != FAM_GLO || PAGES[i].graph == GR_SONG;   /* (1.2: GLO's only page) */
         ok &= f != FAM_TRK || PAGES[i].graph == GR_TRK || str_eq(PAGES[i].title, "CLOCK");   /* HOME's: MIXER CLOCK */
         ok &= PAGES[i].graph != GR_TRK || f == FAM_TRK;
@@ -2798,7 +2798,7 @@ static int test_page_cycles(void)
     }
     for (i = 0; i < NPAGES; i++)
         ok &= !str_eq(PAGES[i].title, "PATTERN") && !str_eq(PAGES[i].title, "CHANCE") && !str_eq(PAGES[i].title, "AUTO LIST");
-    bad += check("1.2: SEQ has STEP and AUTOMATION only; SONG is GLO's only page, PHRASES SAVE's, MIXER and CLOCK HOME's "
+    bad += check("SEQ has STEP, DETAIL, AUTOMATION and MARBLES; SONG is GLO's only page, PHRASES SAVE's, MIXER and CLOCK HOME's "
                  "(their LED HOME)", ok);
     {   /* 1.2: GLOBAL and SYSTEM are gone; their knobs: BPM SWG CLK on HOME > CLOCK, TUNE and ROUT on no page (the MENU's),
          * MIDI SYNC CPU on none (INFO shows the USB state and the CPU) */
@@ -6880,9 +6880,14 @@ static int test_seq_tools(void)
     ok &= str_eq(cur_page()->title, "STEP");
     press(B_SEQ); frames(320);
     press(B_SEQ); frames(320);
+    ok &= cur_page()->graph == GR_MARBLES;
+    press(B_SEQ); frames(320);
+    ok &= cur_page()->graph == GR_ROLL;
+    press(B_SEQ); frames(320);
+    ok &= cur_page()->graph == GR_ROLL && str_eq(cur_page()->title, "DETAIL");
+    press(B_SEQ); frames(320);
     ok &= cur_page()->graph == GR_EVENTS;
-    bad += check("1.2: a tap on STEP: DETAIL (1.5.1), AUTOMATION, then STEP again (three SEQ pages; the hint until the layer "
-                 "was opened)", ok);
+    bad += check("SEQ tap cycle: STEP, DETAIL, AUTOMATION, MARBLES, STEP, DETAIL, AUTOMATION", ok);
     go_title("ENV"); frame();
     press(B_SEQ); frames(320);
     ok = cur_page()->graph == GR_EVENTS;                /* (the SEQ page shown last) */
