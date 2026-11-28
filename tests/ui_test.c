@@ -7243,8 +7243,12 @@ static int test_layer_lock(void)
     btn_up(B_SEQ); frame();
     ok &= !ui.layer && !ui.lock && str_eq(cur_page()->title, "STEP");
     /* The final page also supports a direct peek without changing the selected page. */
-    ui.page = page_index(GR_MARBLES);
-    page_entered();
+    for (i = 0; i < NPAGES && PAGES[i].graph != GR_MARBLES; i++)
+        ;
+    if (i < NPAGES) {
+        ui.page = (uint8_t)i;
+        page_entered();
+    }
     btn_down(B_SEQ); frames(500);
     ok &= ui.layer == LAYER_SEQ && !ui.lock;
     btn_up(B_SEQ); frame();
