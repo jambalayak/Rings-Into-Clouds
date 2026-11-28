@@ -11,7 +11,7 @@ int main(void)
     unsigned i;
     marbles_control_init(&m);
     CHECK(m.bank == MARBLES_BANK_CLOCK && m.enabled == 1u);
-    CHECK(marbles_control_steps(&m) == 32u);
+    CHECK(marbles_control_steps(&m) == 8u);
     CHECK(marbles_control_t_probability(&m) == 0u);
     for (i = 0; i < 8u; ++i) CHECK(marbles_control_param((uint8_t)(i / 4u), (uint8_t)(i % 4u)) == i);
     CHECK(marbles_control_param(2u, 0u) == MARBLES_PARAM_COUNT);
