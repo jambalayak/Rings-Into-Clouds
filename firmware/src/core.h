@@ -9,9 +9,28 @@
 
 /* ------------------------------------------------------------ sizes --- */
 #define NVOICE 8                 /* voices per part, and the budget shared by all parts */
-#define NPART 4                  /* synth parts: tracks 1..4 */
-#define NTRK NPART               /* tracks (the formats and the protocol count these): every track is a part */
+#define NPART 4                  /* CURRENT legacy runtime count; retained until the two-part migration is complete */
+#define NTRK NPART               /* legacy project/protocol track count: frozen at four for FUN1..FUN10 */
+#define NPART_LIVE 2u            /* RINGS INTO CLOUDS target: Rings + Drums; do not use for serialized layouts */
+#define PROJ_TRACK_RINGS 0u      /* old project Track 1 -> live part 1 */
+#define PROJ_TRACK_DRUMS 3u      /* old project Track 4 -> live part 2 */
+#define LIVE_PART_RINGS 0u
+#define LIVE_PART_DRUMS 1u
 #define NSTEP 64
+
+/* Explicit bridge between the frozen four-track project layout and the intended two-part runtime.
+ * Keep NTRK/NPART unchanged until every runtime consumer has been migrated and tested. */
+static inline uint32_t live_project_track(uint32_t live_part)
+{
+    static const uint8_t map[NPART_LIVE] = {PROJ_TRACK_RINGS, PROJ_TRACK_DRUMS};
+    return live_part < NPART_LIVE ? map[live_part] : NTRK;
+}
+static inline uint32_t project_live_part(uint32_t project_track)
+{
+    return project_track == PROJ_TRACK_RINGS ? LIVE_PART_RINGS :
+           project_track == PROJ_TRACK_DRUMS ? LIVE_PART_DRUMS : NPART_LIVE;
+}
+_Static_assert(NTRK == 4u && NPART == 4u, "FUN1..FUN10 project layout remains four tracks");
 #define HALF_FRAMES 128          /* I2S half buffer: 2.9 ms at 44.1 kHz (a key waits 0..1 half, then plays 1 half later) */
 #ifndef FELUCCA_SLICE
 #define FELUCCA_SLICE 1          /* the SLICE engine (eng_slice.c), engine 13; FELUCCA_SLICE=0 builds without it */
