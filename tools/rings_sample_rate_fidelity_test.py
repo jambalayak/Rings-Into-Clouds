@@ -7,7 +7,7 @@ import pathlib
 import subprocess
 
 import numpy as np
-from scipy.signal import resample_poly
+from scipy.signal import resample_poly, welch, find_peaks
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EUR = ROOT / "third_party" / "eurorack"
@@ -93,6 +93,42 @@ def rms(x):
 def snr_db(ref, test):
     return 20.0 * math.log10(max(rms(ref), 1e-15) / max(rms(test - ref), 1e-15))
 
+def feature_metrics(reference, target):
+    """Compare resonant behaviour without requiring sample-perfect phase lock."""
+    result = {}
+    window = max(1, int(TARGET_RATE * 0.010))
+    for channel, label in enumerate(("out", "aux")):
+        r = reference[:, channel].astype(np.float64)
+        t = target[:, channel].astype(np.float64)
+        usable = min(len(r), len(t)) // window * window
+        re = np.sqrt(np.mean(r[:usable].reshape(-1, window) ** 2, axis=1))
+        te = np.sqrt(np.mean(t[:usable].reshape(-1, window) ** 2, axis=1))
+        corr = float(np.corrcoef(re, te)[0, 1]) if len(re) > 2 else 0.0
+        def t20(env):
+            if not len(env) or np.max(env) <= 1e-12:
+                return None
+            peak = int(np.argmax(env))
+            below = np.flatnonzero(env[peak:] <= np.max(env) * 0.1)
+            return float((below[0] * window) / TARGET_RATE) if len(below) else None
+        def peaks(x):
+            if len(x) < 32 or np.max(np.abs(x)) <= 1e-12:
+                return []
+            freq, power = welch(x, fs=TARGET_RATE, nperseg=min(8192, len(x)))
+            inds, _ = find_peaks(power)
+            inds = [int(i) for i in inds if freq[i] >= 20.0]
+            inds.sort(key=lambda i: power[i], reverse=True)
+            return [float(freq[i]) for i in inds[:5]]
+        rp, tp = peaks(r), peaks(t)
+        result[label] = {
+            "rms_ratio_target_to_reference": float(rms(t) / max(rms(r), 1e-12)),
+            "envelope_correlation_10ms": corr,
+            "reference_t20_seconds": t20(re),
+            "target_t20_seconds": t20(te),
+            "reference_top_peaks_hz": rp,
+            "target_top_peaks_hz": tp,
+        }
+    return result
+
 def load_segments(path):
     with open(path, newline="") as handle:
         return list(csv.DictReader(handle))
@@ -133,7 +169,7 @@ for sr, st in zip(ref_segments, target_segments):
         "snr_db": snr_db(converted, target),
         "rms_error": rms(target - converted),
         "reference_rms": rms(converted), "target_rms": rms(target),
-        "peak_error": float(np.max(np.abs(target - converted))),
+        "peak_error": float(np.max(np.abs(target - converted))),\n        "features": feature_metrics(converted, target),
     })
 
 per_model = []
@@ -153,7 +189,7 @@ summary = {
     "comparison": "original-float Rings 48 kHz reference resampled to FM-1 codec rate vs original-float Rings rendered at FM-1 codec rate",
     "cases": len(cases), "models": models, "per_model": per_model,
     "overall_snr_db": snr_db(np.concatenate(all_reference), np.concatenate(all_target)),
-    "note": "A rate-change characterization, not proof of hardware equivalence. The FM-1 rate is calculated from the current clock divider and still requires hardware measurement."
+    "note": "Waveform SNR is phase-sensitive and is not a perceptual pass/fail metric for resonant tails. Compare 10 ms RMS envelopes, decay T20, and dominant spectral peaks. The FM-1 rate is calculated from the current clock divider and still requires hardware measurement."
 }
 (OUT / "sample_rate_metrics.json").write_text(json.dumps(summary, indent=2) + "\n")
 (OUT / "sample_rate_cases.json").write_text(json.dumps(cases, indent=2) + "\n")
