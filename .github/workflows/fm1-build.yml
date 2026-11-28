@@ -5,6 +5,7 @@ on:
     branches:
       - rings-into-clouds-development
       - rings-single-rings-development
+      - rings-single-rings-oz-memory-exp
   workflow_dispatch:
 
 permissions:
