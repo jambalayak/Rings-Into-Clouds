@@ -40,7 +40,7 @@ Workflow 46113594758 added a coarser 100 ms RMS envelope correlation and a bound
 | FM Voice | 0.9707 / 0.5801 | 0.9846 / 0.7883 | 1.009 |
 | Quantized Sympathetic Strings | 0.8274 / -0.3054 | 0.8619 / -0.2960 | 1.042 |
 
-The coarser metric improves several beating-sensitive cases, but does not resolve the sympathetic-string outliers. Some best-lag searches hit the +/-500 ms boundary; those values are boundary-limited diagnostics, not measured onset offsets. The negative minimum correlations show that a single envelope-correlation score is not robust for all resonant/beating cases. Do not interpret the bounded best-lag metric as a pass/fail score. The next metric revision should explicitly flag boundary hits and compare per-case envelope trajectories and spectral evolution.
+The coarser metric improves several beating-sensitive cases, but does not resolve the sympathetic-string outliers. Some best-lag searches hit the +/-500 ms boundary; those values are boundary-limited diagnostics, not measured onset offsets. The negative minimum correlations show that a single envelope-correlation score is not robust for all resonant/beating cases. Do not interpret the bounded best-lag metric as a pass/fail score. The corrected five-second follow-up below supersedes the old boundary counts; the original 500 ms results are retained here as historical results.
 
 ## Packed-24 precision experiment
 
@@ -56,7 +56,7 @@ This is encouraging host-side precision evidence only. It does not establish tar
 
 This is a comparison of two sample rates using original floating-point Rings, not a hardware listening test. The aggregate waveform SNR is phase-sensitive and is not a perceptual pass/fail metric for resonant feedback systems. The calculated target rate remains unverified on physical FM-1 hardware.
 
-The 46113594758 workflow completed successfully as a diagnostic workflow and uploaded its artifact. Its full target-link diagnostic is not a successful firmware link: POOL is 389,920 B against 368,640 B, exceeding the region by 21,280 B; ordinary RAM .data+.bss is 65,336 B of 73,728 B, leaving 8,392 B. The diagnostic log also reports unresolved `rings::q24_max_abs` and `rings::q24_saturation_count` references in the target String object. These need resolving before any packed-24 target link can be considered valid. The diagnostic step is deliberately non-fatal to the experiment workflow.
+The 46113594758 run was an earlier diagnostic. The later corrected target link in workflow 46121592760 resolves the q24 counter symbols, but remains a failed firmware link diagnostic: POOL is 389,920 B against 368,640 B, exceeding the region by 21,280 B; ordinary RAM .data+.bss is 65,348 B of 73,728 B, leaving 8,380 B. The workflow is successful only because the diagnostic is intentionally non-fatal to the audio experiment.
 
 The Rings C ABI remains outside the live audio path. This experiment is not a playable firmware build.
 
@@ -68,3 +68,27 @@ The Rings C ABI remains outside the live audio path. This experiment is not a pl
 - Resolve the packed-24 target link symbols and POOL capacity without reducing the five models, eight-string bank, independent Rings instances or authentic decay.
 - Measure the physical FM-1 codec rate.
 - Keep all work experimental. Do not reduce the five models, eight-string bank, independent Rings instances or normal Clouds buffer to solve memory constraints.
+
+
+## Corrected five-second envelope-lag follow-up
+
+Workflow [46121592760](https://github.com/jambalayak/Rings-Into-Clouds/actions/runs/46121592760), commit `ed64c8bb7840d1c046d5cb9e0b35809e3faa9816`, corrected the lag-window calculation. The previous nominal five-second setting was unintentionally capped at approximately 1.1 seconds by a one-tenth-capture limit. The corrected implementation permits up to five seconds, while limiting the search to half of each coarse envelope capture. Short captures therefore have a smaller actual search window.
+
+Across 75 cases and two channels (150 channel comparisons), the 100 ms RMS-envelope correlation results are:
+
+| Model | OUT raw mean | OUT best-lag mean | AUX raw mean | AUX best-lag mean |
+|---|---:|---:|---:|---:|
+| Modal | 0.9997 | 0.9997 | 0.9997 | 0.9998 |
+| Sympathetic Strings | 0.8752 | 0.9223 | 0.8922 | 0.9208 |
+| String | 0.9909 | 0.9966 | 0.9911 | 0.9967 |
+| FM Voice | 0.9707 | 0.9957 | 0.9998 | 0.9998 |
+| Quantized Sympathetic Strings | 0.8274 | 0.9509 | 0.8384 | 0.9431 |
+| **All cases** | **0.9328** | **0.9730** | **0.9442** | **0.9721** |
+
+Three of the 75 AUX comparisons hit their available search boundary; no OUT comparisons did. The maximum search is approximately five seconds only for sufficiently long captures. These are best-offset correlations, not proof that the resonators have identical onset timing or sound. Large best offsets remain visible: the Quantized Sympathetic Strings note-84 long-decay case selected -1.700 s on OUT and -4.299 s on AUX. Its raw correlations were 0.9121 and 0.9148, improving to 0.9796 and 0.9466 after offset selection. That large channel-dependent offset should be investigated rather than normalized away.
+
+The corrected search improves the aggregate best-lag metric, but does not resolve the underlying model-specific rate sensitivity. Sympathetic Strings and Quantized Sympathetic Strings remain the weakest models in the unshifted envelope comparison. A per-case trajectory and spectral-evolution review is still required; a best-lag score must not be used as a pass/fail criterion.
+
+The separate packed signed-24 Q3.21 versus float comparison remains unchanged: 75 cases, 94.322 dB overall waveform SNR, 3.5754e-6 RMS error, zero delay saturation, and maximum absolute delay 2.60025. This is host-side precision evidence at the calculated target rate only.
+
+The target-link diagnostic in the same workflow reports image size 546,756 B, ordinary RAM .data+.bss 65,348 / 73,728 B (8,380 B free), and POOL 389,920 / 368,640 B (21,280 B overflow). Its Rings 2 sizing object remains a reduced two-string proxy, not the required full eight-string independent Rings instance. This is not a playable build and does not establish that the approved two-Rings-plus-Clouds configuration fits.
