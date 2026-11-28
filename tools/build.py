@@ -260,7 +260,9 @@ def build_app():
     link_args = ["-T", FW / "app.ld", "-Map", OUT / "felucca.map", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
                  *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", *dsp_objects, *dsp_libraries, "-o", elf]
     if RIC_LINK:
-        # Keep an ELF and map even when the deliberately full stock buffers exceed SRAM.
+        # Experimental: reclaim unused function/data sections from the DSP and app.
+        link_args.insert(0, "--gc-sections")
+        # Keep an ELF and map even when the diagnostic image exceeds a memory region.
         link_args.insert(0, "--noinhibit-exec")
     tc("pi32v2/bin/ld", *link_args, allow_memory_overflow=RIC_LINK)
     if RIC_LINK and (OUT / "felucca.map").is_file():
